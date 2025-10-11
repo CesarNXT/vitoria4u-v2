@@ -1,0 +1,360 @@
+{
+  "entities": {
+    "BusinessSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BusinessSettings",
+      "type": "object",
+      "description": "Configuration settings for a business.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the business settings document.",
+          "format": "uuid"
+        },
+        "nome": {
+          "type": "string",
+          "description": "Name of the business establishment."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "Contact phone number for the business."
+        },
+        "categoria": {
+          "type": "string",
+          "description": "Category of the business (e.g., 'SalaoDeBeleza')."
+        },
+        "whatsappConectado": {
+          "type": "boolean",
+          "description": "Indicates if WhatsApp is connected for the business."
+        },
+        "planId": {
+          "type": "string",
+          "description": "ID of the active subscription plan (e.g., 'plano_pro_mensal').",
+          "format": "uuid"
+        },
+        "access_expires_at": {
+          "type": "string",
+          "description": "Date and time when the user's access expires.",
+          "format": "date-time"
+        },
+        "mp": {
+          "type": "string",
+          "description": "Object containing data from the Mercado Pago subscription."
+        },
+        "horariosFuncionamento": {
+          "type": "string",
+          "description": "Object with the opening hours for each day of the week."
+        }
+      },
+      "required": [
+        "id",
+        "nome",
+        "telefone",
+        "categoria",
+        "whatsappConectado",
+        "planId",
+        "access_expires_at",
+        "mp",
+        "horariosFuncionamento"
+      ]
+    },
+    "Appointment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Appointment",
+      "type": "object",
+      "description": "Represents an appointment.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the appointment.",
+          "format": "uuid"
+        },
+        "clienteId": {
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N Appointment)"
+        },
+        "servicoId": {
+          "type": "string",
+          "description": "Reference to Servico. (Relationship: Servico 1:N Appointment)"
+        },
+        "profissionalId": {
+          "type": "string",
+          "description": "Reference to Professional. (Relationship: Professional 1:N Appointment)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the appointment.",
+          "format": "date-time"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time of the appointment (e.g., '10:30')."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the appointment ('Agendado', 'Finalizado' or 'Cancelado')."
+        }
+      },
+      "required": [
+        "id",
+        "clienteId",
+        "servicoId",
+        "profissionalId",
+        "date",
+        "startTime",
+        "status"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the customer.",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the customer."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the customer."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the customer ('Ativo' or 'Inativo').",
+          "enum": ["Ativo", "Inativo"]
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL of the customer's profile picture.",
+          "format": "uri"
+        },
+        "birthDate": {
+          "type": "string",
+          "description": "Date of birth.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "phone",
+        "status",
+        "avatarUrl",
+        "birthDate"
+      ]
+    },
+    "Plan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Plan",
+      "type": "object",
+      "description": "Represents a subscription plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the plan (e.g., 'plano_pro_mensal').",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the plan (e.g., 'Pro')."
+        },
+        "price": {
+          "type": "number",
+          "description": "Monthly price of the plan."
+        },
+        "features": {
+          "type": "array",
+          "description": "List of features included in the plan.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "features"
+      ]
+    },
+    "Servico": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Servico",
+      "type": "object",
+      "description": "Represents a service.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the service.",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the service."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the service."
+        },
+        "duration": {
+          "type": "number",
+          "description": "Duration in minutes."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "duration"
+      ]
+    },
+    "Professional": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Professional",
+      "type": "object",
+      "description": "Represents a professional.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the professional.",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the professional."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique identifier for the user.",
+          "format": "uuid"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user ('admin' or 'business')."
+        },
+        "businessSettingsId": {
+          "type": "string",
+          "description": "Reference to BusinessSettings. (Relationship: BusinessSettings 1:1 User)"
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "name",
+        "role",
+        "businessSettingsId"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/negocios/{negocioId}",
+        "definition": {
+          "entityName": "BusinessSettings",
+          "schema": {
+            "$ref": "#/backend/entities/BusinessSettings"
+          },
+          "description": "Stores configuration settings for each business. Includes subscription plan details and business information.",
+          "params": [
+            {
+              "name": "negocioId",
+              "description": "The unique identifier for the business settings document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/negocios/{negocioId}/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Stores customer data for a specific business.",
+          "params": [
+            {
+              "name": "negocioId",
+              "description": "The unique identifier for the business settings document."
+            },
+            {
+              "name": "customerId",
+              "description": "The unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/negocios/{negocioId}/appointments/{appointmentId}",
+        "definition": {
+          "entityName": "Appointment",
+          "schema": {
+            "$ref": "#/backend/entities/Appointment"
+          },
+          "description": "Stores appointment data for a specific business.",
+          "params": [
+            {
+              "name": "negocioId",
+              "description": "The unique identifier for the business settings document."
+            },
+            {
+              "name": "appointmentId",
+              "description": "The unique identifier for the appointment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/plans/{planId}",
+        "definition": {
+          "entityName": "Plan",
+          "schema": {
+            "$ref": "#/backend/entities/Plan"
+          },
+          "description": "Stores global subscription plan data, accessible to admin users.",
+          "params": [
+            {
+              "name": "planId",
+              "description": "The unique identifier for the subscription plan."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore structure prioritizes authorization independence and efficient data retrieval for the FireBoard application. It leverages structural segregation to separate data based on access needs and denormalization to avoid complex security rules.\\n\\n1.  **Users Collection:** Stores user authentication information and roles. It segregates user-related data from business-specific data, simplifying access control.  The `businessSettingsId` enables a direct lookup of the business settings. The user's role (`admin` or `business`) is crucial for role-based access control in the application, determining which dashboard and features are accessible.\\n\\n2.  **negocios Collection:** Contains configuration settings specific to each business.  This is separated from Users to allow independent management of business configurations and user accounts.  The `planId` references a specific plan, enabling features and access based on the active plan.\\n\\n3.  **Plans Collection:**  Stores global plan information.  The `admin` role needs access to this for management.  There is no user-specific data here so we can keep it in a global collection.\\n\\n4.  **Customers Subcollection:** Under each `negocios` document, a `customers` subcollection stores customer data.  This ensures that customer data is scoped to the specific business. By storing customers as a subcollection of the business, we automatically scope the access.\\n\\n5.  **Appointments Subcollection:** Similar to customers, appointments are stored as a subcollection under each `negocios` document.  This scopes appointments to the business and allows for efficient querying of appointments related to a specific business.\\n\\n**Authorization Independence and QAPs:**\\n*   Authorization Independence is achieved by storing the `businessSettingsId` on the user. There is also no use of `get()` calls in security rules. Instead, access control is based on direct path-based ownership (`/users/{userId}`) and role-based checks, enhancing security and scalability.\\n*   QAPs (Rules are not Filters) are supported by segregating data into collections and subcollections with homogeneous security postures. List operations are secured by limiting access to specific collections based on the user's role and the relationships between documents. For example, listing appointments is restricted to the appointments subcollection of a specific business, preventing unauthorized access to appointments from other businesses. The structure also facilitates secure `list` operations by enforcing that all documents in a collection or subcollection share the same security requirements."
+  }
+}
+    

@@ -1,0 +1,164 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  overflow-x: hidden;
+}
+
+@layer base {
+  :root {
+    --background: 240 10% 98%; /* Lighter gray, almost white */
+    --foreground: 224 71.4% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 326 91% 60%; /* Vibrant Pink */
+    --primary-foreground: 210 20% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 262 80% 60%; /* Vibrant Purple */
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 326 91% 60%;
+    --radius: 1rem;
+    --chart-1: 326 91% 60%;
+    --chart-2: 262 80% 60%;
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-ring: 215 20.2% 65.1%;
+  }
+
+  .dark {
+    --background: 240 5% 2%;
+    --foreground: 210 20% 98%;
+    --card: 240 4% 12%;
+    --card-foreground: 210 20% 98%;
+    --popover: 240 4% 12%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 326 91% 60%; /* Vibrant Pink */
+    --primary-foreground: 210 20% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 262 80% 60%; /* Vibrant Purple */
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 217.2 32.6% 25.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 326 91% 60%;
+    --radius: 1rem;
+    --chart-1: 326 91% 60%;
+    --chart-2: 262 80% 60%;
+    --sidebar-background: 224 71.4% 4.1%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-accent: 217.2 32.6% 25.5%;
+    --sidebar-accent-foreground: 262 52% 82%;
+    --sidebar-ring: 262 52% 82%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-attachment: fixed;
+  }
+
+  .dark body, body.dark {
+    background:
+      radial-gradient(ellipse 80% 80% at 50% -20%, hsl(var(--primary) / 0.1), transparent),
+      radial-gradient(ellipse 80% 80% at 10% 110%, hsl(var(--accent) / 0.1), transparent),
+      radial-gradient(ellipse 80% 80% at 90% 110%, hsl(var(--primary) / 0.1), transparent),
+      hsl(var(--background));
+  }
+
+  body:not(.dark) {
+    background:
+      radial-gradient(ellipse 80% 80% at 50% -20%, hsl(var(--primary) / 0.08), transparent),
+      radial-gradient(ellipse 80% 80% at 10% 110%, hsl(var(--accent) / 0.08), transparent),
+      radial-gradient(ellipse 80% 80% at 90% 110%, hsl(var(--primary) / 0.08), transparent),
+      hsl(var(--background));
+  }
+}
+
+@layer utilities {
+    @keyframes fade-in-up {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-fade-in-up {
+        animation: fade-in-up 0.5s ease-out forwards;
+    }
+    
+    @keyframes blob-move {
+      0% {
+        transform: scale(1) translate(0px, 0px);
+      }
+      33% {
+        transform: scale(1.1) translate(30px, -50px);
+      }
+      66% {
+        transform: scale(0.9) translate(-20px, 20px);
+      }
+      100% {
+        transform: scale(1) translate(0px, 0px);
+      }
+    }
+
+    .animate-blob-move {
+        animation: blob-move 7s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-whatsapp {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 15px rgba(37, 211, 102, 0);
+        }
+    }
+
+    .animate-pulse-whatsapp {
+        animation: pulse-whatsapp 2s infinite;
+    }
+
+    @keyframes pulse-gradient {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+    }
+
+    .animate-pulse-gradient {
+        animation: pulse-gradient 2.5s infinite;
+    }
+}
