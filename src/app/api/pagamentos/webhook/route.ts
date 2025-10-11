@@ -1,7 +1,8 @@
 import { MercadoPagoConfig, MerchantOrder, PreApproval, Payment } from 'mercadopago';
 import { NextResponse } from 'next/server';
-import { doc, updateDoc, serverTimestamp, addDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, addDoc, collection, getDocs, getDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-server';
+import type { Plano } from '@/lib/types'; // Importa o tipo Plano
 import crypto from 'crypto';
 
 const client = new MercadoPagoConfig({
@@ -58,8 +59,60 @@ export async function POST(request: Request) {
   });
 
   try {
-    // Tratar webhooks de assinatura (preapproval)
-    if (type === 'preapproval' || type === 'subscription_preapproval') {
+    // NOVO: Tratar webhooks de pagamento único (Checkout Pro)
+    if (type === 'payment') {
+        console.log('Processando webhook de pagamento único com ID:', dataId);
+        const payment = new Payment(client);
+        const paymentData = await payment.get({ id: dataId });
+
+        console.log('Dados do pagamento recebido:', { 
+            id: paymentData.id, 
+            status: paymentData.status, 
+            external_reference: paymentData.external_reference,
+            order_id: paymentData.order?.id
+        });
+
+        // Apenas processa se o pagamento foi aprovado
+        if (paymentData.status === 'approved') {
+            const userId = paymentData.external_reference;
+            // Corrige o acesso aos itens do carrinho e o tipo
+            const planId = (paymentData.additional_info as any)?.items?.[0]?.id;
+
+            if (userId && planId) {
+                const userDocRef = doc(firestore, 'negocios', userId);
+                const planDocRef = doc(firestore, 'planos', planId);
+
+                const [userDoc, planDoc] = await Promise.all([getDoc(userDocRef), getDoc(planDocRef)]);
+
+                if (userDoc.exists() && planDoc.exists()) {
+                    const planData = planDoc.data() as Plano;
+                    const durationInDays = planData.durationInDays || 30; // Fallback para 30 dias
+
+                    const accessExpiresAt = new Date();
+                    accessExpiresAt.setDate(accessExpiresAt.getDate() + durationInDays);
+
+                    await updateDoc(userDocRef, {
+                        planId: planId, // Garante que o planId do usuário está atualizado
+                        mp: { 
+                            lastPaymentId: paymentData.id,
+                            lastPaymentStatus: paymentData.status,
+                            paymentMethod: paymentData.payment_method_id,
+                            paymentType: paymentData.payment_type_id,
+                        },
+                        access_expires_at: accessExpiresAt,
+                    });
+                    console.log(`Acesso liberado para o usuário ${userId} por ${durationInDays} dias, até ${accessExpiresAt.toISOString()}`);
+                } else {
+                    if (!userDoc.exists()) console.error(`Usuário com ID ${userId} não encontrado no Firestore.`);
+                    if (!planDoc.exists()) console.error(`Plano com ID ${planId} não encontrado no Firestore.`);
+                }
+            } else {
+                console.error('Pagamento aprovado, mas sem external_reference (userId) ou ID do plano.');
+            }
+        }
+    }
+    // Tratar webhooks de assinatura (preapproval) - LÓGICA ANTIGA
+    else if (type === 'preapproval' || type === 'subscription_preapproval') {
         console.log('Processando webhook de assinatura com ID:', dataId);
         const preapproval = new PreApproval(client);
         const subscription = await preapproval.get({ id: dataId });

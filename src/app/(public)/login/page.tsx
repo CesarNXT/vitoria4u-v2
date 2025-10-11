@@ -22,9 +22,8 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, se
 import { doc, getDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { ConfiguracoesNegocio } from '@/lib/types';
-import { getSystemConfig } from '@/lib/firestore';
 import { useToast } from "@/hooks/use-toast"
-import { addDays } from 'date-fns';
+import { createUserBusinessProfile } from '../signup/actions';
 import { Separator } from "@/components/ui/separator"
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -117,23 +116,8 @@ function LoginPageContent() {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const newUser = userCredential.user;
                 
-                // Buscar configurações do sistema para período de teste
-                const systemConfig = await getSystemConfig();
-                const trialEndDate = systemConfig.trial.enabled 
-                    ? addDays(new Date(), systemConfig.trial.days)
-                    : new Date(); // Se teste desabilitado, expira imediatamente
-
-                const newBusinessData: Partial<ConfiguracoesNegocio> = {
-                    nome: '', // Ensure name is empty to trigger setup
-                    email: newUser.email || undefined,
-                    createdAt: new Date(), 
-                    planId: systemConfig.trial.enabled ? systemConfig.trial.planId : 'plano_gratis',
-                    whatsappConectado: false,
-                    access_expires_at: trialEndDate,
-                };
-
-                const businessDocRef = doc(firestore, `negocios/${newUser.uid}`);
-                await setDocumentNonBlocking(businessDocRef, newBusinessData, { merge: true });
+                // Chama a Server Action para criar o perfil do negócio no backend
+                await createUserBusinessProfile(newUser.uid, newUser.email || '', newUser.displayName || 'Novo Usuário');
 
                 toast({ title: "Conta criada com sucesso!", description: "Você será redirecionado para a configuração inicial." });
                 router.push('/configuracoes');
@@ -156,23 +140,8 @@ function LoginPageContent() {
             const additionalInfo = getAdditionalUserInfo(result);
 
             if (additionalInfo?.isNewUser) {
-                // Buscar configurações do sistema para período de teste
-                const systemConfig = await getSystemConfig();
-                const trialEndDate = systemConfig.trial.enabled 
-                    ? addDays(new Date(), systemConfig.trial.days)
-                    : new Date(); // Se teste desabilitado, expira imediatamente
-                    
-                // CRITICAL: Create the business document WITHOUT a name to force setup.
-                const newBusinessData: Partial<ConfiguracoesNegocio> = {
-                    nome: '', // Explicitly set to empty to trigger setup flow
-                    email: user.email || undefined,
-                    createdAt: new Date(),
-                    planId: systemConfig.trial.enabled ? systemConfig.trial.planId : 'plano_gratis',
-                    whatsappConectado: false,
-                    access_expires_at: trialEndDate,
-                };
-                const businessDocRef = doc(firestore, `negocios/${user.uid}`);
-                await setDocumentNonBlocking(businessDocRef, newBusinessData, { merge: true });
+                // Chama a Server Action para criar o perfil do negócio no backend
+                await createUserBusinessProfile(user.uid, user.email || '', user.displayName || 'Novo Usuário');
                 toast({ title: "Conta criada com sucesso!", description: "Vamos começar com algumas configurações." });
                 router.push('/configuracoes');
                 // Mantém loading até a navegação ser concluída

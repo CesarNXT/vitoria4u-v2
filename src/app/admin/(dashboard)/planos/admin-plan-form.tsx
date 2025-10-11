@@ -93,17 +93,18 @@ export function AdminPlanForm({ plan, onSave, onCancel }: AdminPlanFormProps) {
           </div>
           
           <div className="grid gap-2">
-            <Label htmlFor="mercadoPagoId">ID do Plano no Mercado Pago</Label>
+            <Label htmlFor="durationInDays">Duração do Acesso (dias)</Label>
             <Input 
-              id="mercadoPagoId" 
-              name="mercadoPagoId" 
-              value={formData.mercadoPagoId || ''} 
+              id="durationInDays" 
+              name="durationInDays" 
+              type="number" 
+              min="1" 
+              value={formData.durationInDays || 30} 
               onChange={handleInputChange} 
-              placeholder="Ex: 2c93808493385a83019338cee1234567"
-              className="font-mono text-sm"
+              required 
             />
             <p className="text-xs text-muted-foreground">
-              ID do preapproval_plan criado no Mercado Pago. Deixe vazio para plano gratuito.
+              Quantos dias de acesso o cliente ganha ao comprar este plano (ex: 30 para mensal, 365 para anual).
             </p>
           </div>
           

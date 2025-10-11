@@ -47,7 +47,7 @@ export default function LandingPage() {
                 id: doc.id,
                 ...doc.data(),
             }) as Plano)
-            .filter(plan => plan.id !== 'plano_gratis') // Não mostrar plano gratuito (é um estado, não plano)
+            .filter(plan => plan.id !== 'plano_gratis' && plan.id !== 'plano_expirado') // Não mostrar planos internos
             .sort((a, b) => a.price - b.price);
         setPlans(plansData);
         setIsLoading(false);

@@ -10,7 +10,6 @@ import { collection, onSnapshot } from 'firebase/firestore'
 import { AdminStatsCards } from '../admin-stats-cards'
 import { AdminGrowthChart, AdminSalesChart } from '../admin-growth-chart'
 import { DataTable } from '@/components/data-table'
-import { getAdminBusinessesColumns } from '../admin-businesses-columns'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { isFuture, differenceInDays } from 'date-fns'
@@ -85,24 +84,6 @@ export default function AdminDashboardPage() {
         <AdminSalesChart businesses={businesses} />
       </div>
 
-       <Card>
-        <CardHeader>
-          <CardTitle>Planos Expirando em Breve (Próximos 15 dias)</CardTitle>
-          <CardDescription>
-            Clientes que precisam de atenção para renovação.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={getAdminBusinessesColumns({ onEdit: () => {}, onAccessPanel: handleAccessPanel })}
-            data={expiringSoonBusinesses}
-            filterColumn={{
-              id: "nome",
-              placeholder: "Filtrar por nome...",
-            }}
-          />
-        </CardContent>
-      </Card>
     </div>
   )
 }

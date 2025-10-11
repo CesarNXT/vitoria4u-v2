@@ -35,6 +35,14 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const { setOpenMobile } = useSidebar();
 
   useEffect(() => {
+    if (!isUserLoading && user) {
+      if (!isAdminUser(user.email)) {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, isUserLoading, router]);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
 
@@ -48,6 +56,9 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
         router.push('/admin'); // Redirect to admin login if not authenticated
       } else if (!isAdmin) {
         router.push('/dashboard'); // Redirect to normal dashboard if not admin
+      } else {
+        // O usuário é um administrador logado.
+        // A lógica de criação de planos foi removida daqui.
       }
     }
   }, [isUserLoading, typedUser, isAdmin, router, pathname]);
@@ -69,7 +80,6 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const menuItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/admin/negocios', label: 'Negócios', icon: Users },
     { href: '/admin/planos', label: 'Planos', icon: Gem },
     { href: '/admin/configuracoes', label: 'Configurações', icon: Settings },
   ];

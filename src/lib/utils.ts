@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
+// A importação do adminDb foi removida daqui para o arquivo server-utils.ts para corrigir o erro de compilação.
 import { twMerge } from "tailwind-merge"
 import type { ConfiguracoesNegocio, PlanFeature, Plano, HorarioSlot, Profissional, Servico, Agendamento, DataBloqueada, HorarioTrabalho } from "./types"
 import { isFuture, differenceInDays, getDay, isWithinInterval as isWithinFnsInterval } from 'date-fns';
@@ -97,53 +98,7 @@ export const CORE_FEATURES = {
  * 
  * IMPORTANTE: Para features dinâmicas (do Firestore), use hasFeatureAccessAsync
  */
-export const hasFeatureAccess = (
-  business: ConfiguracoesNegocio | null | undefined,
-  feature: PlanFeature
-): boolean => {
-  if (!business) return false;
-  
-  // Verificar se o plano está ativo (não expirado)
-  const hasValidAccess = business.access_expires_at ? isFuture(new Date(business.access_expires_at)) : false;
-  const planName = business.planId || '';
-  
-  // Se plano expirado ou é plano_gratis, usar apenas features básicas
-  if (!hasValidAccess || planName === 'plano_gratis') {
-    // Features disponíveis no plano gratuito/expirado
-    const freePlanFeatures: PlanFeature[] = [
-      'notificacao_gestor_agendamento', // Webhook via número oficial Vitoria
-    ];
-    return freePlanFeatures.includes(feature);
-  }
-  
-  // Plano ativo: verificar campos de habilitação
-  const featureMap: Record<PlanFeature, boolean | undefined> = {
-    'lembrete_24h': business.habilitarLembrete24h,
-    'lembrete_2h': business.habilitarLembrete2h,
-    'feedback_pos_atendimento': business.habilitarFeedback,
-    'lembrete_aniversario': false, // TODO: adicionar campo no type
-    'lembrete_profissional': false, // TODO: adicionar campo no type
-    'disparo_de_mensagens': false, // Verificado via planId (abaixo)
-    'retorno_manutencao': false, // TODO: adicionar campo no type
-    'notificacao_gestor_agendamento': true, // Sempre disponível em planos ativos
-    'atendimento_whatsapp_ia': false, // TODO: adicionar campo no type
-    'atendimento_manual_ou_automatizado': false, // TODO: adicionar campo no type
-  };
-  
-  // Se o campo de habilitação existe e está true, usa ele
-  const featureEnabled = featureMap[feature];
-  if (featureEnabled === true) {
-    return true;
-  }
-  
-  // Fallback: verificar por nome do plano (HARDCODED - compatibilidade temporária)
-  // Disparo de mensagens só em planos Profissional e Premium
-  if (feature === 'disparo_de_mensagens') {
-    return planName === 'Plano Profissional' || planName === 'Plano Premium';
-  }
-  
-  return false;
-};
+// A função hasFeatureAccess foi removida para dar lugar à checkFeatureAccess, que busca os dados do plano dinamicamente.
 
 export const formatPhoneNumber = (phone: string | null | undefined): string => {
   if (!phone) return '';

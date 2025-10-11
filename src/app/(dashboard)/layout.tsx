@@ -78,53 +78,56 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const { data: settings, isLoading: isSettingsLoading } = useDoc<ConfiguracoesNegocio>(businessSettingsRef);
   
-  useEffect(() => {
-    if (!isUserLoading) {
-      if(!typedUser) {
-        router.push('/login');
-      } else if (isAdmin && !impersonatedId) {
-        // Allow admin to stay if they are not impersonating
-        // but they should be on an admin page. Redirect if they land here.
-        router.push('/admin/dashboard');
-      }
-    }
-  }, [isUserLoading, typedUser, isAdmin, router, impersonatedId]);
+  // O useEffect antigo foi removido, pois a lógica foi unificada no useEffect abaixo.
   
   useEffect(() => {
-      // If a regular business user (not impersonated) has not completed setup, redirect them
-      const isBusinessUser = typedUser && !isAdmin;
-      if (isBusinessUser && !impersonatedId && !isSettingsLoading && settings && !settings.nome && pathname !== '/configuracoes') {
-          router.push('/configuracoes');
-      }
-  }, [typedUser, isAdmin, isSettingsLoading, settings, router, pathname, impersonatedId]);
+    // Protege o acesso e força a configuração inicial
+    if (isUserLoading || isSettingsLoading) return; // Aguarda o carregamento de tudo
+
+    const isBusinessUser = typedUser && !isAdmin;
+
+    if (!typedUser) {
+      router.push('/login');
+      return;
+    }
+
+    if (isAdmin && !impersonatedId) {
+      router.push('/admin/dashboard');
+      return;
+    }
+
+    // Força o redirecionamento para a configuração se o nome do negócio não estiver definido
+    if (isBusinessUser && !impersonatedId && settings && !settings.nome && pathname !== '/configuracoes') {
+      router.push('/configuracoes');
+    }
+  }, [isUserLoading, isSettingsLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
   const isLoading = isUserLoading || (businessUserId && isSettingsLoading);
-  
-  if (isLoading) {
+
+  // Estado de loading principal
+  if (isLoading || !typedUser || (isAdmin && !impersonatedId && pathname !== '/admin/dashboard')) {
     return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="size-8 animate-spin" />
         </div>
     )
   }
-  
-  if (!typedUser || (isAdmin && !impersonatedId)) {
-      return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="size-8 animate-spin" />
-            </div>
-        );
-  }
-  
-  const isBusinessUser = typedUser && !isAdmin;
-  // This is the critical check. If the settings are loaded, but the business name is missing, force redirect.
-  if (isBusinessUser && !impersonatedId && !isSettingsLoading && settings && !settings.nome && pathname !== '/configuracoes') {
-     return (
-        <div className="flex h-screen items-center justify-center">
-             <p className="p-4 text-center">Carregando configurações... Se demorar, <Link href="/configuracoes" className="underline">clique aqui</Link>.</p>
-            <Loader2 className="size-8 animate-spin" />
-        </div>
-      );
+
+  // Estado de configuração forçada (sem sidebar)
+  const needsSetup = typedUser && !isAdmin && !impersonatedId && settings && !settings.nome;
+  if (needsSetup) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-muted/40">
+        <main className="w-full max-w-4xl p-4">
+          {React.Children.map(children, child => {
+              if (React.isValidElement(child)) {
+                  return React.cloneElement(child, { businessUserId } as any);
+              }
+              return child;
+          })}
+        </main>
+      </div>
+    );
   }
 
 

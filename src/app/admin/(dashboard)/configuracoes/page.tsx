@@ -49,7 +49,7 @@ export default function ConfiguracoesPage() {
         const plansSnapshot = await getDocs(collection(firestore, 'planos'));
         const plansData = plansSnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Plano))
-          .filter(plan => plan.id !== 'plano_gratis')
+          .filter(plan => plan.id !== 'plano_gratis' && plan.id !== 'plano_expirado' && plan.price > 0)
           .sort((a, b) => a.price - b.price);
         setPlans(plansData);
 

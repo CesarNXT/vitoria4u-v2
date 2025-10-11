@@ -1,7 +1,8 @@
 "use server";
 
-import type { Agendamento, ConfiguracoesNegocio } from "@/lib/types";
+import type { Agendamento, ConfiguracoesNegocio, Plano, PlanFeature } from "@/lib/types";
 import { add, format, parse, isDate } from 'date-fns';
+import { adminDb } from "@/lib/firebase-admin";
 
 const N8N_BASE_URL = "https://n8n.vitoria4u.site/webhook/";
 
@@ -77,7 +78,10 @@ async function sendProfessionalNotification(
     appointment: Agendamento,
     status: 'Novo Agendamento' | 'Agendamento Cancelado'
 ) {
-    if (!businessSettings.whatsappConectado || !appointment.profissional.phone || businessSettings.planId === 'plano_gratis') {
+    if (!businessSettings.whatsappConectado) return;
+
+    const hasAccess = await checkFeatureAccess(businessSettings, 'lembrete_profissional');
+    if (!hasAccess || !appointment.profissional.phone) {
         return;
     }
 
@@ -113,39 +117,39 @@ export async function sendCreationHooks(
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
     const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
     
+    // Notificação de novo agendamento (para o gestor) - SEMPRE ENVIA
     await callWebhook(WEBHOOK_URLS.novoAgendamento, {
         telefoneEmpresa: businessSettings.telefone,
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
     });
-    
-    if (businessSettings.whatsappConectado && businessSettings.planId !== 'plano_gratis') {
-        await sendProfessionalNotification(businessSettings, appointment, 'Novo Agendamento');
-        
-        const reminderPayload = {
-            tokenInstancia: businessSettings.tokenInstancia,
-            nomeCliente: appointment.cliente.name,
-            nomeServico: appointment.servico.name,
-            instancia: businessSettings.id,
-            telefoneCliente: appointment.cliente.phone,
-            idCliente: appointment.cliente.id,
-            startTime: appointment.startTime,
-            idAgendamento: appointment.id,
-            dataHoraAtendimento: dataHoraAtendimento,
-            horarioEnvio: format(appointmentDateTime, "yyyy-MM-dd HH:mm:ss")
-        };
 
-        if (businessSettings.habilitarLembrete24h) {
-            if (appointmentDateTime > add(new Date(), { hours: 21 })) {
-                 await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload);
-            }
+    // Lembretes e notificação ao profissional (automações pagas)
+    await sendProfessionalNotification(businessSettings, appointment, 'Novo Agendamento');
+    
+    const reminderPayload = {
+        tokenInstancia: businessSettings.tokenInstancia,
+        nomeCliente: appointment.cliente.name,
+        nomeServico: appointment.servico.name,
+        instancia: businessSettings.id,
+        telefoneCliente: appointment.cliente.phone,
+        idCliente: appointment.cliente.id,
+        startTime: appointment.startTime,
+        idAgendamento: appointment.id,
+        dataHoraAtendimento: dataHoraAtendimento,
+        horarioEnvio: format(appointmentDateTime, "yyyy-MM-dd HH:mm:ss")
+    };
+
+    if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_24h')) {
+        if (appointmentDateTime > add(new Date(), { hours: 21 })) {
+             await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload);
         }
-        
-        if (businessSettings.habilitarLembrete2h) {
-            if (appointmentDateTime > add(new Date(), { hours: 1 })) {
-                await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload);
-            }
+    }
+    
+    if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_2h')) {
+        if (appointmentDateTime > add(new Date(), { hours: 1 })) {
+            await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload);
         }
     }
 }
@@ -158,39 +162,37 @@ export async function sendReminderHooksOnly(
     businessSettings: ConfiguracoesNegocio,
     appointment: Agendamento
 ): Promise<void> {
-    if (businessSettings.whatsappConectado && businessSettings.planId !== 'plano_gratis') {
-        const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
-        const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
-        
-        const reminderPayload = {
-            tokenInstancia: businessSettings.tokenInstancia,
-            nomeCliente: appointment.cliente.name,
-            nomeServico: appointment.servico.name,
-            instancia: businessSettings.id,
-            telefoneCliente: appointment.cliente.phone,
-            idCliente: appointment.cliente.id,
-            startTime: appointment.startTime,
-            idAgendamento: appointment.id,
-            dataHoraAtendimento: dataHoraAtendimento,
-            horarioEnvio: format(appointmentDateTime, "yyyy-MM-dd HH:mm:ss")
-        };
+    const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
+    const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
+    
+    const reminderPayload = {
+        tokenInstancia: businessSettings.tokenInstancia,
+        nomeCliente: appointment.cliente.name,
+        nomeServico: appointment.servico.name,
+        instancia: businessSettings.id,
+        telefoneCliente: appointment.cliente.phone,
+        idCliente: appointment.cliente.id,
+        startTime: appointment.startTime,
+        idAgendamento: appointment.id,
+        dataHoraAtendimento: dataHoraAtendimento,
+        horarioEnvio: format(appointmentDateTime, "yyyy-MM-dd HH:mm:ss")
+    };
 
-        if (businessSettings.habilitarLembrete24h) {
-            if (appointmentDateTime > add(new Date(), { hours: 21 })) {
-                console.log('📅 Enviando lembrete 24h (agendamento editado)...');
-                await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload);
-            } else {
-                console.log('⏰ Lembrete 24h não enviado - agendamento em menos de 21 horas');
-            }
+    if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_24h')) {
+        if (appointmentDateTime > add(new Date(), { hours: 21 })) {
+            console.log(' Enviando lembrete 24h (agendamento editado)...');
+            await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload);
+        } else {
+            console.log(' Lembrete 24h não enviado - agendamento em menos de 21 horas');
         }
-        
-        if (businessSettings.habilitarLembrete2h) {
-            if (appointmentDateTime > add(new Date(), { hours: 1 })) {
-                console.log('📅 Enviando lembrete 2h (agendamento editado)...');
-                await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload);
-            } else {
-                console.log('⏰ Lembrete 2h não enviado - agendamento em menos de 1 hora');
-            }
+    }
+    
+    if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_2h')) {
+        if (appointmentDateTime > add(new Date(), { hours: 1 })) {
+            console.log(' Enviando lembrete 2h (agendamento editado)...');
+            await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload);
+        } else {
+            console.log(' Lembrete 2h não enviado - agendamento em menos de 1 hora');
         }
     }
 }
@@ -199,8 +201,7 @@ export async function sendCompletionHooks(
     businessSettings: ConfiguracoesNegocio,
     appointment: Agendamento
 ): Promise<void> {
-
-    if (businessSettings.whatsappConectado && businessSettings.planId !== 'plano_gratis') {
+    if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'feedback_pos_atendimento')) {
         if (businessSettings.habilitarFeedback && businessSettings.feedbackLink) {
             await callWebhook(WEBHOOK_URLS.solicitacaoFeedback, {
                 tokenInstancia: businessSettings.tokenInstancia,
@@ -224,6 +225,7 @@ export async function sendCancellationHooks(
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
     const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
 
+    // Notificação de cancelamento (para o gestor) - SEMPRE ENVIA
     await callWebhook(WEBHOOK_URLS.agendamentoCancelado, {
         telefoneEmpresa: businessSettings.telefone,
         nomeCliente: appointment.cliente.name,
@@ -231,7 +233,6 @@ export async function sendCancellationHooks(
         dataHoraAtendimento: dataHoraAtendimento,
     });
     
-    if (businessSettings.whatsappConectado && businessSettings.planId !== 'plano_gratis') {
-        await sendProfessionalNotification(businessSettings, appointment, 'Agendamento Cancelado');
-    }
+    // Notificação para o profissional (automação paga)
+    await sendProfessionalNotification(businessSettings, appointment, 'Agendamento Cancelado');
 }

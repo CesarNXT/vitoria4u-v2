@@ -1,7 +1,7 @@
-import { MercadoPagoConfig, PreApproval } from 'mercadopago';
+import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { NextResponse } from 'next/server';
-import { doc, getDoc } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase-server';
+import { adminDb } from '@/lib/firebase-admin';
+import type { Plano } from '@/lib/types';
 
 // Inicializa o cliente do Mercado Pago com o seu Access Token
 const client = new MercadoPagoConfig({
@@ -15,33 +15,57 @@ export async function POST(request: Request) {
     const host = request.headers.get('host');
     const origin = `${proto}://${host}`;
     const body = await request.json();
-    const { plan, userId, userEmail } = body;
+    const { planId, userId, userEmail } = body;
 
-    if (!plan || !userId || !userEmail) {
-      return NextResponse.json({ error: 'Dados insuficientes para criar assinatura.' }, { status: 400 });
+    if (!planId || !userId || !userEmail) {
+      return NextResponse.json({ error: 'Dados insuficientes para criar o pagamento (planId, userId, userEmail).' }, { status: 400 });
     }
 
-    // NOVO: Usa mercadoPagoId se disponível, senão usa o id do plano
-    const preapprovalPlanId = plan.mercadoPagoId || plan.id;
+    // 1. Buscar o plano no Firestore para garantir a integridade do preço
+    const planDoc = await adminDb.collection('planos').doc(planId).get();
 
-    if (!preapprovalPlanId) {
-        return NextResponse.json({ error: 'ID do plano de checkout inválido. Configure o mercadoPagoId no admin.' }, { status: 400 });
+    if (!planDoc.exists) {
+      return NextResponse.json({ error: 'Plano não encontrado.' }, { status: 404 });
     }
 
-    // Se o plano é gratuito (price = 0), não cria checkout
-    if (plan.price === 0) {
+    const plan = planDoc.data() as Plano;
+
+    // 2. Se o plano é gratuito (price = 0), não cria checkout
+    if (!plan.price || plan.price === 0) {
         return NextResponse.json({ error: 'Plano gratuito não requer checkout.' }, { status: 400 });
     }
 
-    const checkoutUrl = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${preapprovalPlanId}`;
+    const preference = new Preference(client);
 
-    // Adiciona a referência externa (ID do usuário) ao link para rastreamento
-    const finalUrl = `${checkoutUrl}&external_reference=${userId}`;
+    // 3. Criar a preferência com os dados seguros do banco de dados
+    const result = await preference.create({
+      body: {
+        items: [
+          {
+            id: planId, // Usa o ID do plano
+            title: plan.name,
+            quantity: 1,
+            unit_price: plan.price, // Preço seguro do Firestore
+          },
+        ],
+        payer: {
+          email: userEmail,
+        },
+        back_urls: {
+          success: `${origin}/dashboard/pagamento/sucesso`,
+          failure: `${origin}/dashboard/pagamento/falha`,
+          pending: `${origin}/dashboard/pagamento/pendente`,
+        },
+        auto_return: 'approved',
+        external_reference: userId, // Associa o pagamento ao ID do usuário
+      },
+    });
 
-    return NextResponse.json({ checkoutUrl: finalUrl });
+    // Retorna a URL de checkout (init_point)
+    return NextResponse.json({ checkoutUrl: result.init_point });
 
   } catch (error) {
-    console.error('Erro ao criar assinatura no Mercado Pago:', error);
-    return NextResponse.json({ error: 'Falha ao criar assinatura.' }, { status: 500 });
+    console.error('Erro ao criar preferência de pagamento no Mercado Pago:', error);
+    return NextResponse.json({ error: 'Falha ao criar preferência de pagamento.' }, { status: 500 });
   }
 }

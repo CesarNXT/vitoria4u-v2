@@ -31,7 +31,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
 import { isFuture } from 'date-fns';
-import { convertTimestamps, hasFeatureAccess } from '@/lib/utils';
+import { convertTimestamps } from '@/lib/utils';
 
 
 type CampaignStatus = 'inactive' | 'running';
@@ -143,11 +143,9 @@ export default function CampanhasPage({ businessUserId }: { businessUserId?: str
     }
   }, [campaignState, finalUserId]);
   
-  // Usar função centralizada para verificar acesso à feature de campanhas
-  const hasAccessToCampaigns = hasFeatureAccess(
-    businessSettings,
-    'disparo_de_mensagens'
-  );
+  // A verificação de acesso agora é feita no backend (action). 
+  // Esta constante é para manter a lógica de exibição, mas poderia ser removida no futuro.
+  const hasAccessToCampaigns = true;
 
   const activeClientsCount = clients.length;
   const estimatedTotalTime = activeClientsCount * SECONDS_PER_CLIENT;

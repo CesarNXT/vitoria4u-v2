@@ -107,18 +107,19 @@ export type PlanFeature =
   | 'atendimento_whatsapp_ia'
   | 'atendimento_manual_ou_automatizado';
 
-
 export interface Plano {
   id: string;
   name: string;
   description?: string;
   price: number;
   oldPrice?: number;
+  durationInDays: number; // Duração do acesso em dias
   features: PlanFeature[];
-  status: 'Ativo' | 'Inativo';
   isFeatured?: boolean;
-  checkoutUrl: string; // URL completa OU ID do plano do Mercado Pago
-  mercadoPagoId?: string; // ID do preapproval_plan no Mercado Pago (preferencial)
+  status?: 'Ativo' | 'Inativo';
+  // O campo mercadoPagoId é mantido apenas para retrocompatibilidade com dados antigos,
+  // mas não deve ser usado em nova lógica.
+  mercadoPagoId?: string; 
 }
 
 export interface AdminData {

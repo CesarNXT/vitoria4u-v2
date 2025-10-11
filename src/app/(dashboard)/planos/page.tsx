@@ -74,7 +74,7 @@ export default function PlanosPage({ businessUserId }: { businessUserId?: string
     
     const finalUserId = businessUserId || user?.uid;
 
-    const handleSubscription = async (plan: Plano) => {
+    const handleSubscription = async (planId: string) => {
         if (!finalUserId || !user?.email) {
             console.error("Usuário não autenticado.");
             // Adicionar feedback para o usuário aqui, se desejar
@@ -89,9 +89,9 @@ export default function PlanosPage({ businessUserId }: { businessUserId?: string
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ 
-                    plan,
+                    planId: planId, // Envia apenas o ID do plano
                     userId: finalUserId,
-                    userEmail: user.email,
+                    userEmail: user.email
                 }),
             });
 
@@ -120,7 +120,7 @@ export default function PlanosPage({ businessUserId }: { businessUserId?: string
                     id: doc.id,
                     ...doc.data(),
                 }) as Plano)
-                .filter(plan => plan.id !== 'plano_gratis') // Não mostra plano gratuito na página de assinaturas
+                .filter(plan => plan.id !== 'plano_gratis' && plan.id !== 'plano_expirado') // Não mostrar planos internos
                 .sort((a, b) => a.price - b.price); // Ordena por preço
             setPlans(plansData);
         }, (error) => {
@@ -159,7 +159,8 @@ export default function PlanosPage({ businessUserId }: { businessUserId?: string
     }, [finalUserId, firestore]);
 
     const isCurrentPlanActive = settings?.access_expires_at ? isFuture(settings.access_expires_at) : false;
-    
+    const daysRemaining = settings?.access_expires_at ? Math.ceil((settings.access_expires_at.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full p-8">
@@ -180,8 +181,8 @@ export default function PlanosPage({ businessUserId }: { businessUserId?: string
             
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 items-end">
                 {plans.map(plan => {
-                    // Comparar pelo NOME do plano, não pelo ID
-                    const isCurrentPlan = settings?.planId === plan.name && isCurrentPlanActive;
+                    // Compara o ID do plano salvo no usuário com o ID do plano sendo renderizado
+                    const isCurrentPlan = settings?.planId === plan.id && isCurrentPlanActive;
                     
                     return (
                         <Card 
@@ -218,20 +219,30 @@ export default function PlanosPage({ businessUserId }: { businessUserId?: string
                             </CardContent>
                             <CardFooter>
                                 {isCurrentPlan ? (
-                                    <Button className="w-full" disabled variant="outline">
-                                        <Check className="mr-2 h-4 w-4" />
-                                        Plano Atual
-                                    </Button>
+                                    daysRemaining > 7 ? (
+                                        <Button className="w-full" disabled variant="outline">
+                                            <Check className="mr-2 h-4 w-4" />
+                                            Plano Atual (expira em {daysRemaining} dias)
+                                        </Button>
+                                    ) : (
+                                        <Button 
+                                            className="w-full" 
+                                            variant='gradient'
+                                            onClick={() => handleSubscription(plan.id)}
+                                            disabled={isCreatingSession}
+                                        >
+                                            {isCreatingSession ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                            {daysRemaining > 0 ? `Renovar Agora (expira em ${daysRemaining} dias)` : 'Renovar Plano'}
+                                        </Button>
+                                    )
                                 ) : (
                                     <Button 
                                         className="w-full" 
                                         variant={plan.isFeatured ? 'gradient' : 'outline'}
-                                        onClick={() => handleSubscription(plan)}
+                                        onClick={() => handleSubscription(plan.id)}
                                         disabled={isCreatingSession}
                                     >
-                                        {isCreatingSession ? (
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        ) : null}
+                                        {isCreatingSession ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                         Assinar Agora
                                     </Button>
                                 )}
