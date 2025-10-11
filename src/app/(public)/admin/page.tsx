@@ -71,9 +71,10 @@ function AdminLoginContent() {
                 description: "Redirecionando para o painel administrativo...",
             });
             router.push('/admin/dashboard');
+            // Mantém loading até a navegação ser concluída
+            return;
         } catch (firebaseError: any) {
             handleFirebaseAuthError(firebaseError, setError);
-        } finally {
             setIsLoading(false);
         }
     };

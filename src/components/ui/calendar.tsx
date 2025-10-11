@@ -24,16 +24,11 @@ function Calendar({
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label:
-          props.captionLayout === 'dropdown-buttons'
-            ? "hidden"
-            : "text-sm font-medium",
-        caption_dropdowns: "flex gap-1",
+        caption_label: "text-sm font-medium",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-           props.captionLayout === 'dropdown-buttons' && "hidden"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
@@ -62,7 +57,12 @@ function Calendar({
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-        ...props.components,
+      }}
+      onDayClick={(day, modifiers) => {
+        // Garante que apenas cliques válidos em dias sejam processados
+        if (!modifiers.disabled && !modifiers.outside) {
+          // O onSelect será chamado automaticamente
+        }
       }}
       {...props}
     />

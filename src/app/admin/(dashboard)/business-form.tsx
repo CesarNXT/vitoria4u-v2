@@ -13,16 +13,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
-import { CalendarIcon, Loader2 } from 'lucide-react'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { SimpleDatePicker } from '@/components/ui/simple-date-picker'
+import { Loader2 } from 'lucide-react'
 import type { ConfiguracoesNegocio, Plano } from '@/lib/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useFirebase } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
 
@@ -40,20 +35,28 @@ interface BusinessFormProps {
 }
 
 export function BusinessForm({ business, onSubmit, isSubmitting }: BusinessFormProps) {
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [plans, setPlans] = useState<Plano[]>([])
   const { firestore } = useFirebase()
-  
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
   const form = useForm<BusinessFormValues>({
     resolver: zodResolver(businessFormSchema),
     defaultValues: {
-      planId: business?.planId || 'Plano Básico',
+      planId: business?.planId || '',
       access_expires_at: business?.access_expires_at ? new Date(business.access_expires_at) : new Date(),
     },
     mode: 'onChange',
   })
 
-  // Buscar planos do Firestore
+  useEffect(() => {
+    if (business) {
+      form.reset({
+        planId: business.planId || 'gratis',
+        access_expires_at: business.access_expires_at ? new Date(business.access_expires_at) : new Date(),
+      })
+    }
+  }, [business, form])
+
   useEffect(() => {
     if (!firestore) return
     
@@ -83,7 +86,7 @@ export function BusinessForm({ business, onSubmit, isSubmitting }: BusinessFormP
           render={({ field }) => (
             <FormItem>
               <FormLabel>Plano de Assinatura</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o plano" />
@@ -92,12 +95,12 @@ export function BusinessForm({ business, onSubmit, isSubmitting }: BusinessFormP
                 <SelectContent>
                   {plans.length > 0 ? (
                     plans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.name}>
+                      <SelectItem key={plan.id} value={plan.id}>
                         {plan.name}{plan.price > 0 ? ` - R$ ${plan.price.toFixed(2)}` : ' - Gratuito'}
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="Plano Básico">Carregando...</SelectItem>
+                    <SelectItem value="loading" disabled>Carregando...</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -112,38 +115,18 @@ export function BusinessForm({ business, onSubmit, isSubmitting }: BusinessFormP
             render={({ field }) => (
                 <FormItem className="flex flex-col">
                     <FormLabel>Acesso Expira em</FormLabel>
-                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                        <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                                >
-                                {field.value ? (
-                                    format(field.value, "PPP", { locale: ptBR })
-                                ) : (
-                                    <span>Escolha uma data</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                locale={ptBR}
-                                selected={field.value}
-                                onSelect={(date) => {
-                                  if (date) field.onChange(date)
-                                  setIsCalendarOpen(false)
-                                }}
-                                initialFocus
-                            />
-                        </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                        <SimpleDatePicker
+                            date={field.value}
+                            onDateChange={(date) => {
+                              field.onChange(date);
+                              setIsDatePickerOpen(false); // Fechar o popover ao selecionar
+                            }}
+                            placeholder="Escolha uma data de expiração"
+                            isOpen={isDatePickerOpen}
+                            onOpenChange={setIsDatePickerOpen}
+                        />
+                    </FormControl>
                     <FormMessage />
                 </FormItem>
             )}

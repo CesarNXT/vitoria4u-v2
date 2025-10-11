@@ -77,11 +77,11 @@ export default function AdminBusinessesPage() {
       
       if (data.planId) {
         try {
-          // Buscar o plano pelo nome no Firestore
+          // Buscar o plano pelo ID no Firestore
           const plansSnapshot = await getDocs(collection(firestore, 'planos'));
           const selectedPlan = plansSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as any))
-            .find(plan => plan.name === data.planId);
+            .find(plan => plan.id === data.planId);
           
           if (selectedPlan && selectedPlan.features) {
             // Atualizar os campos de habilitação baseado nas features do plano

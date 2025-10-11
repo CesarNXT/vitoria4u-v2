@@ -119,7 +119,7 @@ export default function LandingPage() {
                 </Button>
             </div>
             <div className="relative w-full max-w-sm h-auto mx-auto aspect-[9/16]">
-                <Image src="https://files.catbox.moe/cnltor.png" alt="Demonstração do chatbot" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-contain" />
+                <Image src="https://files.catbox.moe/cnltor.png" alt="Demonstração do chatbot" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-contain" unoptimized />
             </div>
           </div>
         </section>

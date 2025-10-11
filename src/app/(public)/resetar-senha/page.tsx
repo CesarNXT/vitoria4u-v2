@@ -182,7 +182,7 @@ function ResetPasswordContent() {
     return (
        <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-700">
             <div className="bg-white rounded-2xl p-8 sm:p-10 text-center shadow-2xl w-full max-w-md animate-fade-in-up">
-                <Image src="https://files.catbox.moe/mrvozv.gif" alt="Vitória4u Logo" width={80} height={80} className="rounded-full mx-auto mb-5" />
+                <Image src="https://files.catbox.moe/mrvozv.gif" alt="Vitória4u Logo" width={80} height={80} className="rounded-full mx-auto mb-5" unoptimized />
                 <h1 className="text-2xl font-bold text-purple-700">Redefinir senha</h1>
                 <p className="text-gray-600 mt-2 mb-6">Crie uma nova senha para acessar sua conta com segurança 💜</p>
                 {renderContent()}

@@ -100,9 +100,10 @@ function LoginPageContent() {
                     description: "Redirecionando para o dashboard...",
                 });
                 router.push('/dashboard');
+                // Mantém loading até a navegação ser concluída
+                return;
             } catch (firebaseError: any) {
                 handleFirebaseAuthError(firebaseError, setError);
-            } finally {
                 setIsLoading(false);
             }
         } else {
@@ -136,9 +137,10 @@ function LoginPageContent() {
 
                 toast({ title: "Conta criada com sucesso!", description: "Você será redirecionado para a configuração inicial." });
                 router.push('/configuracoes');
+                // Mantém loading até a navegação ser concluída
+                return;
             } catch (firebaseError: any) {
                 handleFirebaseAuthError(firebaseError, setError);
-            } finally {
                 setIsLoading(false);
             }
         }
@@ -173,14 +175,17 @@ function LoginPageContent() {
                 await setDocumentNonBlocking(businessDocRef, newBusinessData, { merge: true });
                 toast({ title: "Conta criada com sucesso!", description: "Vamos começar com algumas configurações." });
                 router.push('/configuracoes');
+                // Mantém loading até a navegação ser concluída
+                return;
             } else {
                 // For existing users, just go to the dashboard. The layout will handle redirects if setup is incomplete.
                 router.push('/dashboard');
+                // Mantém loading até a navegação ser concluída
+                return;
             }
 
         } catch (firebaseError: any) {
             handleFirebaseAuthError(firebaseError, setError);
-        } finally {
             setIsGoogleLoading(false);
         }
     };
