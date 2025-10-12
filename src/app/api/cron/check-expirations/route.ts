@@ -37,8 +37,8 @@ export async function GET(request: Request) {
         const business = businessDoc.data() as ConfiguracoesNegocio;
         const businessId = businessDoc.id;
 
-        // Pular negócios que já estão no plano gratuito
-        if (business.planId === 'plano_gratis') {
+        // Pular negócios que já estão no plano expirado ou gratuito
+        if (business.planId === 'plano_expirado' || business.planId === 'plano_gratis') {
             continue;
         }
         
@@ -61,26 +61,28 @@ export async function GET(request: Request) {
                 }
             }
 
-            // 2. Atualizar o documento do negócio no Firestore para o plano gratuito
-            // Mantém agendamentos funcionando, mas sem automações
+            // 2. Atualizar o documento do negócio no Firestore para o plano expirado
+            // Remove acesso a todas as funcionalidades pagas
             const businessDocRef = doc(firestore, 'negocios', businessId);
             await updateDoc(businessDocRef, {
-                planId: 'plano_gratis',
+                planId: 'plano_expirado',
                 whatsappConectado: false, // Desconecta WhatsApp do negócio
                 instanciaWhatsapp: null,
                 tokenInstancia: null,
-                // Desabilita automações pagas
+                // Desabilita todas as automações
                 habilitarLembrete24h: false,
                 habilitarLembrete2h: false,
                 habilitarFeedback: false,
-                // Mantém notificação gestor (via webhook Vitoria)
             });
             updatedCount++;
-            console.log(`Negócio ${businessId} movido para o plano gratuito.`);
+            console.log(`Negócio ${businessId} movido para plano expirado.`);
         }
     }
 
-    return NextResponse.json({ message: `Verificação concluída. ${updatedCount} planos atualizados para gratuito.` });
+    return NextResponse.json({ 
+      message: `Verificação concluída. ${updatedCount} planos expirados detectados e atualizados.`,
+      updatedBusinesses: updatedCount 
+    });
 
   } catch (error) {
     console.error('Erro ao verificar expirações:', error);

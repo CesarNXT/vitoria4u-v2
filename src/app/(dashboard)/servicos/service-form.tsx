@@ -335,7 +335,10 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
                     <FormControl>
                     <Switch
                         checked={field.value}
-                        onCheckedChange={field.onChange}
+                        onCheckedChange={(checked) => {
+                          // Usar setTimeout para evitar flushSync durante renderização
+                          setTimeout(() => field.onChange(checked), 0);
+                        }}
                     />
                     </FormControl>
                 </FormItem>
@@ -434,6 +437,15 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
                           Nenhum profissional encontrado
                         </p>
                       )}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      <Button
+                        type="button"
+                        onClick={() => setProfessionalsDialogOpen(false)}
+                        className="w-full sm:w-auto"
+                      >
+                        Salvar Seleção
+                      </Button>
                     </div>
                   </div>
                 </DialogContent>

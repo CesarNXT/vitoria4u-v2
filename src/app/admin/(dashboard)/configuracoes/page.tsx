@@ -90,19 +90,17 @@ export default function ConfiguracoesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] w-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
     <div className="flex-1 space-y-8 p-4 md:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações do Sistema</h1>
-          <p className="text-muted-foreground">Gerencie as configurações globais da plataforma</p>
-        </div>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Configurações do Sistema</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Gerencie as configurações globais da plataforma</p>
       </div>
 
       <Card>

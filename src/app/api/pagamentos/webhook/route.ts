@@ -61,22 +61,47 @@ export async function POST(request: Request) {
   try {
     // NOVO: Tratar webhooks de pagamento único (Checkout Pro)
     if (type === 'payment') {
-        console.log('Processando webhook de pagamento único com ID:', dataId);
+        console.log('🔔 Processando webhook de pagamento único com ID:', dataId);
         const payment = new Payment(client);
         const paymentData = await payment.get({ id: dataId });
 
-        console.log('Dados do pagamento recebido:', { 
+        console.log('📦 Dados do pagamento recebido:', { 
             id: paymentData.id, 
             status: paymentData.status, 
             external_reference: paymentData.external_reference,
-            order_id: paymentData.order?.id
+            order_id: paymentData.order?.id,
+            payment_method: paymentData.payment_method_id,
+            payment_type: paymentData.payment_type_id
         });
+
+        // Log detalhado do additional_info para debug
+        console.log('📋 Additional Info:', JSON.stringify((paymentData as any).additional_info, null, 2));
 
         // Apenas processa se o pagamento foi aprovado
         if (paymentData.status === 'approved') {
             const userId = paymentData.external_reference;
-            // Corrige o acesso aos itens do carrinho e o tipo
-            const planId = (paymentData.additional_info as any)?.items?.[0]?.id;
+            
+            // Tenta múltiplas formas de obter o planId
+            let planId = (paymentData.additional_info as any)?.items?.[0]?.id;
+            
+            // Fallback: tentar pegar do metadata
+            if (!planId) {
+                console.warn('⚠️ planId não encontrado em additional_info.items, tentando metadata...');
+                planId = (paymentData as any).metadata?.plan_id;
+            }
+            
+            // Fallback: tentar pegar da description se formatado como JSON
+            if (!planId && paymentData.description) {
+                console.warn('⚠️ planId não encontrado em metadata, tentando description...');
+                try {
+                    const descData = JSON.parse(paymentData.description);
+                    planId = descData.planId;
+                } catch (e) {
+                    // description não é JSON, ignorar
+                }
+            }
+
+            console.log(`🔍 Extraído - userId: ${userId}, planId: ${planId}`);
 
             if (userId && planId) {
                 const userDocRef = doc(firestore, 'negocios', userId);
@@ -101,14 +126,19 @@ export async function POST(request: Request) {
                         },
                         access_expires_at: accessExpiresAt,
                     });
-                    console.log(`Acesso liberado para o usuário ${userId} por ${durationInDays} dias, até ${accessExpiresAt.toISOString()}`);
+                    console.log(`✅ Acesso liberado para o usuário ${userId} por ${durationInDays} dias, até ${accessExpiresAt.toISOString()}`);
                 } else {
-                    if (!userDoc.exists()) console.error(`Usuário com ID ${userId} não encontrado no Firestore.`);
-                    if (!planDoc.exists()) console.error(`Plano com ID ${planId} não encontrado no Firestore.`);
+                    if (!userDoc.exists()) console.error(`❌ Usuário com ID ${userId} não encontrado no Firestore.`);
+                    if (!planDoc.exists()) console.error(`❌ Plano com ID ${planId} não encontrado no Firestore.`);
                 }
             } else {
-                console.error('Pagamento aprovado, mas sem external_reference (userId) ou ID do plano.');
+                console.error('❌ Pagamento aprovado, mas faltam dados:');
+                console.error(`  - userId (external_reference): ${userId}`);
+                console.error(`  - planId: ${planId}`);
+                console.error('🔍 Dados completos do pagamento para debug:', JSON.stringify(paymentData, null, 2));
             }
+        } else {
+            console.log(`ℹ️ Pagamento com status '${paymentData.status}', não processado (aguardando aprovação).`);
         }
     }
     // Tratar webhooks de assinatura (preapproval) - LÓGICA ANTIGA

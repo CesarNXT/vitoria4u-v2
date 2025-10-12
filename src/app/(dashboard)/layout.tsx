@@ -135,8 +135,8 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   // Isso previne que usuários vejam qualquer página antes de completar configuração
   if (isLoading || !typedUser) {
     return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="size-8 animate-spin" />
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     )
   }
@@ -144,8 +144,8 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   // Admin redirect
   if (isAdmin && !impersonatedId && pathname !== '/admin/dashboard') {
     return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="size-8 animate-spin" />
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     )
   }
@@ -153,8 +153,8 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   // BLOQUEIO TOTAL: Não renderiza NADA até estar em /configuracoes
   if (needsSetup && pathname !== '/configuracoes') {
     return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="size-8 animate-spin" />
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     )
   }

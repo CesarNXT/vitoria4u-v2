@@ -49,9 +49,13 @@ export interface ConfiguracoesNegocio {
   planId: string;
   access_expires_at: Timestamp;
   mp?: {
-    preapprovalId: string;
+    preapprovalId?: string;
     status: 'authorized' | 'cancelled' | 'paused' | 'pending';
     last_payment_at?: Timestamp;
+    lastPaymentId?: string;
+    lastPaymentStatus?: string;
+    paymentMethod?: string;
+    paymentType?: string;
   };
   createdAt: Timestamp;
   agendamentos?: Agendamento[];

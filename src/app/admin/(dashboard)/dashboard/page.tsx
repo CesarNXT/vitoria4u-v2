@@ -62,24 +62,22 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] w-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-8 p-4 md:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard do Administrador</h1>
-          <p className="text-muted-foreground">Visão geral e métricas de crescimento da plataforma.</p>
-        </div>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard do Administrador</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Visão geral e métricas de crescimento da plataforma.</p>
       </div>
       
       <AdminStatsCards businesses={businesses} />
       
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
         <AdminGrowthChart businesses={businesses} />
         <AdminSalesChart businesses={businesses} />
       </div>

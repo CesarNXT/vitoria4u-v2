@@ -15,7 +15,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Users, Gem, LogOut, Sun, Moon, Loader2, Home, Settings } from 'lucide-react';
+import { Users, Gem, LogOut, Sun, Moon, Loader2, Home, Settings, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, isAdminUser } from '@/lib/utils';
 import { useFirebase, FirebaseClientProvider } from '@/firebase';
@@ -65,8 +65,8 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   if (isUserLoading || !typedUser || !isAdmin) {
     return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="size-8 animate-spin" />
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     )
   }
@@ -80,6 +80,7 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const menuItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/admin/negocios', label: 'Negócios', icon: Building2 },
     { href: '/admin/planos', label: 'Planos', icon: Gem },
     { href: '/admin/configuracoes', label: 'Configurações', icon: Settings },
   ];

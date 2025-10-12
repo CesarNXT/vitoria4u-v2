@@ -81,7 +81,7 @@ export function AdminPlanForm({ plan, onSave, onCancel }: AdminPlanFormProps) {
             <Input id="description" name="description" value={formData.description || ''} onChange={handleInputChange} placeholder="Ex: Automações essenciais para economizar tempo" />
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="price">Preço Mensal (R$)</Label>
               <Input id="price" name="price" type="number" step="0.01" min="0" value={formData.price || 0} onChange={handleInputChange} required />
@@ -122,7 +122,7 @@ export function AdminPlanForm({ plan, onSave, onCancel }: AdminPlanFormProps) {
           
           <div>
             <Label>Funcionalidades Incluídas</Label>
-            <div className="grid grid-cols-2 gap-4 mt-2 p-4 border rounded-md">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-2 p-4 border rounded-md">
               {allFeatures.map(({ id, label }) => (
                 <div key={id} className="flex items-center space-x-2">
                   <Checkbox 
@@ -133,15 +133,15 @@ export function AdminPlanForm({ plan, onSave, onCancel }: AdminPlanFormProps) {
                       target: { name: id, checked: !!checked, type: 'checkbox' }
                     } as any)}
                   />
-                  <Label htmlFor={id} className="font-normal">{label}</Label>
+                  <Label htmlFor={id} className="font-normal text-sm sm:text-base">{label}</Label>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit">Salvar Alterações</Button>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4">
+            <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">Cancelar</Button>
+            <Button type="submit" className="w-full sm:w-auto">Salvar Alterações</Button>
           </div>
         </form>
       </CardContent>
