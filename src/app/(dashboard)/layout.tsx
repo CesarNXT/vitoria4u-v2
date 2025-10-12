@@ -26,6 +26,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAuth, signOut } from 'firebase/auth';
 import { useTheme } from 'next-themes';
 import { useToast } from '@/hooks/use-toast';
+import { BusinessUserProvider } from '@/contexts/BusinessUserContext';
 
 
 function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   useEffect(() => setMounted(true), []);
 
   const searchParams = useSearchParams();
+  // ⚠️ SEGURANÇA: Impersonação via localStorage pode ser manipulada no DevTools
+  // TODO: Validar impersonação server-side usando /api/validate-impersonation
+  // ou migrar para session/cookie seguro
   const [impersonatedId, setImpersonatedId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('impersonatedBusinessId');
@@ -104,8 +108,15 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // SEGURANÇA DESABILITADA TEMPORARIAMENTE - estava bloqueando todos os usuários
-    // TODO: Revisar lógica de validação de documento
+    // ⚠️ SEGURANÇA DESABILITADA TEMPORARIAMENTE - estava bloqueando todos os usuários
+    // Esta validação deve ser REATIVADA assim que garantir que createUserBusinessProfile
+    // sempre cria o documento no signup (verificar /login/actions.ts)
+    // 
+    // ANTES DE REATIVAR: Testar fluxo completo de signup e garantir que:
+    // 1. Google Sign-In cria documento
+    // 2. Email/Password signup cria documento
+    // 3. Documento tem todos os campos obrigatórios
+    //
     // if (isBusinessUser && !impersonatedId && !isSettingsLoading && !settings && pathname !== '/configuracoes') {
     //   console.warn('SEGURANÇA: Usuário autenticado mas sem documento no banco. Forçando logout.');
     //   const auth = getAuth();
@@ -307,13 +318,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
             </div>
         </header>
         <main className="flex flex-1 flex-col">
-          {React.Children.map(children, child => {
-              if (React.isValidElement(child)) {
-                  // Pass businessUserId to every child page
-                  return React.cloneElement(child, { businessUserId } as any);
-              }
-              return child;
-          })}
+          <BusinessUserProvider businessUserId={businessUserId || null}>
+            {children}
+          </BusinessUserProvider>
         </main>
       </SidebarInset>
     </>

@@ -7,11 +7,13 @@ const nextConfig: NextConfig = {
     '600d92ed5e38.ngrok-free.app',
     '172.21.235.15',
   ],
+  // ✅ SEGURANÇA: Flags de ignore removidas para garantir qualidade do código
+  // Se houver erros TypeScript/ESLint, eles DEVEM ser corrigidos antes do deploy
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [

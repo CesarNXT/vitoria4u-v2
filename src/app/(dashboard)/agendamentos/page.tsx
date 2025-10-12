@@ -3,9 +3,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useFirebase } from '@/firebase'
-import type { Agendamento, Cliente, Servico, Profissional, DataBloqueada, User, ConfiguracoesNegocio } from '@/lib/types'
+import type { Agendamento, Cliente, Servico, Profissional, DataBloqueada, ConfiguracoesNegocio } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, Link as LinkIcon, Copy, Trash2, CalendarClock, Loader2, Pencil } from 'lucide-react'
+import { Calendar, Clock, User, Briefcase, Filter, X } from 'lucide-react'
+import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import { getColumns } from './columns'
 import { DataTable } from '@/components/data-table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,7 +41,8 @@ import { convertTimestamps, normalizePhoneNumber } from '@/lib/utils'
 import { AppointmentsFilter, type AppointmentFilters } from './appointments-filter'
 
 
-export default function AppointmentsPage({ businessUserId }: { businessUserId?: string }) {
+export default function AgendamentosPage() {
+  const { businessUserId } = useBusinessUser();
   const { toast } = useToast();
   const { user, firestore } = useFirebase();
   const [appointments, setAppointments] = useState<Agendamento[]>([]);
@@ -468,7 +471,7 @@ export default function AppointmentsPage({ businessUserId }: { businessUserId?: 
                 services={services} 
                 professionals={professionals} 
                 allAppointments={appointments}
-                businessId={finalUserId}
+                businessId={finalUserId!}
                 onSubmit={handleFormSubmit}
                 isSubmitting={isSubmitting}
             />

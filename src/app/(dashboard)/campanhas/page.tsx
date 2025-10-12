@@ -1,11 +1,10 @@
-
-
 "use client"
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react'
+import { useFirebase } from '@/firebase'
+import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import { getClientsOnSnapshot, getBusinessConfig } from '@/lib/firestore';
-import { useFirebase } from '@/firebase';
-import type { Cliente, User, ConfiguracoesNegocio, Plano } from '@/lib/types';
+import type { Cliente, ConfiguracoesNegocio, Plano } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,7 +47,8 @@ interface CampaignState {
 
 const SECONDS_PER_CLIENT = 80;
 
-export default function CampanhasPage({ businessUserId }: { businessUserId?: string }) {
+export default function CampanhasPage() {
+  const { businessUserId } = useBusinessUser();
   const { toast } = useToast();
   
   const { user, firestore } = useFirebase();

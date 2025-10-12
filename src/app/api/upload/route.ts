@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebase-admin';
 
 export async function POST(req: NextRequest) {
     try {
@@ -7,8 +8,14 @@ export async function POST(req: NextRequest) {
             return new NextResponse('Unauthorized: No token provided', { status: 401 });
         }
         
-        // A verificação do token no cliente já fornece uma camada de segurança.
-        // A verificação do lado do servidor com o Admin SDK estava causando problemas de ambiente.
+        // 🔒 SEGURANÇA: Validar token com Firebase Admin SDK
+        try {
+            const decodedToken = await adminAuth.verifyIdToken(authToken);
+            console.log(`✅ Upload autorizado para usuário: ${decodedToken.uid}`);
+        } catch (error) {
+            console.error('❌ Token inválido:', error);
+            return new NextResponse('Unauthorized: Invalid token', { status: 401 });
+        }
         
         const formData = await req.formData();
         

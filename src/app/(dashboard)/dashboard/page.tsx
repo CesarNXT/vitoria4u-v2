@@ -2,10 +2,12 @@
 'use client';
 
 import { useFirebase } from '@/firebase';
+import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import { Loader2 } from 'lucide-react';
 import { DashboardClientWrapper } from './dashboard-client-wrapper';
 
-export default function DashboardPage({ businessUserId }: { businessUserId?: string }) {
+export default function DashboardPage() {
+  const { businessUserId } = useBusinessUser();
   const { user, isUserLoading } = useFirebase();
 
   const finalUserId = businessUserId || user?.uid;

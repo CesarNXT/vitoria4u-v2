@@ -19,7 +19,6 @@ export default function BillingPage() {
       toast({
         title: 'Pagamento Aprovado!',
         description: 'Seu plano foi ativado com sucesso. Bem-vindo!',
-        variant: 'success',
       });
     } else if (status === 'failure' || status === 'rejected') {
       toast({

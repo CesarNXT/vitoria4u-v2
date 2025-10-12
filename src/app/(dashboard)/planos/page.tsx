@@ -11,6 +11,7 @@ import { Loader2, Check, Gem } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { doc, onSnapshot, collection } from 'firebase/firestore';
 import { isFuture } from 'date-fns';
+import { useBusinessUser } from '@/contexts/BusinessUserContext';
 
 function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -60,8 +61,9 @@ const featureLabels: Record<PlanFeature, string> = {
 
 
 
-export default function PlanosPage({ businessUserId }: { businessUserId?: string }) {
+export default function PlanosPage() {
     const { user, firestore } = useFirebase();
+    const { businessUserId } = useBusinessUser();
     const [plans, setPlans] = useState<Plano[]>([]);
     const [settings, setSettings] = useState<ConfiguracoesNegocio | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -75,23 +77,24 @@ export default function PlanosPage({ businessUserId }: { businessUserId?: string
     const finalUserId = businessUserId || user?.uid;
 
     const handleSubscription = async (planId: string) => {
-        if (!finalUserId || !user?.email) {
+        if (!user) {
             console.error("Usuário não autenticado.");
-            // Adicionar feedback para o usuário aqui, se desejar
             return;
         }
 
         setIsCreatingSession(true);
         try {
+            // 🔒 Obter token de autenticação do Firebase
+            const token = await user.getIdToken();
+
             const response = await fetch('/api/pagamentos/mercado-pago', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`, // ✅ Token de autenticação
                 },
                 body: JSON.stringify({ 
-                    planId: planId, // Envia apenas o ID do plano
-                    userId: finalUserId,
-                    userEmail: user.email
+                    planId: planId, // Envia apenas o ID do plano (userId/email vem do token)
                 }),
             });
 

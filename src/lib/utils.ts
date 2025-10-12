@@ -4,6 +4,18 @@ import { twMerge } from "tailwind-merge"
 import type { ConfiguracoesNegocio, PlanFeature, Plano, HorarioSlot, Profissional, Servico, Agendamento, DataBloqueada, HorarioTrabalho } from "./types"
 import { isFuture, differenceInDays, getDay, isWithinInterval as isWithinFnsInterval } from 'date-fns';
 
+/**
+ * ⚠️ WARNING: Esta função usa NEXT_PUBLIC_ADMIN_EMAILS, que expõe a lista de admins no cliente
+ * 
+ * Esta validação deve ser usada APENAS para UI (mostrar/esconder elementos)
+ * NUNCA confiar nesta validação para segurança real.
+ * 
+ * Para operações críticas, sempre validar server-side usando:
+ * - isServerAdmin() em Server Actions
+ * - adminAuth.verifyIdToken() + isServerAdmin() em API Routes
+ * 
+ * TODO: Migrar para Firebase Custom Claims em versão futura
+ */
 export function isAdminUser(email: string | null | undefined): boolean {
   if (!email) return false;
   const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());

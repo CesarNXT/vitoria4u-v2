@@ -41,7 +41,7 @@ export function UpcomingAppointments({ appointments }: UpcomingAppointmentsProps
     try {
       const dateObj = date?.toDate ? date.toDate() : new Date(date);
       if (isNaN(dateObj.getTime())) return "Data Inválida";
-      return format(dateObj, 'dd/MM', { timeZone: 'UTC' });
+      return format(dateObj, 'dd/MM');
     } catch {
       return "Data Inválida";
     }

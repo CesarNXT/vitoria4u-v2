@@ -1,9 +1,9 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from 'react'
 import { getProfessionalsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBusinessConfig } from '@/lib/firestore'
 import { useFirebase } from '@/firebase'
+import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import type { Profissional, ConfiguracoesNegocio } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, Loader2 } from 'lucide-react'
@@ -34,7 +34,8 @@ import { ProfessionalCard } from './professional-card'
 import { normalizePhoneNumber } from '@/lib/utils'
 
 
-export default function ProfessionalsPage({ businessUserId }: { businessUserId?: string }) {
+export default function ProfessionalsPage() {
+  const { businessUserId } = useBusinessUser();
   const { toast } = useToast()
   const { user, firestore } = useFirebase()
   const [professionals, setProfessionals] = useState<Profissional[]>([])

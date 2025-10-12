@@ -1,9 +1,9 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from 'react';
 import { getServicesOnSnapshot, getProfessionalsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBusinessConfig } from '@/lib/firestore';
 import { useFirebase } from '@/firebase';
+import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import type { Servico, Profissional, User, ConfiguracoesNegocio } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2, Users } from 'lucide-react';
@@ -34,7 +34,8 @@ import { ServiceCard } from './service-card';
 import Link from 'next/link';
 
 
-export default function ServicesPage({ businessUserId }: { businessUserId?: string }) {
+export default function ServicesPage() {
+  const { businessUserId } = useBusinessUser();
   const { toast } = useToast();
   const { user, firestore } = useFirebase();
   const [services, setServices] = useState<Servico[]>([]);

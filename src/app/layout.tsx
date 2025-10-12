@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { FirebaseProvider } from '@/firebase';
+import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Poppins } from 'next/font/google';
 
@@ -33,10 +33,10 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <FirebaseProvider>
+          <FirebaseClientProvider>
             {children}
             <Toaster />
-          </FirebaseProvider>
+          </FirebaseClientProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -203,7 +203,7 @@ export default function BookingClient({
             birthDate: data.birthDate,
             phone: phoneAsNumber,
             status: currentUser?.status || "Ativo",
-            avatarUrl: currentUser?.avatarUrl || null,
+            avatarUrl: currentUser?.avatarUrl || undefined,
             instanciaWhatsapp: businessSettings.id,
         };
         

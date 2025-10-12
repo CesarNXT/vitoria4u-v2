@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getClientsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBusinessConfig } from '@/lib/firestore'
 import { useFirebase } from '@/firebase'
+import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import type { Cliente, ConfiguracoesNegocio } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, Loader2 } from 'lucide-react'
@@ -33,7 +34,8 @@ import { ClientStatsCards } from './client-stats-cards'
 import { Input } from '@/components/ui/input'
 import { ClientCard } from './client-card'
 
-export default function ClientsPage({ businessUserId }: { businessUserId?: string }) {
+export default function ClientsPage() {
+  const { businessUserId } = useBusinessUser()
   const { toast } = useToast()
   const { user, firestore } = useFirebase()
   const [clients, setClients] = useState<Cliente[]>([])

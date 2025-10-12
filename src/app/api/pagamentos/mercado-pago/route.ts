@@ -1,6 +1,6 @@
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import type { Plano } from '@/lib/types';
 
 // Inicializa o cliente do Mercado Pago com o seu Access Token
@@ -10,15 +10,37 @@ const client = new MercadoPagoConfig({
 
 export async function POST(request: Request) {
   console.log('MERCADOPAGO_ACCESS_TOKEN:', process.env.MERCADOPAGO_ACCESS_TOKEN ? 'Carregado' : 'NÃO CARREGADO');
+  
+  // SEGURANÇA: Validar token de autenticação
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Token de autenticação não fornecido.' }, { status: 401 });
+  }
+
+  const token = authHeader.split('Bearer ')[1];
+  let decodedToken;
+  
   try {
+    decodedToken = await adminAuth.verifyIdToken(token);
+  } catch (error) {
+    console.error('Erro ao verificar token:', error);
+    return NextResponse.json({ error: 'Token de autenticação inválido.' }, { status: 401 });
+  }
+
+  try {
+
+    // Usar o UID do token, não o userId do body (previne manipulação)
+    const authenticatedUserId = decodedToken.uid;
+    const authenticatedUserEmail = decodedToken.email || '';
+
     const proto = request.headers.get('x-forwarded-proto') || 'http';
     const host = request.headers.get('host');
     const origin = `${proto}://${host}`;
     const body = await request.json();
-    const { planId, userId, userEmail } = body;
+    const { planId } = body;
 
-    if (!planId || !userId || !userEmail) {
-      return NextResponse.json({ error: 'Dados insuficientes para criar o pagamento (planId, userId, userEmail).' }, { status: 400 });
+    if (!planId) {
+      return NextResponse.json({ error: 'planId é obrigatório.' }, { status: 400 });
     }
 
     // 1. Buscar o plano no Firestore para garantir a integridade do preço
@@ -37,7 +59,7 @@ export async function POST(request: Request) {
 
     const preference = new Preference(client);
 
-    // 3. Criar a preferência com os dados seguros do banco de dados
+    // 3. Criar a preferência com os dados seguros do banco de dados e do token
     const result = await preference.create({
       body: {
         items: [
@@ -49,15 +71,15 @@ export async function POST(request: Request) {
           },
         ],
         payer: {
-          email: userEmail,
+          email: authenticatedUserEmail, // Email do token autenticado
         },
         back_urls: {
-          success: `${origin}/dashboard/pagamento/sucesso`,
-          failure: `${origin}/dashboard/pagamento/falha`,
-          pending: `${origin}/dashboard/pagamento/pendente`,
+          success: `${origin}/pagamento/sucesso`,
+          failure: `${origin}/pagamento/falha`,
+          pending: `${origin}/pagamento/pendente`,
         },
         auto_return: 'approved',
-        external_reference: userId, // Associa o pagamento ao ID do usuário
+        external_reference: authenticatedUserId, // UID do token autenticado
       },
     });
 

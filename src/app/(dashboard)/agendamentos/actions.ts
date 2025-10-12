@@ -3,6 +3,7 @@
 import type { Agendamento, ConfiguracoesNegocio, Plano, PlanFeature } from "@/lib/types";
 import { add, format, parse, isDate } from 'date-fns';
 import { adminDb } from "@/lib/firebase-admin";
+import { checkFeatureAccess } from "@/lib/server-utils";
 
 const N8N_BASE_URL = "https://n8n.vitoria4u.site/webhook/";
 

@@ -11,34 +11,69 @@ const client = new MercadoPagoConfig({
 
 const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET!;
 
-// Função para verificar a assinatura do webhook
-function verifySignature(request: Request, rawBody: string) {
+// Função para verificar a assinatura do webhook (Documentação oficial MercadoPago v1)
+function verifySignature(request: Request, rawBody: string, dataId: string) {
+    console.log('🔍 Verificando assinatura do webhook...');
+    
     const signature = request.headers.get('x-signature');
     const requestId = request.headers.get('x-request-id');
-    if (!signature || !requestId) return false;
+    
+    console.log('Headers recebidos:', {
+        signature: signature ? 'presente' : 'ausente',
+        requestId: requestId ? 'presente' : 'ausente',
+        dataId: dataId || 'não fornecido'
+    });
+    
+    if (!signature || !requestId) {
+        console.error('❌ Headers x-signature ou x-request-id ausentes');
+        return false;
+    }
 
+    // Extrair partes da assinatura
     const parts = signature.split(',');
     const ts = parts.find(part => part.startsWith('ts='))?.split('=')[1];
     const hash = parts.find(part => part.startsWith('v1='))?.split('=')[1];
 
-    if (!ts || !hash) return false;
+    if (!ts || !hash) {
+        console.error('❌ Não foi possível extrair ts ou hash da assinatura');
+        console.error('Assinatura recebida:', signature);
+        return false;
+    }
 
-    const manifest = `id:${requestId};request-id:${requestId};ts:${ts};`;
+    // 🔑 FORMATO CORRETO segundo documentação MercadoPago:
+    // manifest = "id:{data.id};request-id:{x-request-id};ts:{ts};"
+    // Note: usa data.id (não request-id duplicado) + NÃO inclui rawBody
+    const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+    
+    console.log('📝 Manifest criado:', manifest);
+    
     const signedMessage = crypto.createHmac('sha256', webhookSecret)
-        .update(manifest + rawBody)
+        .update(manifest)
         .digest('hex');
 
-    return crypto.timingSafeEqual(Buffer.from(signedMessage), Buffer.from(hash));
+    const isValid = crypto.timingSafeEqual(Buffer.from(signedMessage), Buffer.from(hash));
+    
+    // 🐛 DEBUG: Detalhes da validação
+    if (!isValid) {
+        console.error('🔍 DEBUG da assinatura:');
+        console.error('  - Data ID:', dataId);
+        console.error('  - Request ID:', requestId);
+        console.error('  - Timestamp:', ts);
+        console.error('  - Manifest:', manifest);
+        console.error('  - Hash calculado:', signedMessage);
+        console.error('  - Hash recebido:', hash);
+        console.error('  - Secret configurado:', webhookSecret ? 'SIM' : 'NÃO');
+        console.error('  - Tamanho do secret:', webhookSecret ? webhookSecret.length : 0);
+    }
+    
+    console.log(`🔐 Assinatura ${isValid ? '✅ VÁLIDA' : '❌ INVÁLIDA'}`);
+    
+    return isValid;
 }
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const body = JSON.parse(rawBody);
-
-  // A verificação de assinatura está desativada temporariamente para depuração
-  // if (!verifySignature(request, rawBody)) {
-  //   return NextResponse.json({ error: 'Assinatura inválida.' }, { status: 403 });
-  // }
 
   const { type: bodyType, data: bodyData, action } = body;
   const url = new URL(request.url);
@@ -47,6 +82,15 @@ export async function POST(request: Request) {
   // Priorizar dados da URL sobre o body (mais confiável)
   const type = url.searchParams.get('type') || bodyType;
   const dataId = url.searchParams.get('data.id') || bodyData?.id;
+
+  // 🔒 SEGURANÇA: Validação de assinatura do MercadoPago
+  if (!verifySignature(request, rawBody, dataId || '')) {
+    console.error('🚨 WEBHOOK REJEITADO: Assinatura inválida detectada');
+    console.error('Se o problema persistir, verifique se o MERCADOPAGO_WEBHOOK_SECRET está correto');
+    return NextResponse.json({ error: 'Assinatura inválida.' }, { status: 403 });
+  }
+  
+  console.log('✅ Webhook validado com sucesso!');
 
   console.log('Webhook recebido:', { 
     typeFromUrl: url.searchParams.get('type'),

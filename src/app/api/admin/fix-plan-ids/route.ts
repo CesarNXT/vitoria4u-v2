@@ -1,9 +1,31 @@
 import { NextResponse } from 'next/server';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-server';
+import { adminAuth } from '@/lib/firebase-admin';
+import { isServerAdmin } from '@/lib/server-admin-utils';
 
 export async function POST(request: Request) {
   try {
+    // 🔒 SEGURANÇA: Validar que o usuário é admin
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Token de autenticação não fornecido.' }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    let decodedToken;
+    
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token);
+    } catch (error) {
+      return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    }
+
+    const isAdmin = await isServerAdmin(decodedToken.email);
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Acesso negado. Apenas administradores.' }, { status: 403 });
+    }
+
     console.log('Iniciando correção dos planIds...');
     
     // 1. Buscar todos os planos para criar um mapeamento

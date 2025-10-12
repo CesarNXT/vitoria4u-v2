@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin'; // USA O SDK ADMIN
+import { adminDb, adminAuth } from '@/lib/firebase-admin'; // USA O SDK ADMIN
 import type { Plano } from '@/lib/types';
+import { isServerAdmin } from '@/lib/server-admin-utils';
 
 // Define a estrutura dos planos a serem criados
 const plansToCreate: Omit<Plano, 'id'>[] = [
@@ -43,8 +44,28 @@ const plansToCreate: Omit<Plano, 'id'>[] = [
 ];
 
 // Esta função só pode ser chamada via GET para evitar execuções acidentais
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // 🔒 SEGURANÇA: Validar que o usuário é admin
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Token de autenticação não fornecido.' }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    let decodedToken;
+    
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token);
+    } catch (error) {
+      return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    }
+
+    const isAdmin = await isServerAdmin(decodedToken.email);
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Acesso negado. Apenas administradores.' }, { status: 403 });
+    }
+
     console.log('Iniciando a criação de planos via API com permissões de Admin...');
     const plansRef = adminDb.collection('planos');
     const batch = adminDb.batch();

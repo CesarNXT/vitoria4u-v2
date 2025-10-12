@@ -6,7 +6,7 @@ import { firebaseConfig } from '@/firebase/config';
 import type { User } from './types';
 
 export async function getInitialUser(): Promise<User | null> {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('session')?.value;
 
     if (!sessionCookie) {

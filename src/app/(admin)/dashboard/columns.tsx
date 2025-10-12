@@ -46,7 +46,7 @@ export const getAdminBusinessesColumns = ({ onEdit, onAccessPanel }: AdminBusine
         cell: ({ row }) => {
             const business = row.original;
             return (
-                <span>{formatPhoneNumber(business.telefone)}</span>
+                <span>{formatPhoneNumber(String(business.telefone))}</span>
             )
         }
     },
