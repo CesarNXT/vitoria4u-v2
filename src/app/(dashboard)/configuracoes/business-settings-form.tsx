@@ -45,20 +45,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 
 const timeSlotSchema = z.object({
-  start: z.string(),
-  end: z.string(),
-}).refine(data => !data.start || !data.end || data.start < data.end, {
-    message: "O horário final deve ser após o inicial.",
-    path: ["end"],
+  start: z.string().optional(),
+  end: z.string().optional(),
 });
 
 const daySchema = z.object({
   enabled: z.boolean(),
-  slots: z.array(timeSlotSchema).max(2, "Máximo de 2 intervalos por dia."),
+  slots: z.array(timeSlotSchema).optional(),
 });
 
 const businessSettingsSchema = z.object({
-  nome: z.string().min(2, { message: 'O nome do negócio deve ter pelo menos 2 caracteres.' }),
+  nome: z.string().min(2, { message: 'O nome do negócio deve ter pelo menos 2 caracteres.' }).max(64, { message: 'Nome muito longo (máx. 64 caracteres).' }),
   telefone: z.string().refine(v => String(v).replace(/\D/g, "").length === 11, {
     message: "O WhatsApp deve ter 11 dígitos (DDD + número)."
   }),
@@ -66,7 +63,7 @@ const businessSettingsSchema = z.object({
   endereco: z.object({
     cep: z.string().refine(v => String(v).replace(/\D/g, "").length === 8, { message: 'O CEP deve ter 8 dígitos.' }),
     logradouro: z.string().min(2, { message: 'Logradouro é obrigatório.' }),
-    numero: z.string().min(1, { message: 'Número é obrigatório.' }),
+    numero: z.string().min(1, { message: 'Número é obrigatório.' }).max(10, { message: 'Número muito longo (máx. 10 caracteres).' }),
     bairro: z.string().min(2, { message: 'Bairro é obrigatório.' }),
     cidade: z.string().min(2, { message: 'Cidade é obrigatória.' }),
     estado: z.string().length(2, { message: 'Estado deve ter 2 letras.' }),
@@ -90,28 +87,6 @@ const businessSettingsSchema = z.object({
   nomeIa: z.string().optional(),
   instrucoesIa: z.string().optional(),
 }).superRefine((data, ctx) => {
-    // Time slot validation
-    for (const dayKey in data.horariosFuncionamento) {
-        const day = data.horariosFuncionamento[dayKey as DiasDaSemana];
-        if (day.enabled) {
-            if (day.slots.length === 0) {
-                 ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: "Defina pelo menos um intervalo de trabalho.",
-                    path: [`horariosFuncionamento.${dayKey}.slots`],
-                });
-            }
-            for (const slot of day.slots) {
-                if (slot.start && slot.end && slot.start >= slot.end) {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        message: "O horário de término deve ser posterior ao de início.",
-                        path: [`horariosFuncionamento.${dayKey}.slots`],
-                    });
-                }
-            }
-        }
-    }
     // Escalation validation
      if (data.habilitarEscalonamento && (!data.numeroEscalonamento || String(data.numeroEscalonamento).replace(/\D/g, "").length < 11)) {
       ctx.addIssue({
@@ -176,6 +151,17 @@ export default function BusinessSettingsForm({
   const allSteps = [...setupSteps, { title: "Configurações de IA", fields: ["nomeIa", "instrucoesIa"] }];
   const steps = isSetupMode ? setupSteps : allSteps;
 
+  // Valores padrão de horários para setup inicial
+  const defaultHorarios = {
+    domingo: { enabled: false, slots: [] },
+    segunda: { enabled: true, slots: [{ start: '08:00', end: '18:00' }] },
+    terca: { enabled: true, slots: [{ start: '08:00', end: '18:00' }] },
+    quarta: { enabled: true, slots: [{ start: '08:00', end: '18:00' }] },
+    quinta: { enabled: true, slots: [{ start: '08:00', end: '18:00' }] },
+    sexta: { enabled: true, slots: [{ start: '08:00', end: '18:00' }] },
+    sabado: { enabled: false, slots: [] },
+  };
+
   const defaultValues: Partial<FormData> = {
     nome: settings?.nome || "",
     telefone: formatPhoneNumber(settings?.telefone ? String(settings.telefone) : ""),
@@ -183,15 +169,9 @@ export default function BusinessSettingsForm({
     endereco: settings?.endereco || {
         cep: "", logradouro: "", numero: "", bairro: "", cidade: "", estado: ""
     },
-    horariosFuncionamento: settings?.horariosFuncionamento || {
-        domingo: { enabled: false, slots: [] },
-        segunda: { enabled: true, slots: [{ start: '09:00', end: '18:00' }] },
-        terca: { enabled: true, slots: [{ start: '09:00', end: '18:00' }] },
-        quarta: { enabled: true, slots: [{ start: '09:00', end: '18:00' }] },
-        quinta: { enabled: true, slots: [{ start: '09:00', end: '18:00' }] },
-        sexta: { enabled: true, slots: [{ start: '09:00', end: '18:00' }] },
-        sabado: { enabled: false, slots: [] },
-    },
+    horariosFuncionamento: (settings?.horariosFuncionamento && settings.setupCompleted) 
+        ? settings.horariosFuncionamento 
+        : defaultHorarios,
     habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
     habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
     habilitarFeedback: settings?.habilitarFeedback ?? false,
@@ -259,13 +239,6 @@ export default function BusinessSettingsForm({
   const validateStep = async (stepIndex: number): Promise<boolean> => {
     const fieldsToValidate = steps[stepIndex].fields;
     const result = await trigger(fieldsToValidate as any);
-    if (!result) {
-      toast({
-        variant: "destructive",
-        title: "Campos Obrigatórios",
-        description: "Por favor, preencha todos os campos destacados em vermelho.",
-      });
-    }
     return result;
   };
 
@@ -336,7 +309,7 @@ export default function BusinessSettingsForm({
                     <FormItem>
                       <FormLabel>Nome do Negócio</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Ex: Barbearia do Zé" />
+                        <Input {...field} placeholder="Ex: Barbearia do Zé" maxLength={64} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -440,7 +413,7 @@ export default function BusinessSettingsForm({
                         <FormItem>
                         <FormLabel>Número</FormLabel>
                         <FormControl>
-                            <Input placeholder="123" {...field} />
+                            <Input placeholder="123" {...field} maxLength={10} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>

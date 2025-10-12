@@ -30,7 +30,7 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
       planId: 'plano_expirado' // Plano padrão se o teste estiver desativado
     };
 
-    if (configSnap.exists()) {
+    if (configSnap.exists) {
       const systemConfig = configSnap.data() as SystemConfig;
       if (systemConfig.trial?.enabled) {
         trialConfig = systemConfig.trial;
@@ -48,23 +48,22 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
     await businessRef.set({
       ownerId: userId,
       email: userEmail,
-      nome: `Negócio de ${userName}`,
+      // Nome fica vazio para ser preenchido pelo usuário
       planId: initialPlanId,
       access_expires_at: expiresAt,
       createdAt: new Date(),
+      setupCompleted: false, // Marca que a configuração inicial ainda não foi concluída
       // Adicione aqui outros campos padrão que um novo negócio deve ter
       whatsappConectado: false,
       habilitarLembrete24h: true,
       habilitarLembrete2h: true,
-      habilitarFeedback: true,
+      habilitarFeedback: false,
       horariosFuncionamento: { /* ... estrutura padrão ... */ },
     });
 
-    console.log(`Negócio criado para o usuário ${userId} com plano ${initialPlanId}.`);
     return { success: true };
 
   } catch (error) {
-    console.error("Erro ao criar perfil de negócio:", error);
-    return { success: false, error: "Falha ao configurar a conta do negócio." };
+    return { success: false, error: error instanceof Error ? error.message : "Falha ao configurar a conta do negócio." };
   }
 }

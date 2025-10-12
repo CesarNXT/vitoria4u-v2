@@ -25,6 +25,7 @@ import { doc } from 'firebase/firestore';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAuth, signOut } from 'firebase/auth';
 import { useTheme } from 'next-themes';
+import { useToast } from '@/hooks/use-toast';
 
 
 function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { setOpenMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -76,7 +78,13 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     [businessUserId, firestore]
   );
 
-  const { data: settings, isLoading: isSettingsLoading } = useDoc<ConfiguracoesNegocio>(businessSettingsRef);
+  const { data: settingsRaw, isLoading: isSettingsLoading } = useDoc<ConfiguracoesNegocio>(businessSettingsRef);
+  
+  // Normaliza setupCompleted para garantir que undefined seja tratado como false
+  const settings = settingsRaw ? {
+    ...settingsRaw,
+    setupCompleted: settingsRaw.setupCompleted === true ? true : false
+  } : null;
   
   // O useEffect antigo foi removido, pois a lógica foi unificada no useEffect abaixo.
   
@@ -96,16 +104,36 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Força o redirecionamento para a configuração se o nome do negócio não estiver definido
-    if (isBusinessUser && !impersonatedId && settings && !settings.nome && pathname !== '/configuracoes') {
-      router.push('/configuracoes');
+    // SEGURANÇA DESABILITADA TEMPORARIAMENTE - estava bloqueando todos os usuários
+    // TODO: Revisar lógica de validação de documento
+    // if (isBusinessUser && !impersonatedId && !isSettingsLoading && !settings && pathname !== '/configuracoes') {
+    //   console.warn('SEGURANÇA: Usuário autenticado mas sem documento no banco. Forçando logout.');
+    //   const auth = getAuth();
+    //   signOut(auth).then(() => {
+    //     window.location.href = '/login';
+    //   });
+    //   return;
+    // }
+
+    // BLOQUEIO CRÍTICO: Força configuração obrigatória para usuários de negócio
+    // Contas novas e antigas sem setupCompleted são bloqueadas até completar a configuração
+    if (isBusinessUser && !impersonatedId && settings) {
+      const needsSetup = settings.setupCompleted !== true;
+      
+      if (needsSetup && pathname !== '/configuracoes') {
+        router.push('/configuracoes');
+      }
     }
   }, [isUserLoading, isSettingsLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
   const isLoading = isUserLoading || (businessUserId && isSettingsLoading);
 
-  // Estado de loading principal
-  if (isLoading || !typedUser || (isAdmin && !impersonatedId && pathname !== '/admin/dashboard')) {
+  // Verifica se precisa completar setup
+  const needsSetup = typedUser && !isAdmin && !impersonatedId && settings && settings.setupCompleted !== true;
+
+  // SEGURANÇA CRÍTICA: Bloqueia renderização até verificar setup
+  // Isso previne que usuários vejam qualquer página antes de completar configuração
+  if (isLoading || !typedUser) {
     return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="size-8 animate-spin" />
@@ -113,21 +141,22 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Estado de configuração forçada (sem sidebar)
-  const needsSetup = typedUser && !isAdmin && !impersonatedId && settings && !settings.nome;
-  if (needsSetup) {
+  // Admin redirect
+  if (isAdmin && !impersonatedId && pathname !== '/admin/dashboard') {
     return (
-      <div className="flex h-screen items-center justify-center bg-muted/40">
-        <main className="w-full max-w-4xl p-4">
-          {React.Children.map(children, child => {
-              if (React.isValidElement(child)) {
-                  return React.cloneElement(child, { businessUserId } as any);
-              }
-              return child;
-          })}
-        </main>
-      </div>
-    );
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="size-8 animate-spin" />
+        </div>
+    )
+  }
+
+  // BLOQUEIO TOTAL: Não renderiza NADA até estar em /configuracoes
+  if (needsSetup && pathname !== '/configuracoes') {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="size-8 animate-spin" />
+        </div>
+    )
   }
 
 
@@ -149,6 +178,19 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     { href: '/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    if (needsSetup && href !== '/configuracoes') {
+      e.preventDefault();
+      e.stopPropagation();
+      toast({
+        variant: 'destructive',
+        title: 'Configuração Incompleta',
+        description: 'Complete a configuração do seu negócio antes de acessar outras páginas.',
+      });
+      router.push('/configuracoes');
+    }
+  };
+
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
@@ -168,21 +210,34 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
-            {menuItems.map((item) => (
-              <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton 
-                    asChild 
-                    tooltip={item.label}
-                    isActive={pathname === item.href}
-                    onClick={() => setOpenMobile && setOpenMobile(false)}
-                >
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {menuItems.map((item) => {
+              const isDisabled = needsSetup && item.href !== '/configuracoes';
+              return (
+                <SidebarMenuItem key={item.label}>
+                  <SidebarMenuButton 
+                      asChild 
+                      tooltip={isDisabled ? 'Complete a configuração primeiro' : item.label}
+                      isActive={pathname === item.href && !isDisabled}
+                      onClick={() => setOpenMobile && setOpenMobile(false)}
+                      className={cn(
+                        isDisabled && 'opacity-40 cursor-not-allowed grayscale hover:bg-transparent'
+                      )}
+                  >
+                    <Link 
+                      href={item.href}
+                      onClick={(e) => handleNavClick(e, item.href)}
+                      className={cn(
+                        'flex items-center gap-2',
+                        isDisabled && 'pointer-events-none text-muted-foreground/50'
+                      )}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2">

@@ -104,15 +104,15 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
             return allTimeOptions;
         }
 
-        const options = businessDaySchedule.slots.flatMap(slot => {
+        let options: string[] = [];
+        businessDaySchedule.slots.forEach(slot => {
             const startIndex = allTimeOptions.indexOf(slot.start);
             const endIndex = allTimeOptions.indexOf(slot.end);
-            if (startIndex !== -1 && endIndex !== -1) {
-                return allTimeOptions.slice(startIndex, endIndex + 1);
+            if(startIndex !== -1 && endIndex !== -1) {
+                 options.push(...allTimeOptions.slice(startIndex, endIndex + 1));
             }
-            return [];
         });
-        return options.length > 0 ? Array.from(new Set(options)) : allTimeOptions;
+        return options.length > 0 ? options : allTimeOptions;
 
     }, [isProfessionalForm, businessDaySchedule]);
 
@@ -149,7 +149,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                                         append({ start: slot.start, end: slot.end });
                                                     });
                                                 } else {
-                                                    append({ start: '09:00', end: '18:00' });
+                                                    append({ start: '08:00', end: '18:00' });
                                                 }
                                             }
                                         }}

@@ -47,9 +47,9 @@ async function getBusinessData(businessId: string) {
 }
 
 
-export default async function PublicBookingPage({ params }: { params: { businessId: string }}) {
+export default async function PublicBookingPage({ params }: { params: Promise<{ businessId: string }> }) {
     
-    const { businessId } = params;
+    const { businessId } = await params;
 
     try {
         const initialData = await getBusinessData(businessId);

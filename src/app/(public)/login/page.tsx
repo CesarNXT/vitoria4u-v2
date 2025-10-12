@@ -54,11 +54,9 @@ const handleFirebaseAuthError = (firebaseError: any, setError: (message: string)
             setError("Muitas tentativas falharam. Tente novamente mais tarde.");
             break;
         case 'auth/popup-closed-by-user':
-            // Não mostrar erro, apenas registrar no console
-            console.log("Login com Google cancelado pelo usuário.");
+            // Popup fechado pelo usuário - não mostra erro
             break;
         default:
-            console.error("Firebase Auth Error:", firebaseError);
             setError("Ocorreu um erro desconhecido.");
             break;
     }
@@ -78,6 +76,14 @@ function LoginPageContent() {
     const [isLoginView, setIsLoginView] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // Verifica se veio da landing page com mode=register
+    useEffect(() => {
+        const mode = searchParams.get('mode');
+        if (mode === 'register') {
+            setIsLoginView(false);
+        }
+    }, [searchParams]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -117,7 +123,11 @@ function LoginPageContent() {
                 const newUser = userCredential.user;
                 
                 // Chama a Server Action para criar o perfil do negócio no backend
-                await createUserBusinessProfile(newUser.uid, newUser.email || '', newUser.displayName || 'Novo Usuário');
+                const result = await createUserBusinessProfile(newUser.uid, newUser.email || '', newUser.displayName || 'Novo Usuário');
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Falha ao criar perfil de negócio');
+                }
 
                 toast({ title: "Conta criada com sucesso!", description: "Você será redirecionado para a configuração inicial." });
                 router.push('/configuracoes');
@@ -141,7 +151,12 @@ function LoginPageContent() {
 
             if (additionalInfo?.isNewUser) {
                 // Chama a Server Action para criar o perfil do negócio no backend
-                await createUserBusinessProfile(user.uid, user.email || '', user.displayName || 'Novo Usuário');
+                const result = await createUserBusinessProfile(user.uid, user.email || '', user.displayName || 'Novo Usuário');
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Falha ao criar perfil de negócio');
+                }
+                
                 toast({ title: "Conta criada com sucesso!", description: "Vamos começar com algumas configurações." });
                 router.push('/configuracoes');
                 // Mantém loading até a navegação ser concluída

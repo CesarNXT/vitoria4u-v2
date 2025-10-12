@@ -2,13 +2,14 @@
 
 import type { ConfiguracoesNegocio, Plano, PlanFeature } from '@/lib/types';
 import { adminDb } from "@/lib/firebase-admin";
+import { checkFeatureAccess } from '@/lib/server-utils';
 
 interface CampaignWebhookPayload {
     eventType: 'start_campaign';
     businessSettings: ConfiguracoesNegocio;
     message: string;
     mediaUrl: string;
-    typeMidea?: 'image' | 'video' | 'ptt';
+    typeMidea?: 'image' | 'video';
 }
 
 const CAMPAIGN_WEBHOOK_URL = "https://n8n.vitoria4u.site/webhook/a199551c-40a6-472e-ba7d-1a7076443e7c";

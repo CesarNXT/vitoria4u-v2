@@ -2,6 +2,11 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  allowedDevOrigins: [
+    'e43f53e58e61.ngrok-free.app',
+    '600d92ed5e38.ngrok-free.app',
+    '172.21.235.15',
+  ],
   typescript: {
     ignoreBuildErrors: true,
   },

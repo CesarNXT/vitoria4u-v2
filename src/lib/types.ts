@@ -71,6 +71,7 @@ export interface ConfiguracoesNegocio {
   email?: string;
   nextPlanId?: string | null;
   audit?: any;
+  setupCompleted?: boolean; // Flag que indica se a configuração inicial obrigatória foi concluída
 }
 
 export interface Agendamento {

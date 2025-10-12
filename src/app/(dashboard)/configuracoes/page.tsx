@@ -70,10 +70,12 @@ export default function SettingsPage() {
                     // Ensure timestamps are converted to Date objects if they exist
                     access_expires_at: data.access_expires_at?.toDate ? data.access_expires_at.toDate() : data.access_expires_at,
                     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+                    // CRÍTICO: Normaliza setupCompleted - se for undefined, trata como false
+                    setupCompleted: data.setupCompleted === true ? true : false,
                 } as ConfiguracoesNegocio);
             } else {
                 // Pre-fill settings for setup mode if they don't exist
-                setSettings({ id: user.uid } as ConfiguracoesNegocio);
+                setSettings({ id: user.uid, setupCompleted: false } as ConfiguracoesNegocio);
             }
 
         } catch(e) {
@@ -108,9 +110,16 @@ export default function SettingsPage() {
     
     const settingsRef = doc(firestore, 'negocios', user.uid);
     
+    const wasInSetup = !settings?.setupCompleted;
+    
     const finalSettings: Partial<ConfiguracoesNegocio> = { 
       ...updatedSettings,
     };
+    
+    // Se estava em setup mode e está salvando, marca como concluído
+    if (wasInSetup) {
+      finalSettings.setupCompleted = true;
+    }
     
     if (updatedSettings.endereco) {
         finalSettings.resumoEndereco = generateAddressSummary(updatedSettings.endereco);
@@ -126,11 +135,10 @@ export default function SettingsPage() {
     // Optimistically update UI
     setSettings(prev => ({...prev, ...finalSettings} as ConfiguracoesNegocio)); 
     
-    const wasInSetup = !settings?.nome;
-    if (wasInSetup && finalSettings.nome) {
+    if (wasInSetup) {
         toast({
-          title: 'Sucesso!',
-          description: "Configurações salvas. Redirecionando para o dashboard...",
+          title: 'Configuração Concluída!',
+          description: "Bem-vindo ao painel completo! Redirecionando...",
         });
         router.push('/dashboard');
         router.refresh(); 
@@ -172,8 +180,9 @@ export default function SettingsPage() {
     );
   }
 
-  // Determine if it's setup mode based on business name.
-  const isSetupMode = !settings?.nome;
+  // Determine if it's setup mode based on setupCompleted flag
+  // Contas antigas sem o campo também entrarão em setup mode (undefined = false)
+  const isSetupMode = !settings?.setupCompleted;
 
   return (
     <div className={cn("flex-1 space-y-4", !isSetupMode && "p-4 md:p-8")}>

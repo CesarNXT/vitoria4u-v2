@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlayCircle, Upload, Image as ImageIcon, Video, AlertTriangle, Info, WifiOff, MessageSquare, Mic, Gem } from 'lucide-react';
+import { Loader2, PlayCircle, Upload, Image as ImageIcon, Video, AlertTriangle, Info, WifiOff, MessageSquare, Gem } from 'lucide-react';
 import { sendCampaignWebhook } from './actions';
 import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -35,7 +35,7 @@ import { convertTimestamps } from '@/lib/utils';
 
 
 type CampaignStatus = 'inactive' | 'running';
-type CampaignType = 'text' | 'image' | 'video' | 'audio';
+type CampaignType = 'text' | 'image' | 'video';
 
 interface CampaignState {
   status: CampaignStatus;
@@ -243,10 +243,9 @@ export default function CampanhasPage({ businessUserId }: { businessUserId?: str
     const campaignMessage = campaignType === 'text' ? message : '';
     const campaignMediaUrl = campaignType !== 'text' ? mediaUrl : '';
     
-    let typeMidea: 'image' | 'video' | 'ptt' | undefined = undefined;
+    let typeMidea: 'image' | 'video' | undefined = undefined;
     if (campaignType === 'image') typeMidea = 'image';
     if (campaignType === 'video') typeMidea = 'video';
-    if (campaignType === 'audio') typeMidea = 'ptt';
 
     const newState: CampaignState = {
       status: 'running',
@@ -323,13 +322,12 @@ export default function CampanhasPage({ businessUserId }: { businessUserId?: str
         );
       case 'image':
       case 'video':
-      case 'audio':
-        const fileType = { image: "image/*", video: "video/mp4", audio: "audio/*" }[campaignType];
-        const previewType = { image: 'image', video: 'video', audio: 'audio'}[campaignType];
+        const fileType = { image: "image/*", video: "video/mp4" }[campaignType];
+        const previewType = { image: 'image', video: 'video' }[campaignType];
         
         return (
           <div className="space-y-2">
-            <Label htmlFor="media-upload">Mídia ({campaignType === 'audio' ? 'Áudio (ptt)' : campaignType})</Label>
+            <Label htmlFor="media-upload">Mídia ({campaignType})</Label>
             <div className="flex items-center gap-4">
                 <Input 
                     id="media-upload" 
@@ -417,10 +415,6 @@ export default function CampanhasPage({ businessUserId }: { businessUserId?: str
                  <Label htmlFor="type-video" className="flex items-center gap-2 border rounded-md p-3 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-all">
                     <RadioGroupItem value="video" id="type-video" />
                     <Video className="h-5 w-5 mr-1" /> Vídeo
-                </Label>
-                 <Label htmlFor="type-audio" className="flex items-center gap-2 border rounded-md p-3 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-all">
-                    <RadioGroupItem value="audio" id="type-audio" />
-                    <Mic className="h-5 w-5 mr-1" /> Áudio (ptt)
                 </Label>
             </RadioGroup>
            
