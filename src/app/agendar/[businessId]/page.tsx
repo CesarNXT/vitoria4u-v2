@@ -30,7 +30,7 @@ async function getBusinessData(businessId: string) {
     }
     const settingsData = { id: settingsDoc.id, ...settingsDoc.data() };
 
-    const clientsCollection = await getDocs(collection(firestore, `negocios/${businessId}/clientes`));
+    // Não carregamos clientes aqui - eles são buscados via API quando o usuário se identifica
     const servicesCollection = await getDocs(collection(firestore, `negocios/${businessId}/servicos`));
     const professionalsCollection = await getDocs(collection(firestore, `negocios/${businessId}/profissionais`));
     const appointmentsCollection = await getDocs(collection(firestore, `negocios/${businessId}/agendamentos`));
@@ -38,7 +38,7 @@ async function getBusinessData(businessId: string) {
 
     return {
         settings: convertTimestamps(settingsData),
-        clients: convertTimestamps(clientsCollection.docs.map(d => ({id: d.id, ...d.data()}))),
+        clients: [], // Carregado via API após identificação
         services: convertTimestamps(servicesCollection.docs.map(d => ({id: d.id, ...d.data()}))),
         professionals: convertTimestamps(professionalsCollection.docs.map(d => ({id: d.id, ...d.data()}))),
         appointments: convertTimestamps(appointmentsCollection.docs.map(d => ({id: d.id, ...d.data()}))),

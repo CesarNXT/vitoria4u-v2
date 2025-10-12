@@ -18,10 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { StandardDatePicker } from "@/components/ui/standard-date-picker";
 import { cn } from "@/lib/utils";
 import type { DataBloqueada } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -92,23 +89,23 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
   const startTimeValue = watch('startTime');
 
 
-  // Auto-update endDate when startDate changes
+  // Auto-update endDate when startDate changes (apenas para novos bloqueios)
   useEffect(() => {
-    if (startDateValue) {
+    if (startDateValue && !block) {
         setValue('endDate', startDateValue);
         trigger(['startDate', 'endDate']);
     }
-  }, [startDateValue, setValue, trigger]);
+  }, [startDateValue, setValue, trigger, block]);
 
-  // Auto-update endTime when startTime changes
+  // Auto-update endTime when startTime changes (apenas para novos bloqueios)
   useEffect(() => {
-    if(startTimeValue) {
+    if(startTimeValue && !block) {
       const startIndex = timeOptions.indexOf(startTimeValue);
       const nextTime = timeOptions[startIndex + 1] || timeOptions[startIndex];
       setValue('endTime', nextTime);
       trigger(['startTime', 'endTime']);
     }
-  }, [startTimeValue, setValue, trigger]);
+  }, [startTimeValue, setValue, trigger, block]);
 
 
   const handleSubmit = (data: BlockFormValues) => {
@@ -127,61 +124,6 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
     });
   };
 
-  const renderCalendar = (field: any, setOpen: (open: boolean) => void, disabledDateCheck: (date: Date) => boolean) => (
-      <Calendar 
-          mode="single" 
-          selected={field.value} 
-          onSelect={(date) => {
-            if (date) field.onChange(date);
-            setOpen(false);
-          }}
-          disabled={disabledDateCheck}
-          initialFocus 
-          locale={ptBR}
-          captionLayout="dropdown-buttons"
-          fromYear={new Date().getFullYear()}
-          toYear={new Date().getFullYear() + 2}
-      />
-  );
-  
-  const renderDatePicker = (
-      field: any,
-      isOpen: boolean,
-      setOpen: (open: boolean) => void,
-      disabledDateCheck: (date: Date) => boolean,
-      label: string
-  ) => {
-      const triggerButton = (
-          <Button variant={"outline"} className={cn("pl-3 text-left font-normal w-full", !field.value && "text-muted-foreground")}>
-              {field.value ? format(field.value, "dd/MM/yyyy", { locale: ptBR }) : <span>Escolha uma data</span>}
-              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-          </Button>
-      );
-
-      if (isMobile) {
-          return (
-              <Dialog open={isOpen} onOpenChange={setOpen}>
-                  <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-                  <DialogContent className="w-auto p-2">
-                    <DialogHeader>
-                        <DialogTitle className="sr-only">{label}</DialogTitle>
-                        <DialogDescription className="sr-only">Selecione uma data no calendário abaixo.</DialogDescription>
-                    </DialogHeader>
-                    {renderCalendar(field, setOpen, disabledDateCheck)}
-                  </DialogContent>
-              </Dialog>
-          );
-      }
-
-      return (
-          <Popover open={isOpen} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                  {renderCalendar(field, setOpen, disabledDateCheck)}
-              </PopoverContent>
-          </Popover>
-      );
-  };
 
   return (
     <Form {...form}>
@@ -211,7 +153,14 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
                 <FormItem className="flex flex-col">
                     <FormLabel>Data de Início</FormLabel>
                     <FormControl>
-                        {renderDatePicker(field, isStartDatePickerOpen, setIsStartDatePickerOpen, (date) => date < new Date(new Date().setHours(0,0,0,0)), 'Selecione a data de início')}
+                        <StandardDatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Escolha a data de início"
+                            isMobile={false}
+                            fromYear={new Date().getFullYear()}
+                            toYear={new Date().getFullYear() + 2}
+                        />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
@@ -242,10 +191,14 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
                 <FormItem className="flex flex-col">
                     <FormLabel>Data de Término</FormLabel>
                      <FormControl>
-                        {renderDatePicker(field, isEndDatePickerOpen, setIsEndDatePickerOpen, (date) => {
-                            const startDate = form.getValues('startDate');
-                            return startDate ? date < new Date(startDate.setHours(0,0,0,0)) : date < new Date(new Date().setHours(0,0,0,0));
-                        }, 'Selecione a data de término')}
+                        <StandardDatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Escolha a data de término"
+                            isMobile={false}
+                            fromYear={new Date().getFullYear()}
+                            toYear={new Date().getFullYear() + 2}
+                        />
                     </FormControl>
                     <FormMessage />
                 </FormItem>

@@ -88,6 +88,9 @@ export interface Agendamento {
   status: 'Agendado' | 'Finalizado' | 'Cancelado';
   instanciaWhatsapp?: string;
   tokenInstancia?: string | null;
+  createdAt?: Timestamp;
+  canceledAt?: Timestamp;
+  canceledBy?: string;
 }
 
 export interface Cliente {

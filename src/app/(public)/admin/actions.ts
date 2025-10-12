@@ -1,7 +1,11 @@
 'use server'
 
+import { isServerAdmin } from '@/lib/server-admin-utils';
+
+/**
+ * ✅ SEGURANÇA CORRIGIDA: Usa isServerAdmin (server-only)
+ */
 export async function verifyAdmin(email: string): Promise<{ isAdmin: boolean }> {
-  const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());
-  const isAdmin = adminEmails.includes(email);
+  const isAdmin = await isServerAdmin(email);
   return { isAdmin };
 }

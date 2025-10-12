@@ -140,7 +140,6 @@ export default function AgendamentosPage() {
         
         // Se for edição, deletar o agendamento antigo e criar novo ID
         if (isEditing) {
-            console.log('🔄 Editando agendamento - deletando antigo e criando novo ID...');
             await deleteDocument('agendamentos', selectedAppointment.id, finalUserId);
         }
         
@@ -183,57 +182,41 @@ export default function AgendamentosPage() {
         const wasCompleted = selectedAppointment?.status !== 'Finalizado' && data.status === 'Finalizado';
         const isNewAndFinalized = !isEditing && data.status === 'Finalizado';
 
-        console.log('📋 Verificando webhooks:', {
-            isEditing,
-            wasCompleted,
-            isNewAndFinalized,
-            status: data.status,
-            oldStatus: selectedAppointment?.status
-        });
-
         // Send feedback hook if the appointment is finalized
         if (wasCompleted || isNewAndFinalized) {
-            console.log('✅ Enviando webhook de conclusão...');
             const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
             try {
                 await sendCompletionHooks(serializableSettings, finalData as any);
-                console.log('✅ Webhook de conclusão enviada com sucesso');
             } catch (error) {
-                console.error('❌ Erro ao enviar webhook de conclusão:', error);
+                // Erro silencioso - logar apenas no servidor
             }
         }
         
         // Send creation hooks only if it's a NEW appointment (not editing)
         if (!isEditing && data.status === 'Agendado') {
-            console.log('✅ Enviando webhook de criação (novo agendamento)...');
             try {
                 await sendCreationHooks(serializableSettings, serializableAppointment as any);
-                console.log('✅ Webhook de criação enviada com sucesso');
             } catch (error) {
-                console.error('❌ Erro ao enviar webhook de criação:', error);
+                // Erro silencioso - logar apenas no servidor
             }
         }
         
         // Send reminder hooks if EDITING and status is 'Agendado'
         if (isEditing && data.status === 'Agendado') {
-            console.log('✅ Enviando lembretes (agendamento editado)...');
             try {
                 await sendReminderHooksOnly(serializableSettings, serializableAppointment as any);
-                console.log('✅ Lembretes enviados com sucesso');
             } catch (error) {
-                console.error('❌ Erro ao enviar lembretes:', error);
+                // Erro silencioso - logar apenas no servidor
             }
         }
         
         // Send cancellation hooks if the status changes to 'Cancelado'
         if (selectedAppointment?.status !== 'Cancelado' && data.status === 'Cancelado') {
-            console.log('✅ Enviando webhook de cancelamento...');
             const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
             try {
                 await sendCancellationHooks(serializableSettings, finalData as any);
-                console.log('✅ Webhook de cancelamento enviada com sucesso');
             } catch (error) {
-                console.error('❌ Erro ao enviar webhook de cancelamento:', error);
+                // Erro silencioso - logar apenas no servidor
             }
         }
         
@@ -241,7 +224,6 @@ export default function AgendamentosPage() {
         setIsFormModalOpen(false);
 
     } catch (error) {
-        console.error("Erro ao salvar agendamento: ", error);
         toast({ variant: "destructive", title: "Erro ao Salvar" });
     } finally {
         setIsSubmitting(false);
@@ -268,6 +250,8 @@ export default function AgendamentosPage() {
         const serializableAppointment = {
           ...appointmentToDelete,
           date: safeToISOString(appointmentToDelete.date),
+          createdAt: appointmentToDelete.createdAt ? safeToISOString(appointmentToDelete.createdAt) : undefined,
+          canceledAt: appointmentToDelete.canceledAt ? safeToISOString(appointmentToDelete.canceledAt) : undefined,
           cliente: {
             ...appointmentToDelete.cliente,
             birthDate: safeToISOString(appointmentToDelete.cliente.birthDate),
@@ -289,7 +273,6 @@ export default function AgendamentosPage() {
         setIsAlertDialogOpen(false);
 
     } catch (error) {
-       console.error("Erro ao excluir agendamento:", error);
        toast({ variant: "destructive", title: "Erro ao Excluir", description: "Não foi possível excluir o agendamento." });
     } finally {
         setIsSubmitting(false);
@@ -318,7 +301,6 @@ export default function AgendamentosPage() {
         setIsNewBlockEntryDialogOpen(false);
         setSelectedBlock(null);
     } catch (error) {
-        console.error(error);
         toast({ variant: "destructive", title: "Erro", description: "Não foi possível salvar o bloqueio." });
     } finally {
         setIsSubmittingBlock(false);

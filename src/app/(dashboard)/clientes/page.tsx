@@ -132,7 +132,7 @@ export default function ClientsPage() {
       const clientData = {
         name: data.name,
         phone: numericPhone,
-        birthDate: data.birthDate || null, // Correctly handle optional birthDate
+        birthDate: data.birthDate ? data.birthDate.toISOString() : null, // String ISO
         status: data.status,
         avatarUrl: data.avatarUrl || null,
         instanciaWhatsapp: businessSettings.id,

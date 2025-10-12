@@ -35,11 +35,38 @@ function getDb() {
 
 // --- Generic Document Operations ---
 
+// Função recursiva para remover undefined de objetos
+function removeUndefined(obj: any): any {
+    if (obj === null || obj === undefined) {
+        return null;
+    }
+    
+    if (Array.isArray(obj)) {
+        return obj.map(item => removeUndefined(item));
+    }
+    
+    if (typeof obj === 'object' && obj.constructor === Object) {
+        const cleaned: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+                cleaned[key] = removeUndefined(value);
+            }
+        }
+        return cleaned;
+    }
+    
+    return obj;
+}
+
 export async function saveOrUpdateDocument(collectionName: string, docId: string, data: any, businessId?: string): Promise<void> {
     const db = getDb();
     const path = businessId ? `negocios/${businessId}/${collectionName}/${docId}` : `${collectionName}/${docId}`;
     const docRef = doc(db, path);
-    await setDoc(docRef, data, { merge: true });
+    
+    // Remove campos undefined recursivamente (Firestore não aceita undefined, apenas null)
+    const sanitizedData = removeUndefined(data);
+    
+    await setDoc(docRef, sanitizedData, { merge: true });
 }
 
 export async function deleteDocument(collectionName: string, docId: string, businessId?: string): Promise<void> {

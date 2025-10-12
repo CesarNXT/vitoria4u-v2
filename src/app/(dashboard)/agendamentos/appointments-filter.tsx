@@ -2,13 +2,10 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import { StandardDatePicker } from "@/components/ui/standard-date-picker"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
-import { CalendarIcon, ChevronDown, X } from "lucide-react"
-import { format } from "date-fns"
+import { X } from "lucide-react"
 import type { Servico, Profissional } from "@/lib/types"
 
 export interface AppointmentFilters {
@@ -55,28 +52,12 @@ export function AppointmentsFilter({ filters, onFiltersChange, services, profess
                 onChange={(e) => handleFilterChange('clientName', e.target.value)}
                 className="lg:col-span-2"
             />
-            <Popover>
-                <PopoverTrigger asChild>
-                <Button
-                    variant={"outline"}
-                    className={cn(
-                    "w-full justify-between text-left font-normal",
-                    !filters.date && "text-foreground"
-                    )}
-                >
-                    {filters.date ? format(filters.date, "dd/MM/yyyy") : <span>Data</span>}
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                <Calendar
-                    mode="single"
-                    selected={filters.date || undefined}
-                    onSelect={(d) => handleFilterChange('date', d || null)}
-                    initialFocus
-                />
-                </PopoverContent>
-            </Popover>
+            <StandardDatePicker
+                value={filters.date || undefined}
+                onChange={(d) => handleFilterChange('date', d || null)}
+                placeholder="Data"
+                className="w-full"
+            />
             
             <Select value={filters.professionalId} onValueChange={(v) => handleFilterChange('professionalId', v)}>
                 <SelectTrigger>

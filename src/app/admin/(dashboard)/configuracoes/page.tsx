@@ -5,7 +5,7 @@ import { useFirebase } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { SystemConfig, Plano } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Settings } from 'lucide-react';
+import { Loader2, Settings, Shield, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,12 +14,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, getDocs } from 'firebase/firestore';
 
+interface AdminUser {
+  uid: string;
+  email: string;
+  isAdmin: boolean;
+}
+
 export default function ConfiguracoesPage() {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [plans, setPlans] = useState<Plano[]>([]);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   const [config, setConfig] = useState<SystemConfig>({
     id: 'global',
     trial: {
@@ -53,6 +62,13 @@ export default function ConfiguracoesPage() {
           .sort((a, b) => a.price - b.price);
         setPlans(plansData);
 
+        // Buscar admins
+        const adminsSnapshot = await getDocs(collection(firestore, 'admin'));
+        const adminsData = adminsSnapshot.docs
+          .map(doc => ({ uid: doc.id, ...doc.data() } as AdminUser))
+          .filter(admin => admin.isAdmin);
+        setAdmins(adminsData);
+
         setIsLoading(false);
       } catch (error) {
         console.error('Erro ao buscar configurações:', error);
@@ -85,6 +101,86 @@ export default function ConfiguracoesPage() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail.trim()) {
+      toast({ variant: 'destructive', title: 'Digite um email válido' });
+      return;
+    }
+
+    setIsAddingAdmin(true);
+    try {
+      const response = await fetch('/api/admin/manage-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newAdminEmail, action: 'add' }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao adicionar admin');
+      }
+
+      setAdmins([...admins, { uid: result.uid, email: result.email, isAdmin: true }]);
+      setNewAdminEmail('');
+      
+      toast({
+        title: 'Admin Adicionado!',
+        description: `${result.email} agora é administrador.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: error.message,
+      });
+    } finally {
+      setIsAddingAdmin(false);
+    }
+  };
+
+  const handleRemoveAdmin = async (uid: string, email: string) => {
+    if (admins.length === 1) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Deve haver pelo menos um administrador no sistema.',
+      });
+      return;
+    }
+
+    if (!confirm(`Remover ${email} como administrador?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/manage-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, action: 'remove' }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao remover admin');
+      }
+
+      setAdmins(admins.filter(a => a.uid !== uid));
+      
+      toast({
+        title: 'Admin Removido',
+        description: `${email} não é mais administrador.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: error.message,
+      });
     }
   };
 
@@ -198,6 +294,86 @@ export default function ConfiguracoesPage() {
               'Salvar Configurações'
             )}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Gerenciar Administradores
+          </CardTitle>
+          <CardDescription>
+            Adicione ou remova usuários administradores do sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="email@exemplo.com"
+              value={newAdminEmail}
+              onChange={(e) => setNewAdminEmail(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddAdmin()}
+            />
+            <Button onClick={handleAddAdmin} disabled={isAddingAdmin}>
+              {isAddingAdmin ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Adicionar
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Administradores Ativos ({admins.length})</Label>
+            {admins.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum administrador cadastrado</p>
+            ) : (
+              <div className="divide-y rounded-md border">
+                {admins.map((admin) => (
+                  <div
+                    key={admin.uid}
+                    className="flex items-center justify-between p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">{admin.email}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveAdmin(admin.uid, admin.email)}
+                      className="h-8 w-8"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {admins.length === 0 && (
+            <div className="rounded-md bg-yellow-50 dark:bg-yellow-950 p-3">
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                ⚠️ Primeiro Admin - Configure o hook
+              </p>
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                1. Adicione seu email acima<br />
+                2. Abra <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">src/hooks/use-admin-sync.ts</code><br />
+                3. Adicione seu email na lista <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">ADMIN_EMAILS</code><br />
+                4. Faça logout e login novamente
+              </p>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            <strong>Nota:</strong> O usuário deve já ter feito login no sistema ao menos uma vez para ser adicionado como admin.
+          </p>
         </CardContent>
       </Card>
     </div>

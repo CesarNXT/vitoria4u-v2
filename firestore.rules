@@ -1,8 +1,73 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // 🔧 Função helper para verificar se é admin
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/admin/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admin/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // 👑 ADMIN TEM ACESSO TOTAL A TUDO
+    // Firestore bloqueia tudo por padrão, não precisa de regra de bloqueio explícita
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAdmin();
+    }
+    
+    // ✅ Negócios - Leitura pública (página de agendamento) / Escrita para dono ou admin
+    match /negocios/{businessId} {
+      // Permitir leitura pública dos dados básicos do negócio
+      allow read: if true;
+      
+      // Permitir escrita para o dono OU admin
+      allow write: if request.auth != null && (request.auth.uid == businessId || isAdmin());
+      
+      // 📅 Agendamentos - Leitura pública (ver horários) / Escrita dono ou admin
+      match /agendamentos/{appointmentId} {
+        allow read: if true; // Público para ver disponibilidade
+        allow write: if request.auth != null && (request.auth.uid == businessId || isAdmin());
+      }
+      
+      // 👥 Clientes - Apenas dono ou admin (dados sensíveis)
+      match /clientes/{clientId} {
+        allow read, write: if request.auth != null && (request.auth.uid == businessId || isAdmin());
+      }
+      
+      // 💇 Serviços - Leitura pública (página de agendamento) / Escrita dono ou admin
+      match /servicos/{serviceId} {
+        allow read: if true; // Público para ver serviços disponíveis
+        allow write: if request.auth != null && (request.auth.uid == businessId || isAdmin());
+      }
+      
+      // 👔 Profissionais - Leitura pública (página de agendamento) / Escrita dono ou admin
+      match /profissionais/{professionalId} {
+        allow read: if true; // Público para ver profissionais
+        allow write: if request.auth != null && (request.auth.uid == businessId || isAdmin());
+      }
+      
+      // 🚫 Datas Bloqueadas - Leitura pública (verificar disponibilidade) / Escrita dono ou admin
+      match /datasBloqueadas/{blockId} {
+        allow read: if true; // Público para verificar datas bloqueadas
+        allow write: if request.auth != null && (request.auth.uid == businessId || isAdmin());
+      }
+      
+      // 📢 Campanhas - Apenas dono ou admin
+      match /campanhas/{campaignId} {
+        allow read, write: if request.auth != null && (request.auth.uid == businessId || isAdmin());
+      }
+    }
+    
+    // ✅ Admin - Dados administrativos
+    match /admin/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false; // Apenas via Firebase Admin SDK
+    }
+    
+    // ✅ Planos - Leitura pública (página de planos) / Escrita apenas admin
+    match /planos/{planId} {
+      allow read: if true;
+      allow write: if isAdmin(); // Admin pode editar via interface
     }
   }
 }

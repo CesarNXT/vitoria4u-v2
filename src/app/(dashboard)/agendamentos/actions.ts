@@ -4,6 +4,7 @@ import type { Agendamento, ConfiguracoesNegocio, Plano, PlanFeature } from "@/li
 import { add, format, parse, isDate } from 'date-fns';
 import { adminDb } from "@/lib/firebase-admin";
 import { checkFeatureAccess } from "@/lib/server-utils";
+import { logger, sanitizeForLog } from "@/lib/logger";
 
 const N8N_BASE_URL = "https://n8n.vitoria4u.site/webhook/";
 
@@ -18,7 +19,8 @@ const WEBHOOK_URLS = {
 };
 
 async function callWebhook(url: string, payload: any) {
-    console.log(`→ Enviando webhook: url=${url}, payload=${JSON.stringify(payload)}`);
+    // 🔒 Sanitiza dados antes de logar
+    logger.debug('→ Enviando webhook', sanitizeForLog({ url, payload }));
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -27,12 +29,12 @@ async function callWebhook(url: string, payload: any) {
         });
         
         const text = await response.text();
-        console.log(`Webhook response status=${response.status}, body=${text}`);
+        logger.debug('✅ Webhook response', { status: response.status });
         if (!response.ok) {
             throw new Error(`Webhook call to ${url} failed with status ${response.status}: ${text}`);
         }
     } catch (error) {
-        console.error(`Error calling webhook ${url}:`, error);
+        logger.error(`Error calling webhook`, sanitizeForLog(error));
     }
 }
 
@@ -181,19 +183,19 @@ export async function sendReminderHooksOnly(
 
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_24h')) {
         if (appointmentDateTime > add(new Date(), { hours: 21 })) {
-            console.log(' Enviando lembrete 24h (agendamento editado)...');
+            logger.debug('📅 Enviando lembrete 24h (agendamento editado)');
             await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload);
         } else {
-            console.log(' Lembrete 24h não enviado - agendamento em menos de 21 horas');
+            logger.debug('⏭️ Lembrete 24h não enviado - agendamento em menos de 21 horas');
         }
     }
     
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_2h')) {
         if (appointmentDateTime > add(new Date(), { hours: 1 })) {
-            console.log(' Enviando lembrete 2h (agendamento editado)...');
+            logger.debug('⏰ Enviando lembrete 2h (agendamento editado)');
             await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload);
         } else {
-            console.log(' Lembrete 2h não enviado - agendamento em menos de 1 hora');
+            logger.debug('⏭️ Lembrete 2h não enviado - agendamento em menos de 1 hora');
         }
     }
 }

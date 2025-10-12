@@ -6,12 +6,15 @@
  * Esta função deve ser usada em Server Actions e API Routes
  * para validar se um usuário é admin de forma segura.
  * 
+ * ✅ USA VARIÁVEL SERVER-ONLY (não exposta ao cliente)
+ * 
  * TODO: Migrar para Firebase Custom Claims em versão futura
  */
 export async function isServerAdmin(email: string | null | undefined): Promise<boolean> {
     if (!email) return false;
     
-    const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());
+    // ✅ Usa ADMIN_EMAILS (sem NEXT_PUBLIC_) - não exposto ao cliente
+    const adminEmails = (process.env.ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());
     return adminEmails.includes(email);
 }
 

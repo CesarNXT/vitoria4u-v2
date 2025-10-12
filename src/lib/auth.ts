@@ -1,22 +1,24 @@
+"use server";
 
-import { cookies } from 'next/headers';
+import { doc, getDoc } from 'firebase/firestore';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { verifySession } from './session';
 import type { User } from './types';
 
+/**
+ * 🔒 SEGURANÇA CORRIGIDA: Agora usa validação server-side
+ * O session cookie é verificado com Firebase Admin SDK
+ */
 export async function getInitialUser(): Promise<User | null> {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session')?.value;
-
-    if (!sessionCookie) {
-        return null;
-    }
-    
     try {
-        // In a real app, you would verify the session cookie with Firebase Admin SDK
-        // For this mock, we will assume the cookie is a JSON representation of the user
-        const decodedToken = JSON.parse(sessionCookie);
+        // ✅ Validar session cookie com Admin SDK
+        const decodedToken = await verifySession();
+        
+        if (!decodedToken) {
+            return null;
+        }
 
         const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
         const firestore = getFirestore(app);
@@ -27,22 +29,33 @@ export async function getInitialUser(): Promise<User | null> {
         if (userDoc.exists()) {
             return {
                 uid: decodedToken.uid,
-                email: decodedToken.email,
+                email: decodedToken.email || '',
                 ...userDoc.data()
             } as User;
         }
 
+        // Buscar em negocios se não encontrar em users
+        const businessDocRef = doc(firestore, 'negocios', decodedToken.uid);
+        const businessDoc = await getDoc(businessDocRef);
+        
+        if (businessDoc.exists()) {
+            return {
+                uid: decodedToken.uid,
+                email: decodedToken.email || '',
+                name: businessDoc.data().nome || decodedToken.email?.split('@')[0] || '',
+                role: 'business'
+            };
+        }
+
         return {
             uid: decodedToken.uid,
-            email: decodedToken.email,
-            name: decodedToken.name || decodedToken.email.split('@')[0],
+            email: decodedToken.email || '',
+            name: decodedToken.email?.split('@')[0] || 'Usuário',
             role: 'business'
         };
 
     } catch (error) {
-        console.error("Error decoding session cookie:", error);
+        console.error("Error getting initial user:", error);
         return null;
     }
 }
-
-    

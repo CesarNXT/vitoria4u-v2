@@ -5,19 +5,23 @@ import type { ConfiguracoesNegocio, PlanFeature, Plano, HorarioSlot, Profissiona
 import { isFuture, differenceInDays, getDay, isWithinInterval as isWithinFnsInterval } from 'date-fns';
 
 /**
- * ⚠️ WARNING: Esta função usa NEXT_PUBLIC_ADMIN_EMAILS, que expõe a lista de admins no cliente
+ * ⚠️ WARNING: Esta função é CLIENT-SIDE e expõe a lista de admins no bundle JS
  * 
- * Esta validação deve ser usada APENAS para UI (mostrar/esconder elementos)
- * NUNCA confiar nesta validação para segurança real.
+ * ✅ USO CORRETO: Apenas para UI (mostrar/esconder botões, menus)
+ * ❌ NÃO USAR: Para validação de segurança (pode ser burlado)
  * 
- * Para operações críticas, sempre validar server-side usando:
+ * 🔒 Para operações críticas, SEMPRE validar server-side usando:
  * - isServerAdmin() em Server Actions
  * - adminAuth.verifyIdToken() + isServerAdmin() em API Routes
+ * 
+ * 📝 Esta função existe apenas para melhorar UX (esconder opções que o usuário não pode usar)
+ * A segurança real está nas validações server-side!
  * 
  * TODO: Migrar para Firebase Custom Claims em versão futura
  */
 export function isAdminUser(email: string | null | undefined): boolean {
   if (!email) return false;
+  // ⚠️ NEXT_PUBLIC_ expõe no cliente - OK apenas para UI
   const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());
   return adminEmails.includes(email);
 }
@@ -31,7 +35,8 @@ export function convertTimestamps(obj: any): any {
     return obj;
   }
 
-  if (obj.toDate) { // Check if it's a Firestore Timestamp
+  // Firestore Timestamp
+  if (obj.toDate) {
     return obj.toDate();
   }
 
@@ -42,7 +47,14 @@ export function convertTimestamps(obj: any): any {
   const newObj: { [key: string]: any } = {};
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      newObj[key] = convertTimestamps(obj[key]);
+      const value = obj[key];
+      
+      // Se é uma string ISO de data, converte para Date
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+        newObj[key] = new Date(value);
+      } else {
+        newObj[key] = convertTimestamps(value);
+      }
     }
   }
   return newObj;

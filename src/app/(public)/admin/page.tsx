@@ -57,15 +57,21 @@ function AdminLoginContent() {
 
         const { auth } = initializeFirebase();
 
-        const { isAdmin } = await verifyAdmin(email);
-        if (!isAdmin) {
-            setError("Acesso negado. Este e-mail não é de um administrador. Use /login para usuários comuns.");
-            setIsLoading(false);
-            return;
-        }
-
         try {
+            // 1. Fazer login primeiro
             await signInWithEmailAndPassword(auth, email, password);
+            
+            // 2. Depois verificar se é admin
+            const { isAdmin } = await verifyAdmin(email);
+            if (!isAdmin) {
+                // Se não for admin, fazer logout
+                await auth.signOut();
+                setError("Acesso negado. Este e-mail não é de um administrador. Use /login para usuários comuns.");
+                setIsLoading(false);
+                return;
+            }
+
+            // 3. Se for admin, redirecionar
             toast({
                 title: "Login Admin realizado!",
                 description: "Redirecionando para o painel administrativo...",

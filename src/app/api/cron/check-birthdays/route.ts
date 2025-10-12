@@ -47,7 +47,16 @@ export async function GET(request: Request) {
             for (const clientDoc of clientsSnapshot.docs) {
                 const clientData = clientDoc.data();
                 if (clientData.birthDate) {
-                    const birthDate = clientData.birthDate.toDate();
+                    // Compatibilidade: String ISO ou Timestamp
+                    let birthDate: Date;
+                    if (typeof clientData.birthDate === 'string') {
+                        birthDate = new Date(clientData.birthDate);
+                    } else if (clientData.birthDate.toDate) {
+                        birthDate = clientData.birthDate.toDate();
+                    } else {
+                        birthDate = new Date(clientData.birthDate);
+                    }
+                    
                     if (birthDate.getMonth() + 1 === todayMonth && birthDate.getDate() === todayDay) {
                         const payload = {
                             nomeCliente: clientData.name,

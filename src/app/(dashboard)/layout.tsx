@@ -27,6 +27,7 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useTheme } from 'next-themes';
 import { useToast } from '@/hooks/use-toast';
 import { BusinessUserProvider } from '@/contexts/BusinessUserContext';
+import { destroyUserSession } from '@/app/(public)/login/session-actions';
 
 
 function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
@@ -65,6 +66,49 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       }
     }
   }, [searchParams, router, pathname]);
+
+  // 🔒 SEGURANÇA: Validar impersonação server-side
+  useEffect(() => {
+    const validateImpersonation = async () => {
+      if (impersonatedId && user) {
+        try {
+          const token = await user.getIdToken();
+          const response = await fetch('/api/validate-impersonation', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ businessId: impersonatedId })
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok || !data.valid) {
+            console.error('🚨 Impersonação inválida detectada:', data.error);
+            localStorage.removeItem('impersonatedBusinessId');
+            setImpersonatedId(null);
+            router.push('/admin/dashboard');
+            toast({
+              variant: 'destructive',
+              title: 'Acesso Negado',
+              description: data.error || 'Impersonação inválida.'
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao validar impersonação:', error);
+          localStorage.removeItem('impersonatedBusinessId');
+          setImpersonatedId(null);
+          router.push('/admin/dashboard');
+        }
+      }
+    };
+    
+    // Validar quando impersonatedId ou user mudar
+    if (impersonatedId && user) {
+      validateImpersonation();
+    }
+  }, [impersonatedId, user, router, toast]);
 
   const clearImpersonation = () => {
     localStorage.removeItem('impersonatedBusinessId');
@@ -173,6 +217,8 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     const auth = getAuth();
+    // 🔒 SEGURANÇA: Destruir session cookie
+    await destroyUserSession();
     await signOut(auth);
     // Usar window.location para forçar navegação completa e evitar redirect
     window.location.href = '/';

@@ -24,15 +24,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
+import { StandardDatePicker } from '@/components/ui/standard-date-picker';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
-import { CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,12 +98,12 @@ export function AppointmentForm({
   onSubmit,
   isSubmitting,
 }: AppointmentFormProps) {
+  const isMobile = useIsMobile();
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [professionalDialogOpen, setProfessionalDialogOpen] = useState(false);
-  const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
   const [professionalSearchTerm, setProfessionalSearchTerm] = useState('');
@@ -491,50 +487,21 @@ export function AppointmentForm({
           <FormField
             control={control}
             name="date"
-            render={({ field }) => {
-              return (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Data</FormLabel>
-                  <FormControl>
-                    <Button
-                      type="button"
-                      variant={'outline'}
-                      className={cn(
-                        'w-full pl-3 text-left font-normal justify-start',
-                        !field.value && 'text-muted-foreground'
-                      )}
-                      onClick={() => setDateDialogOpen(true)}
-                    >
-                      {field.value && field.value instanceof Date && !isNaN(field.value.getTime())
-                        ? format(field.value, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-                        : <span>Escolha uma data</span>
-                      }
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                  
-                  <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
-                    <DialogContent className="p-4 gap-0 w-auto max-w-fit [&>button]:hidden">
-                      <VisuallyHidden>
-                        <DialogTitle>Selecione uma data</DialogTitle>
-                      </VisuallyHidden>
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={(date) => {
-                          field.onChange(date);
-                          setDateDialogOpen(false);
-                        }}
-                        locale={ptBR}
-                        className="rounded-md scale-110"
-                      />
-                    </DialogContent>
-                  </Dialog>
-                  
-                  <FormMessage />
-                </FormItem>
-              );
-            }}
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Data</FormLabel>
+                <FormControl>
+                  <StandardDatePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Escolha uma data"
+                    isMobile={isMobile}
+                    forceDialog={true}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
 
          

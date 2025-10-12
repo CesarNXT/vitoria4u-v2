@@ -3,9 +3,6 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-    saveOrUpdateDocument,
-} from '@/lib/firestore';
 import type { Cliente, Servico, Profissional, Agendamento, ConfiguracoesNegocio, DataBloqueada, HorarioTrabalho } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,16 +15,12 @@ import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
-import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords, convertTimestamps } from '@/lib/utils';
+import { StandardDatePicker } from "@/components/ui/standard-date-picker"
+import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords } from '@/lib/utils';
 import { getAvailableTimes } from '@/lib/availability';
 import { format, getDay, parse, getMonth, isSameDay, isDate } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { CalendarIcon } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { sendCreationHooks, sendCancellationHooks } from '@/app/(dashboard)/agendamentos/actions';
 import {
   Form,
   FormControl,
@@ -37,8 +30,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Skeleton } from '@/components/ui/skeleton';
-import { initializeFirebase } from '@/firebase';
-import { getFirestore, doc, collection, onSnapshot } from 'firebase/firestore';
 
 
 type Step = 'IDENTIFICACAO' | 'NEW_CLIENT_FORM' | 'LIMIT_REACHED' | 'MODIFY_EXISTING' | 'SERVICE' | 'PROFESSIONAL' | 'DATETIME' | 'CONFIRMATION' | 'COMPLETED';
@@ -62,26 +53,6 @@ interface BookingClientProps {
     initialBlockedDates: DataBloqueada[];
 }
 
-// Helper to safely convert various date formats to an ISO string
-const safeToISOString = (dateValue: any): string | null => {
-    if (!dateValue) return null;
-
-    // Firestore Timestamp object
-    if (typeof dateValue === 'object' && dateValue.seconds) {
-        return new Date(dateValue.seconds * 1000).toISOString();
-    }
-    // Already a Date object
-    if (isDate(dateValue)) {
-        return dateValue.toISOString();
-    }
-    // A string that can be parsed into a Date
-    const parsedDate = new Date(dateValue);
-    if (!isNaN(parsedDate.getTime())) {
-        return parsedDate.toISOString();
-    }
-    return null;
-}
-
 export default function BookingClient({
     businessId,
     initialSettings,
@@ -92,7 +63,6 @@ export default function BookingClient({
     initialBlockedDates
 }: BookingClientProps) {
     const { toast } = useToast();
-    const firestore = getFirestore(initializeFirebase().firebaseApp);
     
     // Dates are received as strings, convert them back to Date objects
     const [businessSettings, setBusinessSettings] = useState<ConfiguracoesNegocio | null>(() => initialSettings ? { ...initialSettings, access_expires_at: new Date(initialSettings.access_expires_at), createdAt: new Date(initialSettings.createdAt) } : null);
@@ -119,28 +89,8 @@ export default function BookingClient({
     const [isCanceling, setIsCanceling] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
 
-    
-    useEffect(() => {
-        if (!firestore || !businessId) return;
-
-        const appointmentsUnsub = onSnapshot(collection(firestore, `negocios/${businessId}/agendamentos`), (snap) => {
-            const appointmentData = snap.docs.map(d => {
-                const data = d.data();
-                const date = data.date;
-                // Handle both Timestamps and ISO strings
-                const dateObj = date?.toDate ? date.toDate() : new Date(date);
-                return {...data, id: d.id, date: dateObj} as Agendamento;
-            });
-            setAppointments(appointmentData);
-        });
-
-        // Add other listeners if you need real-time updates for them too
-
-        return () => {
-            appointmentsUnsub();
-        }
-
-    }, [firestore, businessId]);
+    // Appointments são carregados via props (initialAppointments)
+    // E atualizados localmente após criar/cancelar via API
 
     const MAX_SCHEDULED_APPOINTMENTS = 1;
 
@@ -170,21 +120,51 @@ export default function BookingClient({
 
         const normalizedPhoneStr = normalizePhoneNumber(phone);
         const phoneAsNumber = parseInt(normalizedPhoneStr, 10);
-        const foundClient = clients.find(c => c.phone === phoneAsNumber);
-        
-        setCurrentUser(foundClient || null);
 
-        const clientAppointments = appointments.filter(a => a.cliente.phone === phoneAsNumber && a.status === 'Agendado');
-        if (clientAppointments.length > 0) {
-            setExistingAppointment(clientAppointments[0]);
-            setStep('MODIFY_EXISTING');
-        } else {
-             setStep('NEW_CLIENT_FORM');
+        try {
+            // Verificar cliente via API
+            const response = await fetch('/api/booking/check-client', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    businessId,
+                    phone: normalizedPhoneStr,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Erro ao verificar cliente');
+            }
+
+            // Se cliente existe, converter birthDate de string para Date
+            const foundClient = result.exists && result.client ? {
+                ...result.client,
+                birthDate: result.client.birthDate ? new Date(result.client.birthDate) : undefined
+            } : null;
+
+            setCurrentUser(foundClient);
+
+            // Verificar se já tem agendamento
+            const clientAppointments = appointments.filter(a => a.cliente.phone === phoneAsNumber && a.status === 'Agendado');
+            if (clientAppointments.length > 0) {
+                setExistingAppointment(clientAppointments[0]);
+                setStep('MODIFY_EXISTING');
+            } else {
+                setStep('NEW_CLIENT_FORM');
+            }
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao verificar telefone',
+                description: error.message || 'Tente novamente',
+            });
         }
     };
 
     const handleNewClientSubmit = async (data: NewClientFormValues) => {
-        if (!firestore || !businessId || !businessSettings) return;
+        if (!businessId || !businessSettings) return;
         
         const capitalizedName = capitalizeWords(data.name);
         const normalizedPhoneStr = normalizePhoneNumber(phone);
@@ -195,33 +175,56 @@ export default function BookingClient({
             return;
         }
 
-        const clientId = currentUser?.id || `client-${Date.now()}`;
+        try {
+            // Chamar API ao invés de gravar direto no Firestore
+            const response = await fetch('/api/booking/client', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    businessId,
+                    name: capitalizedName,
+                    phone: normalizedPhoneStr,
+                    birthDate: data.birthDate?.toISOString(),
+                }),
+            });
 
-        const clientData: Cliente = { 
-            id: clientId,
-            name: capitalizedName,
-            birthDate: data.birthDate,
-            phone: phoneAsNumber,
-            status: currentUser?.status || "Ativo",
-            avatarUrl: currentUser?.avatarUrl || undefined,
-            instanciaWhatsapp: businessSettings.id,
-        };
-        
-        await saveOrUpdateDocument('clientes', clientId, clientData, businessId);
-        
-        if (currentUser) {
-            setClients(prev => prev.map(c => c.id === clientId ? clientData : c));
-        } else {
-            setClients(prev => [clientData, ...prev]);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Erro ao salvar cliente');
+            }
+
+            const clientId = result.clientId;
+            const clientData: Cliente = { 
+                id: clientId,
+                name: capitalizedName,
+                birthDate: data.birthDate,
+                phone: phoneAsNumber,
+                status: currentUser?.status || "Ativo",
+                avatarUrl: currentUser?.avatarUrl || null,
+                instanciaWhatsapp: businessSettings.id,
+            };
+            
+            if (currentUser) {
+                setClients(prev => prev.map(c => c.id === clientId ? clientData : c));
+            } else {
+                setClients(prev => [clientData, ...prev]);
+            }
+            
+            setCurrentUser(clientData);
+            setStep('SERVICE');
+            
+            toast({
+                title: currentUser ? "Dados Confirmados!" : "Cadastro Concluído!",
+                description: `Bem-vindo(a), ${clientData.name}!`,
+            });
+        } catch (error: any) {
+            toast({ 
+                variant: "destructive", 
+                title: "Erro", 
+                description: error.message || "Erro ao processar cadastro" 
+            });
         }
-        
-        setCurrentUser(clientData);
-        setStep('SERVICE');
-        
-        toast({
-            title: currentUser ? "Dados Confirmados!" : "Cadastro Concluído!",
-            description: `Bem-vindo(a), ${clientData.name}!`,
-        })
     }
 
     const handleSelectService = (service: Servico) => {
@@ -244,7 +247,7 @@ export default function BookingClient({
     const handleConfirmAppointment = async () => {
         if (isConfirming) return; // Evita múltiplos cliques
         
-        if (!currentUser || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !firestore || !businessId || !businessSettings) {
+        if (!currentUser || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !businessId || !businessSettings) {
             toast({ variant: "destructive", title: "Erro", description: "Todos os dados são necessários." });
             return;
         }
@@ -252,43 +255,52 @@ export default function BookingClient({
         setIsConfirming(true);
         
         try {
-            const newAppointmentId = isEditing ? existingAppointment!.id : `appt-${Date.now()}`;
-            const newAppointmentData: Agendamento = {
-            id: newAppointmentId,
-            cliente: currentUser,
-            servico: selectedService,
-            profissional: selectedProfessional,
-            date: selectedDate,
-            startTime: selectedTime,
-            status: 'Agendado',
-            instanciaWhatsapp: businessSettings.id,
-            tokenInstancia: businessSettings.tokenInstancia ?? null
-        };
-        
-        const serializableAppointment = {
-            ...newAppointmentData,
-            date: newAppointmentData.date.toISOString(),
-        };
+            // Chamar API ao invés de gravar direto no Firestore
+            const response = await fetch('/api/booking/appointment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    businessId,
+                    clientId: currentUser.id,
+                    serviceId: selectedService.id,
+                    professionalId: selectedProfessional.id,
+                    date: selectedDate.toISOString(),
+                    startTime: selectedTime,
+                    clientPhone: currentUser.phone.toString(),
+                }),
+            });
 
-            await saveOrUpdateDocument('agendamentos', newAppointmentId, serializableAppointment, businessId);
-            
-            if (!isEditing) {
-                await sendCreationHooks(businessSettings, serializableAppointment as any);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Erro ao criar agendamento');
             }
 
+            const newAppointmentData: Agendamento = {
+                id: result.appointmentId,
+                cliente: currentUser,
+                servico: selectedService,
+                profissional: selectedProfessional,
+                date: selectedDate,
+                startTime: selectedTime,
+                status: 'Agendado',
+                instanciaWhatsapp: businessSettings.id,
+                tokenInstancia: businessSettings.tokenInstancia ?? null
+            };
+
             setAppointments(prev => {
-                const otherAppointments = prev.filter(a => a.id !== newAppointmentId);
+                const otherAppointments = prev.filter(a => a.id !== result.appointmentId);
                 return [newAppointmentData, ...otherAppointments];
             });
             
             setIsEditing(false);
             setStep('COMPLETED');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao confirmar agendamento:', error);
             toast({
                 variant: 'destructive',
                 title: 'Erro ao Agendar',
-                description: 'Não foi possível confirmar o agendamento. Tente novamente.',
+                description: error.message || 'Não foi possível confirmar o agendamento. Tente novamente.',
             });
         } finally {
             setIsConfirming(false);
@@ -296,7 +308,7 @@ export default function BookingClient({
     }
     
 const handleCancelAppointment = async (appointmentId: string) => {
-    if (!firestore || !businessId || !businessSettings || isCanceling) return;
+    if (!businessId || !currentUser || isCanceling) return;
     
     setIsCanceling(true);
 
@@ -307,21 +319,22 @@ const handleCancelAppointment = async (appointmentId: string) => {
             return;
         }
 
-        await saveOrUpdateDocument('agendamentos', appointmentId, { status: 'Cancelado' }, businessId);
+        // Chamar API ao invés de gravar direto no Firestore
+        const response = await fetch('/api/booking/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                businessId,
+                appointmentId,
+                clientPhone: currentUser.phone.toString(),
+            }),
+        });
 
-    // Manually create a plain object to pass to the server action
-    const serializableAppointment = {
-        ...appointmentToUpdate,
-        date: safeToISOString(appointmentToUpdate.date),
-        cliente: {
-            ...appointmentToUpdate.cliente,
-            birthDate: safeToISOString(appointmentToUpdate.cliente.birthDate)
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Erro ao cancelar agendamento');
         }
-    };
-    
-    const serializableSettings = JSON.parse(JSON.stringify(convertTimestamps(businessSettings)));
-
-        await sendCancellationHooks(serializableSettings, serializableAppointment as any);
         
         setAppointments(prev => prev.map((appt) => appt.id === appointmentId ? { ...appt, status: 'Cancelado'} : appt));
         
@@ -331,12 +344,12 @@ const handleCancelAppointment = async (appointmentId: string) => {
         });
 
         resetFlow();
-    } catch (error) {
+    } catch (error: any) {
         console.error('Erro ao cancelar agendamento:', error);
         toast({
             variant: 'destructive',
             title: 'Erro ao Cancelar',
-            description: 'Não foi possível cancelar o agendamento. Tente novamente.',
+            description: error.message || 'Não foi possível cancelar o agendamento. Tente novamente.',
         });
     } finally {
         setIsCanceling(false);
@@ -434,91 +447,18 @@ const handleCancelAppointment = async (appointmentId: string) => {
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
                         <FormLabel>Data de Nascimento</FormLabel>
-                        {isMobile ? (
-                            <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                                <DialogTrigger asChild>
-                                    <Button
-                                        type="button"
-                                        variant={"outline"}
-                                        className={cn(
-                                            "w-full pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                        )}
-                                        >
-                                        {field.value ? (
-                                            format(field.value, "dd/MM/yyyy")
-                                        ) : (
-                                            <span>Escolha uma data</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="w-auto max-w-[calc(100vw-2rem)] sm:max-w-md p-2">
-                                    <DialogHeader>
-                                        <DialogTitle className="sr-only">Selecione sua data de nascimento</DialogTitle>
-                                        <DialogDescription className="sr-only">Use o calendário para escolher o dia, mês e ano.</DialogDescription>
-                                    </DialogHeader>
-                                    <Calendar
-                                        mode="single"
-                                        locale={ptBR}
-                                        captionLayout="dropdown-buttons"
-                                        fromYear={1920}
-                                        toYear={new Date().getFullYear()}
-                                        month={clientCalendarMonth}
-                                        onMonthChange={setClientCalendarMonth}
-                                        selected={field.value}
-                                        onSelect={(date) => {
-                                            if (date) field.onChange(date);
-                                            setIsCalendarOpen(false);
-                                        }}
-                                        disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                                        initialFocus
-                                    />
-                                </DialogContent>
-                            </Dialog>
-                        ) : (
-                            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    type="button"
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-full pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                    >
-                                    {field.value ? (
-                                        format(field.value, "dd/MM/yyyy")
-                                    ) : (
-                                        <span>Escolha uma data</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        locale={ptBR}
-                                        captionLayout="dropdown-buttons"
-                                        fromYear={1920}
-                                        toYear={new Date().getFullYear()}
-                                        month={clientCalendarMonth}
-                                        onMonthChange={setClientCalendarMonth}
-                                        selected={field.value}
-                                        onSelect={(date) => {
-                                            if (date) field.onChange(date);
-                                            setIsCalendarOpen(false);
-                                        }}
-                                        disabled={(date) =>
-                                        date > new Date() || date < new Date("1900-01-01")
-                                        }
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                        )}
+                        <FormControl>
+                            <StandardDatePicker
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Escolha uma data"
+                                isMobile={isMobile}
+                                fromYear={1920}
+                                toYear={new Date().getFullYear()}
+                                maxDate={new Date()}
+                                minDate={new Date("1900-01-01")}
+                            />
+                        </FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -658,71 +598,27 @@ const handleCancelAppointment = async (appointmentId: string) => {
 
         }, [selectedProfessional, businessSettings]);
 
-        const CalendarComponent = (
-            <Calendar
-                mode="single"
-                locale={ptBR}
-                selected={selectedDate}
-                onSelect={(date) => {
-                    if (date) {
-                        setSelectedDate(date);
-                        setSelectedTime(null);
-                        if (getMonth(date) !== getMonth(calendarMonth)) {
-                            setCalendarMonth(date);
-                        }
-                    }
-                    if (isMobile) setIsCalendarOpen(false);
-                }}
-                month={calendarMonth}
-                onMonthChange={setCalendarMonth}
-                disabled={disabledDays}
-                className="rounded-md border mx-auto"
-                captionLayout="dropdown-buttons"
-                fromYear={new Date().getFullYear()}
-                toYear={new Date().getFullYear() + 1}
-            />
-        );
-
-        const CalendarTriggerButton = (
-            <Button
-                type="button"
-                variant={"outline"}
-                className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !selectedDate && "text-muted-foreground"
-                )}
-                >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "dd/MM/yyyy") : <span>Escolha uma data</span>}
-            </Button>
-        )
-
         return (
             <div className="flex flex-col md:flex-row gap-4 md:gap-8">
                 <div className="flex-1 md:max-w-[350px]">
-                    {isMobile ? (
-                        <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                            <DialogTrigger asChild>
-                                {CalendarTriggerButton}
-                            </DialogTrigger>
-                            <DialogContent className="w-auto max-w-[calc(100vw-2rem)] sm:max-w-md p-2">
-                                <DialogHeader>
-                                    <DialogTitle className="sr-only">Selecione uma data</DialogTitle>
-                                    <DialogDescription className="sr-only">Selecione uma data no calendário abaixo.</DialogDescription>
-                                </DialogHeader>
-                                {CalendarComponent}
-                            </DialogContent>
-                        </Dialog>
-                    ) : (
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                {CalendarTriggerButton}
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                            {CalendarComponent}
-                            </PopoverContent>
-                        </Popover>
-                    )}
+                    <StandardDatePicker
+                        value={selectedDate || undefined}
+                        onChange={(date) => {
+                            if (date) {
+                                setSelectedDate(date);
+                                setSelectedTime(null);
+                                if (getMonth(date) !== getMonth(calendarMonth)) {
+                                    setCalendarMonth(date);
+                                }
+                            }
+                        }}
+                        placeholder="Escolha uma data"
+                        isMobile={isMobile}
+                        disabledDates={disabledDays}
+                        fromYear={new Date().getFullYear()}
+                        toYear={new Date().getFullYear() + 1}
+                        className="w-full"
+                    />
                 </div>
                 <div className="flex-1 max-h-80 overflow-y-auto">
                     <p className="text-center font-medium mb-2">{selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Selecione uma data"}</p>

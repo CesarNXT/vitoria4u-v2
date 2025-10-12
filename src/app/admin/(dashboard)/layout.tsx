@@ -24,6 +24,8 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import type { User } from '@/lib/types';
+import { destroyUserSession } from '@/app/(public)/login/session-actions';
+import { useAdminSync } from '@/hooks/use-admin-sync';
 
 // Layout específico para o painel do Super Admin
 function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
@@ -33,6 +35,9 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { setOpenMobile } = useSidebar();
+  
+  // 🔥 Sincronizar documento admin automaticamente
+  useAdminSync();
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -73,6 +78,8 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     const auth = getAuth();
+    // 🔒 SEGURANÇA: Destruir session cookie
+    await destroyUserSession();
     await signOut(auth);
     // Usar window.location para forçar navegação completa e evitar redirect de volta
     window.location.href = '/';

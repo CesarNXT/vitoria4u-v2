@@ -14,7 +14,6 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarIcon, Loader2, Upload, X } from 'lucide-react'
 import { format } from 'date-fns'
@@ -27,7 +26,6 @@ import Image from 'next/image'
 import { CaptionProps, useDayPicker, useNavigation } from 'react-day-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { getAuth } from 'firebase/auth'
 
 const clientFormSchema = z.object({
@@ -77,16 +75,16 @@ function CustomCaption(props: CaptionProps) {
   }
 
   return (
-    <div className="flex justify-center gap-2">
+    <div className="flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
        <Select
         value={currentMonth.getMonth().toString()}
         onValueChange={handleMonthChange}
         aria-label="Mês"
       >
-        <SelectTrigger className="w-[120px]">
+        <SelectTrigger className="w-[120px]" onClick={(e) => e.stopPropagation()}>
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent onClick={(e) => e.stopPropagation()}>
           {months.map((month) => (
             <SelectItem key={month.value} value={month.value.toString()}>
               {month.label.charAt(0).toUpperCase() + month.label.slice(1)}
@@ -99,10 +97,10 @@ function CustomCaption(props: CaptionProps) {
         onValueChange={handleYearChange}
         aria-label="Ano"
       >
-        <SelectTrigger className="w-[80px]">
+        <SelectTrigger className="w-[80px]" onClick={(e) => e.stopPropagation()}>
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent onClick={(e) => e.stopPropagation()}>
           {years.reverse().map((year) => (
             <SelectItem key={year} value={year.toString()}>
               {year}
@@ -117,7 +115,6 @@ function CustomCaption(props: CaptionProps) {
 
 export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) {
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(client?.avatarUrl || null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -199,25 +196,27 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
   }
   
   const calendarComponent = (field: any) => (
-       <Calendar
-            mode="single"
-            selected={field.value}
-            onSelect={(date) => {
-                if (date) field.onChange(date);
-                setIsCalendarOpen(false);
-            }}
-            locale={ptBR}
-            captionLayout="dropdown-buttons"
-            fromYear={1950}
-            toYear={new Date().getFullYear()}
-            disabled={(date) =>
-                date > new Date() || date < new Date("1900-01-01")
-            }
-            initialFocus
-            components={{
-                Caption: CustomCaption,
-            }}
-        />
+       <div onClick={(e) => e.stopPropagation()}>
+         <Calendar
+              mode="single"
+              selected={field.value}
+              onSelect={(date) => {
+                  if (date) field.onChange(date);
+                  setIsCalendarOpen(false);
+              }}
+              locale={ptBR}
+              captionLayout="dropdown-buttons"
+              fromYear={1950}
+              toYear={new Date().getFullYear()}
+              disabled={(date) =>
+                  date > new Date() || date < new Date("1900-01-01")
+              }
+              initialFocus
+              components={{
+                  Caption: CustomCaption,
+              }}
+          />
+       </div>
   )
 
   return (
@@ -323,51 +322,29 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
                 <FormItem className="flex flex-col">
                 <FormLabel>Data de Nascimento</FormLabel>
                  <FormControl>
-                    {isMobile ? (
-                         <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                            <DialogTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant={"outline"}
-                                    className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
-                                >
-                                    {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? (
-                                        format(field.value, "PPP", { locale: ptBR })
-                                    ) : (
-                                        <span>Escolha uma data</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="w-auto p-2">
-                                <DialogHeader>
-                                    <DialogTitle className="sr-only">Data de Nascimento</DialogTitle>
-                                    <DialogDescription className="sr-only">Selecione a data de nascimento do cliente.</DialogDescription>
-                                </DialogHeader>
-                                {calendarComponent(field)}
-                            </DialogContent>
-                        </Dialog>
-                    ) : (
-                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant={"outline"}
-                                    className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
-                                >
-                                    {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? (
-                                        format(field.value, "PPP", { locale: ptBR })
-                                    ) : (
-                                        <span>Escolha uma data</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                               {calendarComponent(field)}
-                            </PopoverContent>
-                        </Popover>
-                    )}
+                    <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                        <DialogTrigger asChild>
+                            <Button
+                                type="button"
+                                variant={"outline"}
+                                className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                            >
+                                {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? (
+                                    format(field.value, "PPP", { locale: ptBR })
+                                ) : (
+                                    <span>Escolha uma data</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="w-auto p-2 max-w-[calc(100vw-2rem)]">
+                            <DialogHeader>
+                                <DialogTitle className="sr-only">Data de Nascimento</DialogTitle>
+                                <DialogDescription className="sr-only">Selecione a data de nascimento do cliente.</DialogDescription>
+                            </DialogHeader>
+                            {calendarComponent(field)}
+                        </DialogContent>
+                    </Dialog>
                 </FormControl>
                 <FormMessage />
                 </FormItem>

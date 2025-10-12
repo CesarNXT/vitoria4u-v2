@@ -1,10 +1,10 @@
-
 'use client'
 
 import React, { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useFirebase, FirebaseClientProvider } from "@/firebase"
 import { checkIsAdmin } from './actions'
+import { createUserSession } from './session-actions'
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -99,7 +99,17 @@ function LoginPageContent() {
                     return;
                 }
 
-                await signInWithEmailAndPassword(auth, email, password);
+                // ✅ Login com Firebase
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                
+                // 🔒 SEGURANÇA: Criar session cookie segura
+                const idToken = await userCredential.user.getIdToken();
+                const sessionResult = await createUserSession(idToken);
+                
+                if (!sessionResult.success) {
+                    throw new Error('Falha ao criar sessão');
+                }
+                
                 toast({
                     title: "Login realizado com sucesso!",
                     description: "Redirecionando para o dashboard...",
@@ -121,6 +131,14 @@ function LoginPageContent() {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const newUser = userCredential.user;
+                
+                // 🔒 SEGURANÇA: Criar session cookie segura
+                const idToken = await newUser.getIdToken();
+                const sessionResult = await createUserSession(idToken);
+                
+                if (!sessionResult.success) {
+                    throw new Error('Falha ao criar sessão');
+                }
                 
                 // Chama a Server Action para criar o perfil do negócio no backend
                 const result = await createUserBusinessProfile(newUser.uid, newUser.email || '', newUser.displayName || 'Novo Usuário');
@@ -149,12 +167,20 @@ function LoginPageContent() {
             const user = result.user;
             const additionalInfo = getAdditionalUserInfo(result);
 
+            // 🔒 SEGURANÇA: Criar session cookie segura
+            const idToken = await user.getIdToken();
+            const sessionResult = await createUserSession(idToken);
+            
+            if (!sessionResult.success) {
+                throw new Error('Falha ao criar sessão');
+            }
+
             if (additionalInfo?.isNewUser) {
                 // Chama a Server Action para criar o perfil do negócio no backend
-                const result = await createUserBusinessProfile(user.uid, user.email || '', user.displayName || 'Novo Usuário');
+                const profileResult = await createUserBusinessProfile(user.uid, user.email || '', user.displayName || 'Novo Usuário');
                 
-                if (!result.success) {
-                    throw new Error(result.error || 'Falha ao criar perfil de negócio');
+                if (!profileResult.success) {
+                    throw new Error(profileResult.error || 'Falha ao criar perfil de negócio');
                 }
                 
                 toast({ title: "Conta criada com sucesso!", description: "Vamos começar com algumas configurações." });

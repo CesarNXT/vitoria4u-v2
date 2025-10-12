@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 import { cn, isAdminUser } from '@/lib/utils';
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
+import { destroyUserSession } from '@/app/(public)/login/session-actions';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { addDays } from "date-fns";
 
@@ -152,6 +153,8 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     const auth = getAuth();
+    // 🔒 SEGURANÇA: Destruir session cookie
+    await destroyUserSession();
     await signOut(auth);
     // Usar window.location para forçar navegação completa para página principal
     window.location.href = '/';

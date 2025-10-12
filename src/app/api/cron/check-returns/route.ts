@@ -4,6 +4,7 @@ import { getFirestore, collection, getDocs, query, where, Timestamp } from 'fire
 import { initializeApp, getApps } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
+import { logger, sanitizeForLog } from '@/lib/logger';
 
 const N8N_RETURN_WEBHOOK_URL = 'https://n8n.vitoria4u.site/webhook/c01c14e1-beea-4ee4-b58d-ea8b433ff6df';
 
@@ -15,10 +16,10 @@ async function callWebhook(payload: any) {
             body: JSON.stringify(payload),
         });
         if (!response.ok) {
-            console.error(`Webhook call failed with status ${response.status}: ${await response.text()}`);
+            logger.error('Webhook call failed', { status: response.status });
         }
     } catch (error) {
-        console.error('Error calling return webhook:', error);
+        logger.error('Error calling return webhook', sanitizeForLog(error));
     }
 }
 
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     if (authToken !== process.env.CRON_SECRET) {
         return new Response('Unauthorized', { status: 401 });
     }
-    console.log("CRON Job (check-returns) started.");
+    logger.info('CRON Job (check-returns) started');
     try {
         const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
         const firestore = getFirestore(app);
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
                 continue;
             }
 
-            console.log(`Checking returns for business: ${businessData.nome || businessId}`);
+            logger.debug('Checking returns for business', { businessId, name: businessData.nome });
 
             const appointmentsRef = collection(firestore, `negocios/${businessId}/agendamentos`);
             // We only care about appointments that were 'Finalizado' (completed)
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
                                 categoriaEmpresa: businessData.categoria,
                             };
                             
-                            console.log(`Sending return reminder for client ${client.name} in business ${businessId}`);
+                            logger.info('Sending return reminder', sanitizeForLog({ clientName: client.name, businessId }));
                             await callWebhook(payload);
                         }
                     }
@@ -98,10 +99,10 @@ export async function GET(request: Request) {
             }
         }
 
-        console.log("CRON Job (check-returns) finished successfully.");
+        logger.success('CRON Job (check-returns) finished successfully');
         return NextResponse.json({ message: 'Return checks completed.' });
     } catch (error: any) {
-        console.error('CRON Job (check-returns) failed:', error);
+        logger.error('CRON Job (check-returns) failed', sanitizeForLog(error));
         return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
     }
 }

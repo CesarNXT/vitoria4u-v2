@@ -13,12 +13,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
+import { StandardDatePicker } from '@/components/ui/standard-date-picker';
 import { format, addDays, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarIcon, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface BusinessEditDialogProps {
@@ -142,34 +140,19 @@ export function BusinessEditDialog({ business, plans, onSave, onCancel }: Busine
           {/* Seleção de Data */}
           <div className="space-y-2">
             <Label>Nova Data de Expiração</Label>
-            <Popover modal={true}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !expirationDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {expirationDate ? format(expirationDate, "PPP", { locale: ptBR }) : "Selecione uma data"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
-                <Calendar
-                  mode="single"
-                  selected={expirationDate}
-                  onSelect={(date) => {
-                    if (date) {
-                      setExpirationDate(date);
-                    }
-                  }}
-                  initialFocus
-                  locale={ptBR}
-                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                />
-              </PopoverContent>
-            </Popover>
+            <StandardDatePicker
+              value={expirationDate}
+              onChange={(date) => {
+                if (date) {
+                  setExpirationDate(date);
+                }
+              }}
+              placeholder="Selecione uma data"
+              isMobile={false}
+              fromYear={new Date().getFullYear()}
+              toYear={new Date().getFullYear() + 5}
+              className="w-full"
+            />
           </div>
 
           {/* Ações Rápidas */}
