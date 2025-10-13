@@ -16,7 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { StandardDatePicker } from "@/components/ui/standard-date-picker"
-import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords } from '@/lib/utils';
+import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords, convertTimestamps } from '@/lib/utils';
 import { getAvailableTimes } from '@/lib/availability';
 import { format, getDay, parse, getMonth, isSameDay, isDate } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -68,9 +68,9 @@ export default function BookingClient({
     const [businessSettings, setBusinessSettings] = useState<ConfiguracoesNegocio | null>(() => initialSettings ? { ...initialSettings, access_expires_at: new Date(initialSettings.access_expires_at), createdAt: new Date(initialSettings.createdAt) } : null);
     const [services, setServices] = useState<Servico[]>(initialServices);
     const [professionals, setProfessionals] = useState<Profissional[]>(initialProfessionals);
-    const [appointments, setAppointments] = useState<Agendamento[]>(() => initialAppointments.map(a => ({...a, date: (a.date as any).toDate ? (a.date as any).toDate() : new Date(a.date) })));
+    const [appointments, setAppointments] = useState<Agendamento[]>(() => initialAppointments.map(a => ({...a, date: convertTimestamps(a.date) })));
     const [blockedDates, setBlockedDates] = useState<DataBloqueada[]>(() => initialBlockedDates.map(b => ({...b, startDate: new Date(b.startDate), endDate: new Date(b.endDate)})));
-    const [clients, setClients] = useState<Cliente[]>(() => initialClients.map(c => ({...c, birthDate: c.birthDate ? ((c.birthDate as any).toDate ? (c.birthDate as any).toDate() : new Date(c.birthDate)) : undefined})));
+    const [clients, setClients] = useState<Cliente[]>(() => initialClients.map(c => ({...c, birthDate: c.birthDate ? convertTimestamps(c.birthDate) : undefined})));
 
 
     const [step, setStep] = useState<Step>('IDENTIFICACAO');
@@ -201,7 +201,7 @@ export default function BookingClient({
                 birthDate: data.birthDate,
                 phone: phoneAsNumber,
                 status: currentUser?.status || "Ativo",
-                avatarUrl: currentUser?.avatarUrl || null,
+                avatarUrl: currentUser?.avatarUrl || undefined,
                 instanciaWhatsapp: businessSettings.id,
             };
             
@@ -456,7 +456,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
                                 fromYear={1920}
                                 toYear={new Date().getFullYear()}
                                 maxDate={new Date()}
-                                minDate={new Date("1900-01-01")}
+                                minDate={new Date("1920-01-01")}
                             />
                         </FormControl>
                         <FormMessage />
