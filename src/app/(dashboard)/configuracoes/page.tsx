@@ -65,7 +65,18 @@ export default function SettingsPage() {
 
             if (settingsDoc.exists()) {
                 const data = settingsDoc.data();
-                setSettings({
+                
+                // Migração automática: Gera o link de agendamento se não existir
+                let bookingLink = data.linkAgendamento;
+                if (!bookingLink && data.setupCompleted === true) {
+                    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                    bookingLink = `${origin}/agendar/${user.uid}`;
+                    
+                    // Salva o link silenciosamente sem notificar o usuário
+                    setDocumentNonBlocking(settingsDocRef, { linkAgendamento: bookingLink }, { merge: true });
+                }
+                
+                const loadedSettings = {
                     id: settingsDoc.id,
                     ...data,
                     // Ensure timestamps are converted to Date objects if they exist
@@ -73,7 +84,11 @@ export default function SettingsPage() {
                     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
                     // CRÍTICO: Normaliza setupCompleted - se for undefined, trata como false
                     setupCompleted: data.setupCompleted === true ? true : false,
-                } as ConfiguracoesNegocio);
+                    // Inclui o link de agendamento (gerado ou existente)
+                    linkAgendamento: bookingLink,
+                } as ConfiguracoesNegocio;
+                
+                setSettings(loadedSettings);
             } else {
                 // Pre-fill settings for setup mode if they don't exist
                 setSettings({ id: user.uid, setupCompleted: false } as ConfiguracoesNegocio);
@@ -120,6 +135,14 @@ export default function SettingsPage() {
     // Se estava em setup mode e está salvando, marca como concluído
     if (wasInSetup) {
       finalSettings.setupCompleted = true;
+    }
+    
+    // Gera o link de agendamento se não existir (para contas novas e antigas)
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const bookingLink = `${origin}/agendar/${user.uid}`;
+    
+    if (!settings?.linkAgendamento || settings.linkAgendamento !== bookingLink) {
+      finalSettings.linkAgendamento = bookingLink;
     }
     
     if (updatedSettings.endereco) {
