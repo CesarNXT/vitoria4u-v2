@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8 p-4 md:p-8">
+    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard do Administrador</h1>
         <p className="text-sm md:text-base text-muted-foreground">Visão geral e métricas de crescimento da plataforma.</p>
@@ -77,7 +77,8 @@ export default function AdminDashboardPage() {
       
       <AdminStatsCards businesses={businesses} />
       
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+      {/* Gráficos - Verticalizados em mobile, lado a lado em desktop */}
+      <div className="flex flex-col gap-6 md:gap-8 lg:grid lg:grid-cols-2">
         <AdminGrowthChart businesses={businesses} />
         <AdminSalesChart businesses={businesses} />
       </div>

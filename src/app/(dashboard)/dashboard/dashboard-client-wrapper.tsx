@@ -49,25 +49,30 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
        <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Frase Motivacional - Full Width */}
         <div className="col-span-full">
             <DailyPhrase />
         </div>
 
-        <StatsCards appointments={validAppointments} clients={validClients} />
-        
-        <div className="col-span-full lg:col-span-4">
-            <AppointmentsChart appointments={validAppointments} />
-        </div>
-        <div className="col-span-full lg:col-span-3">
+        {/* Linha 1: 4 cards principais - mesmo tamanho */}
+        <div className="col-span-full sm:col-span-1 lg:col-span-1">
             <WhatsappStatus settings={settings} />
         </div>
-      
-        <div className="col-span-full lg:col-span-4">
+
+        <StatsCards appointments={validAppointments} clients={validClients} />
+        
+        {/* Linha 2: Próximos Agendamentos e Clientes Recentes - lado a lado */}
+        <div className="col-span-full lg:col-span-2">
             <UpcomingAppointments appointments={validAppointments} />
         </div>
-        <div className="col-span-full lg:col-span-3">
+        <div className="col-span-full lg:col-span-2">
             <RecentClients clients={validClients} />
+        </div>
+        
+        {/* Linha 3: Visão Geral do Mês - Full Width por último */}
+        <div className="col-span-full">
+            <AppointmentsChart appointments={validAppointments} />
         </div>
       </div>
     </>

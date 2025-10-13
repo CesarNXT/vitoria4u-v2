@@ -29,8 +29,8 @@ export function AdminStatsCards({ businesses }: AdminStatsCardsProps) {
   }, [businesses]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Negócios Totais</CardTitle>
           <Users className="h-4 w-4 text-muted-foreground" />
@@ -40,7 +40,7 @@ export function AdminStatsCards({ businesses }: AdminStatsCardsProps) {
           <p className="text-xs text-muted-foreground">Total de contas na plataforma.</p>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Novos na Semana</CardTitle>
           <UserPlus className="h-4 w-4 text-muted-foreground" />
@@ -50,7 +50,7 @@ export function AdminStatsCards({ businesses }: AdminStatsCardsProps) {
           <p className="text-xs text-muted-foreground">Novas contas nos últimos 7 dias.</p>
         </CardContent>
       </Card>
-       <Card>
+       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Planos Ativos</CardTitle>
           <UserCheck className="h-4 w-4 text-muted-foreground" />
@@ -60,7 +60,7 @@ export function AdminStatsCards({ businesses }: AdminStatsCardsProps) {
           <p className="text-xs text-muted-foreground">Contas com assinatura ou trial válidos.</p>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Planos Expirados</CardTitle>
           <UserX className="h-4 w-4 text-muted-foreground" />

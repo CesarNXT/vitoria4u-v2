@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, ResponsiveContainer,
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartTooltipContent, ChartTooltip, ChartContainer } from "@/components/ui/chart"
 import type { ConfiguracoesNegocio } from "@/lib/types"
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { subDays, eachDayOfInterval, format, isSameDay, isFuture } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -70,20 +70,21 @@ export function AdminGrowthChart({ businesses }: AdminChartsProps) {
   };
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Crescimento de Contas</CardTitle>
-        <CardDescription>Novos negócios cadastrados nos últimos 15 dias.</CardDescription>
+        <CardTitle className="text-lg md:text-xl">Crescimento de Contas</CardTitle>
+        <CardDescription className="text-xs md:text-sm">Novos negócios cadastrados nos últimos 15 dias.</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={growthChartConfig} className="min-h-[250px] w-full">
-            <BarChart data={growthChartData} accessibilityLayer>
+      <CardContent className="px-2 md:px-6">
+        <ChartContainer config={growthChartConfig} className="min-h-[200px] md:min-h-[250px] w-full">
+            <BarChart data={growthChartData} accessibilityLayer margin={{ left: 0, right: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                     dataKey="date"
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
+                    tick={{ fontSize: 12 }}
                 />
                  <YAxis 
                     tickLine={false}
@@ -91,6 +92,7 @@ export function AdminGrowthChart({ businesses }: AdminChartsProps) {
                     tickMargin={10}
                     allowDecimals={false}
                     domain={[0, maxSignups]}
+                    tick={{ fontSize: 12 }}
                 />
                 <ChartTooltip
                     cursor={false}
@@ -105,6 +107,15 @@ export function AdminGrowthChart({ businesses }: AdminChartsProps) {
 }
 
 export function AdminSalesChart({ businesses }: AdminChartsProps) {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     const salesData = useMemo(() => {
         const activePlans = businesses.filter(b => b.access_expires_at && isFuture(new Date(b.access_expires_at)));
         
@@ -125,13 +136,13 @@ export function AdminSalesChart({ businesses }: AdminChartsProps) {
     };
 
     return (
-        <Card>
+        <Card className="w-full">
             <CardHeader>
-                <CardTitle>Vendas do Mês (Planos Ativos)</CardTitle>
-                <CardDescription>Distribuição dos planos ativos atualmente.</CardDescription>
+                <CardTitle className="text-lg md:text-xl">Vendas do Mês (Planos Ativos)</CardTitle>
+                <CardDescription className="text-xs md:text-sm">Distribuição dos planos ativos atualmente.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <ChartContainer config={salesChartConfig} className="min-h-[250px] w-full">
+            <CardContent className="px-2 md:px-6">
+                <ChartContainer config={salesChartConfig} className="min-h-[200px] md:min-h-[250px] w-full">
                     <PieChart>
                          <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                         <Pie
@@ -140,7 +151,7 @@ export function AdminSalesChart({ businesses }: AdminChartsProps) {
                             nameKey="name"
                             cx="50%"
                             cy="50%"
-                            outerRadius={80}
+                            outerRadius={isMobile ? 60 : 80}
                             labelLine={false}
                             label={renderCustomizedLabel}
                         >
@@ -148,7 +159,7 @@ export function AdminSalesChart({ businesses }: AdminChartsProps) {
                                 <Cell key={`cell-${index}`} fill={entry.fill} />
                             ))}
                         </Pie>
-                        <Legend />
+                        <Legend wrapperStyle={{ fontSize: '12px' }} />
                     </PieChart>
                 </ChartContainer>
             </CardContent>

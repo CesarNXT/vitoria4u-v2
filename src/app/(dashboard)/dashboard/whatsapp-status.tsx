@@ -127,49 +127,49 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
     
     return (
          <Card>
-            <CardHeader>
-                <CardTitle>Status do WhatsApp</CardTitle>
-                <CardDescription>
-                    Sua conexão para automações e campanhas.
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Status do WhatsApp</CardTitle>
+                <CardDescription className="text-xs">
+                    Sua conexão para automações.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col items-center justify-center space-y-4 rounded-lg border-2 border-dashed p-8 text-center h-full">
+                <div className="flex flex-col items-center justify-center space-y-2 rounded-lg border-2 border-dashed p-3 text-center">
                     {!hasActiveAccess ? (
                          <>
-                            <div className="p-3 rounded-full bg-amber-500/20">
-                                <Gem className="h-8 w-8 text-amber-500" />
+                            <div className="p-2 rounded-full bg-amber-500/20">
+                                <Gem className="h-5 w-5 text-amber-500" />
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-lg font-semibold">Plano Necessário</p>
-                                <p className="text-sm text-muted-foreground">As automações de WhatsApp exigem um plano ativo. Faça um upgrade para continuar.</p>
+                            <div>
+                                <p className="text-sm font-semibold">Plano Necessário</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Requer plano ativo.</p>
                             </div>
-                            <Button asChild>
-                                <Link href="/planos">Ver Planos de Assinatura</Link>
+                            <Button asChild size="sm" className="w-full">
+                                <Link href="/planos">Ver Planos</Link>
                             </Button>
                         </>
                     ) : isConnected ? (
                         <>
-                            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/50">
-                                <WhatsappIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
+                            <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/50">
+                                <WhatsappIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-lg font-semibold">Conectado</p>
-                                <p className="text-sm text-muted-foreground">Sua automação está ativa e pronta para trabalhar.</p>
+                            <div>
+                                <p className="text-sm font-semibold">Conectado</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Automação ativa.</p>
                             </div>
                         </>
                     ) : (
                         <>
-                             <div className="p-3 rounded-full bg-destructive/10">
-                                <WhatsappIcon className="h-8 w-8 text-destructive" />
+                             <div className="p-2 rounded-full bg-destructive/10">
+                                <WhatsappIcon className="h-5 w-5 text-destructive" />
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-lg font-semibold">Desconectado</p>
-                                <p className="text-sm text-muted-foreground">Conecte seu WhatsApp para habilitar as automações.</p>
+                            <div>
+                                <p className="text-sm font-semibold">Desconectado</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Conecte para ativar.</p>
                             </div>
-                             <Button onClick={handleConnect} size="sm" disabled={isLoading || cooldownTime > 0}>
+                             <Button onClick={handleConnect} size="sm" disabled={isLoading || cooldownTime > 0} className="w-full">
                                  {(isLoading || cooldownTime > 0) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                 {isLoading ? 'Solicitando...' : cooldownTime > 0 ? `Aguarde... (${cooldownTime}s)` : 'Conectar Agora'}
+                                 {isLoading ? 'Solicitando...' : cooldownTime > 0 ? `${cooldownTime}s` : 'Conectar'}
                              </Button>
                         </>
                     )}
