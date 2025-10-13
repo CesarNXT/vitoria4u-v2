@@ -34,11 +34,62 @@ export async function GET(request: Request) {
         const firestore = getFirestore(app);
 
         const businessesSnapshot = await getDocs(collection(firestore, 'negocios'));
+        const today = new Date();
+        const todayMonth = today.getMonth() + 1; // getMonth() retorna 0-11
+        const todayDay = today.getDate();
         
-        // Por enquanto, apenas retornar sucesso sem processar
-        // TODO: Implementar lógica de aniversários
+        let birthdayCount = 0;
 
-        return NextResponse.json({ message: 'Birthday checks initiated.' });
+        for (const businessDoc of businessesSnapshot.docs) {
+            const businessData = businessDoc.data();
+            const businessId = businessDoc.id;
+
+            // Só processar se o negócio tem WhatsApp conectado
+            if (!businessData.whatsappConectado || !businessData.tokenInstancia) {
+                continue;
+            }
+
+            // Buscar todos os clientes do negócio
+            const clientsSnapshot = await getDocs(collection(firestore, `negocios/${businessId}/clientes`));
+            
+            for (const clientDoc of clientsSnapshot.docs) {
+                const clientData = clientDoc.data();
+                
+                // Verificar se o cliente tem data de nascimento
+                if (clientData.birthDate) {
+                    const birthDate = new Date(clientData.birthDate);
+                    const birthMonth = birthDate.getMonth() + 1;
+                    const birthDay = birthDate.getDate();
+                    
+                    // Verificar se é aniversário hoje
+                    if (birthMonth === todayMonth && birthDay === todayDay) {
+                        const payload = {
+                            nomeCliente: clientData.name,
+                            telefoneCliente: clientData.phone,
+                            nomeEmpresa: businessData.nome,
+                            tokenInstancia: businessData.tokenInstancia,
+                            instancia: businessId,
+                            categoriaEmpresa: businessData.categoria,
+                            dataNascimento: clientData.birthDate
+                        };
+                        
+                        logger.info('Sending birthday reminder', { 
+                            clientName: clientData.name, 
+                            businessId 
+                        });
+                        
+                        await callWebhook(payload);
+                        birthdayCount++;
+                    }
+                }
+            }
+        }
+
+        logger.success(`CRON Job (check-birthdays) finished. Found ${birthdayCount} birthdays.`);
+        return NextResponse.json({ 
+            message: `Birthday checks completed. Found ${birthdayCount} birthdays today.`,
+            birthdayCount 
+        });
     } catch (error) {
         logger.error('CRON Job (check-birthdays) failed', sanitizeForLog(error));
         return new NextResponse('Internal Server Error', { status: 500 });
