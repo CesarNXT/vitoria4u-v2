@@ -1,18 +1,34 @@
 import admin from 'firebase-admin';
 
-// Impede a reinicialização do app em ambientes de desenvolvimento
+// Inicialização resiliente do Firebase Admin SDK
+// 1) Se FIREBASE_SERVICE_ACCOUNT_KEY existir: usa credenciais do serviço
+// 2) Caso contrário: usa Application Default Credentials (ADC), disponível no ambiente de hosting
+// 3) Em último caso, evita quebrar o build garantindo uma app inicializada sem credenciais explícitas
 if (!admin.apps.length) {
   try {
-    const serviceAccount = JSON.parse(
-      process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
-    );
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('Firebase Admin SDK inicializado com sucesso.');
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (raw) {
+      const serviceAccount = JSON.parse(raw);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+      // Tenta ADC (por exemplo, no Firebase App Hosting / GCP)
+      admin.initializeApp();
+    }
+    console.log('Firebase Admin SDK inicializado.');
   } catch (error) {
-    console.error('Erro ao inicializar Firebase Admin SDK:', error);
-    console.log('Certifique-se de que a variável de ambiente FIREBASE_SERVICE_ACCOUNT_KEY está configurada corretamente como um JSON stringified.');
+    console.error('Erro ao inicializar Firebase Admin SDK (tentativa 1):', error);
+    // Fallback final: tenta inicializar sem credenciais explícitas
+    try {
+      if (!admin.apps.length) {
+        admin.initializeApp();
+        console.warn('Firebase Admin SDK inicializado via ADC (fallback).');
+      }
+    } catch (fallbackError) {
+      console.error('Falha ao inicializar Firebase Admin SDK (fallback):', fallbackError);
+      console.error('Verifique FIREBASE_SERVICE_ACCOUNT_KEY (JSON stringified) ou ADC no ambiente.');
+    }
   }
 }
 
