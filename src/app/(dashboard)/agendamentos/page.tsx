@@ -58,6 +58,12 @@ export default function AgendamentosPage() {
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Agendamento | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Agendamento | null>(null);
+  // Confirmação de envio de feedback ao finalizar
+  const [isFeedbackConfirmOpen, setIsFeedbackConfirmOpen] = useState(false);
+  const [pendingFeedbackPayload, setPendingFeedbackPayload] = useState<{
+    settings: any;
+    appointment: any;
+  } | null>(null);
   
   const [filters, setFilters] = useState<AppointmentFilters>({
     clientName: '',
@@ -182,14 +188,16 @@ export default function AgendamentosPage() {
         const wasCompleted = selectedAppointment?.status !== 'Finalizado' && data.status === 'Finalizado';
         const isNewAndFinalized = !isEditing && data.status === 'Finalizado';
 
-        // Send feedback hook if the appointment is finalized
-        if (wasCompleted || isNewAndFinalized) {
-            const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
-            try {
-                await sendCompletionHooks(serializableSettings, finalData as any);
-            } catch (error) {
-                // Erro silencioso - logar apenas no servidor
-            }
+        // Solicitar confirmação antes de enviar feedback se finalizado
+        if (
+          (wasCompleted || isNewAndFinalized) &&
+          businessSettings?.whatsappConectado &&
+          businessSettings?.habilitarFeedback &&
+          businessSettings?.feedbackLink
+        ) {
+          const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
+          setPendingFeedbackPayload({ settings: serializableSettings, appointment: finalData });
+          setIsFeedbackConfirmOpen(true);
         }
         
         // Send creation hooks only if it's a NEW appointment (not editing)
@@ -228,6 +236,26 @@ export default function AgendamentosPage() {
     } finally {
         setIsSubmitting(false);
     }
+  };
+
+  const handleConfirmFeedbackSend = async () => {
+    if (!pendingFeedbackPayload) return;
+    setIsSubmitting(true);
+    try {
+      await sendCompletionHooks(pendingFeedbackPayload.settings, pendingFeedbackPayload.appointment);
+      toast({ title: "Feedback enviado" });
+    } catch (error) {
+      // Silencioso: erros são logados no servidor
+    } finally {
+      setPendingFeedbackPayload(null);
+      setIsFeedbackConfirmOpen(false);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSkipFeedbackSend = () => {
+    setPendingFeedbackPayload(null);
+    setIsFeedbackConfirmOpen(false);
   };
 
   const handleDeleteRequest = (appointment: Agendamento) => {
@@ -476,6 +504,25 @@ export default function AgendamentosPage() {
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert Dialog for Feedback Confirmation */}
+      <AlertDialog open={isFeedbackConfirmOpen} onOpenChange={setIsFeedbackConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enviar feedback ao cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O agendamento foi marcado como Finalizado. Deseja enviar a solicitação de feedback para o cliente agora?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleSkipFeedbackSend}>Não enviar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmFeedbackSend} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enviar agora
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

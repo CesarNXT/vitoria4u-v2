@@ -98,6 +98,7 @@ async function sendProfessionalNotification(
     const payload = {
         tokenInstancia: businessSettings.tokenInstancia,
         instancia: businessSettings.id,
+        nomeEmpresa: businessSettings.nome,
         telefoneProfissional: appointment.profissional.phone,
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
@@ -122,6 +123,7 @@ export async function sendCreationHooks(
     
     // Notificação de novo agendamento (para o gestor) - SEMPRE ENVIA
     await callWebhook(WEBHOOK_URLS.novoAgendamento, {
+        nomeEmpresa: businessSettings.nome,
         telefoneEmpresa: businessSettings.telefone,
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
@@ -133,6 +135,7 @@ export async function sendCreationHooks(
     
     const reminderPayload = {
         tokenInstancia: businessSettings.tokenInstancia,
+        nomeEmpresa: businessSettings.nome,
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         instancia: businessSettings.id,
@@ -170,6 +173,7 @@ export async function sendReminderHooksOnly(
     
     const reminderPayload = {
         tokenInstancia: businessSettings.tokenInstancia,
+        nomeEmpresa: businessSettings.nome,
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         instancia: businessSettings.id,
@@ -208,6 +212,7 @@ export async function sendCompletionHooks(
         if (businessSettings.habilitarFeedback && businessSettings.feedbackLink) {
             await callWebhook(WEBHOOK_URLS.solicitacaoFeedback, {
                 tokenInstancia: businessSettings.tokenInstancia,
+                nomeEmpresa: businessSettings.nome,
                 nomeCliente: appointment.cliente.name,
                 nomeServico: appointment.servico.name,
                 instancia: businessSettings.id,
@@ -230,6 +235,7 @@ export async function sendCancellationHooks(
 
     // Notificação de cancelamento (para o gestor) - SEMPRE ENVIA
     await callWebhook(WEBHOOK_URLS.agendamentoCancelado, {
+        nomeEmpresa: businessSettings.nome,
         telefoneEmpresa: businessSettings.telefone,
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
