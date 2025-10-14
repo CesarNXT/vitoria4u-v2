@@ -520,23 +520,39 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
                       {filteredProfessionals.length > 0 ? (
                         filteredProfessionals.map((prof) => {
                           const isSelected = field.value.includes(prof.id);
+                          const isInactive = prof.status === 'Inativo';
                           return (
                             <Button
                               key={prof.id}
                               variant={isSelected ? "secondary" : "ghost"}
-                              className="w-full justify-start"
+                              className={cn(
+                                "w-full justify-start",
+                                isInactive && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
+                              )}
                               onClick={() => {
+                                if (isInactive) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Profissional Inativo",
+                                    description: `${prof.name} está inativo e não pode ser selecionado. Ative o profissional primeiro.`,
+                                  });
+                                  return;
+                                }
                                 const currentIds = field.value || [];
                                 const newIds = currentIds.includes(prof.id)
                                   ? currentIds.filter((id) => id !== prof.id)
                                   : [...currentIds, prof.id];
                                 field.onChange(newIds);
                               }}
+                              disabled={isInactive}
                             >
                               {isSelected && (
                                 <Check className="mr-2 h-4 w-4" />
                               )}
-                              {prof.name}
+                              <span className="flex-1 text-left">{prof.name}</span>
+                              {isInactive && (
+                                <span className="text-xs text-muted-foreground ml-2">(Inativo)</span>
+                              )}
                             </Button>
                           );
                         })

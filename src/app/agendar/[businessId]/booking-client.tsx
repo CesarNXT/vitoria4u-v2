@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Cliente, Servico, Profissional, Agendamento, ConfiguracoesNegocio, DataBloqueada, HorarioTrabalho } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +72,6 @@ export default function BookingClient({
     const [blockedDates, setBlockedDates] = useState<DataBloqueada[]>(() => initialBlockedDates.map(b => ({...b, startDate: new Date(b.startDate), endDate: new Date(b.endDate)})));
     const [clients, setClients] = useState<Cliente[]>(() => initialClients.map(c => ({...c, birthDate: c.birthDate ? convertTimestamps(c.birthDate) : undefined})));
 
-
     const [step, setStep] = useState<Step>('IDENTIFICACAO');
     const [phone, setPhone] = useState('');
     const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -93,6 +92,62 @@ export default function BookingClient({
     // E atualizados localmente após criar/cancelar via API
 
     const MAX_SCHEDULED_APPOINTMENTS = 1;
+    
+    // 🔄 Sistema de sincronização global (a cada 60 segundos)
+    const syncIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+    const lastSyncRef = React.useRef<string>('');
+    
+    useEffect(() => {
+        // Limpar intervalo anterior
+        if (syncIntervalRef.current) {
+            clearInterval(syncIntervalRef.current);
+            syncIntervalRef.current = null;
+        }
+        
+        const syncKey = `${selectedDate?.toDateString()}-${selectedProfessional?.id}`;
+        
+        // Só criar intervalo se data e profissional estão selecionados
+        if (selectedDate && selectedProfessional && businessId) {
+            const refreshAppointments = async () => {
+                try {
+                    const response = await fetch(`/api/booking/appointments?businessId=${businessId}&professionalId=${selectedProfessional.id}&date=${selectedDate.toISOString()}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const updatedAppointments = data.appointments.map((a: any) => ({
+                            ...a,
+                            date: convertTimestamps(a.date)
+                        }));
+                        
+                        setAppointments(prev => {
+                            const otherAppointments = prev.filter(
+                                a => a.profissional.id !== selectedProfessional.id || 
+                                new Date(a.date).toDateString() !== selectedDate.toDateString()
+                            );
+                            return [...otherAppointments, ...updatedAppointments];
+                        });
+                    }
+                } catch (error) {
+                    console.error("Erro ao sincronizar agendamentos:", error);
+                }
+            };
+            
+            // Executar imediatamente se mudou data/profissional
+            if (lastSyncRef.current !== syncKey) {
+                refreshAppointments();
+                lastSyncRef.current = syncKey;
+            }
+            
+            // Configurar intervalo de 60 segundos
+            syncIntervalRef.current = setInterval(refreshAppointments, 60000);
+        }
+        
+        return () => {
+            if (syncIntervalRef.current) {
+                clearInterval(syncIntervalRef.current);
+                syncIntervalRef.current = null;
+            }
+        };
+    }, [selectedDate?.toDateString(), selectedProfessional?.id, businessId]);
 
     const scheduledAppointmentsForCurrentUser = useMemo(() => {
         if (!currentUser) return [];
@@ -149,7 +204,27 @@ export default function BookingClient({
             // Verificar se já tem agendamento
             const clientAppointments = appointments.filter(a => a.cliente.phone === phoneAsNumber && a.status === 'Agendado');
             if (clientAppointments.length > 0) {
-                setExistingAppointment(clientAppointments[0]);
+                const appointment = clientAppointments[0];
+                
+                // Garantir que a data está no formato Date correto
+                let convertedDate: Date;
+                if (appointment.date instanceof Date) {
+                    convertedDate = appointment.date;
+                } else if (typeof appointment.date === 'string') {
+                    convertedDate = new Date(appointment.date);
+                } else if (appointment.date && typeof appointment.date === 'object' && 'seconds' in appointment.date) {
+                    // Firestore Timestamp
+                    convertedDate = new Date((appointment.date as any).seconds * 1000);
+                } else {
+                    convertedDate = new Date();
+                }
+                
+                const convertedAppointment = {
+                    ...appointment,
+                    date: convertedDate
+                };
+                
+                setExistingAppointment(convertedAppointment);
                 setStep('MODIFY_EXISTING');
             } else {
                 setStep('NEW_CLIENT_FORM');
@@ -537,8 +612,10 @@ const handleCancelAppointment = async (appointmentId: string) => {
         const [isTimesLoading, setIsTimesLoading] = useState(false);
         
         useEffect(() => {
+            let isMounted = true;
+            
             const fetchTimes = async () => {
-                if (selectedDate && selectedProfessional && selectedService && businessSettings) {
+                if (selectedDate && selectedProfessional && selectedService && businessSettings && isMounted) {
                     setIsTimesLoading(true);
                     try {
                         // Filter out the appointment being edited from the conflict check
@@ -554,20 +631,32 @@ const handleCancelAppointment = async (appointmentId: string) => {
                             appointments: appointmentsForCheck,
                             blockedDates: blockedDates,
                         });
-                        setAvailableTimes(times);
+                        
+                        if (isMounted) {
+                            setAvailableTimes(times);
+                        }
                     } catch (error) {
                         console.error("Failed to get available times:", error);
-                        toast({ variant: "destructive", title: "Erro ao buscar horários" });
-                        setAvailableTimes([]);
+                        if (isMounted) {
+                            toast({ variant: "destructive", title: "Erro ao buscar horários" });
+                            setAvailableTimes([]);
+                        }
                     } finally {
-                        setIsTimesLoading(false);
+                        if (isMounted) {
+                            setIsTimesLoading(false);
+                        }
                     }
-                } else {
+                } else if (isMounted) {
                     setAvailableTimes([]);
                 }
             }
+            
             fetchTimes();
-        }, [selectedDate, selectedProfessional, selectedService, businessSettings, appointments, blockedDates, businessId, isEditing, existingAppointment]);
+            
+            return () => {
+                isMounted = false;
+            };
+        }, [selectedDate, selectedProfessional, selectedService, businessSettings, blockedDates, businessId, isEditing, existingAppointment]);
 
 
         const disabledDays = useMemo(() => {
@@ -708,59 +797,78 @@ const handleCancelAppointment = async (appointmentId: string) => {
     }
 
     const ModifyExisting = () => {
-    if (!existingAppointment) return null;
+        if (!existingAppointment) return null;
 
-    return (
-      <div className="space-y-4">
-        <div className="flex flex-col items-center text-center">
-          <CalendarDays className="h-12 w-12 text-primary mb-2" />
-          <h3 className="text-lg font-semibold">Você já tem um agendamento</h3>
-          <p className="text-muted-foreground text-sm">
-            Encontramos o seguinte agendamento ativo em seu nome.
-          </p>
-        </div>
+        // Garantir que a data está no formato correto
+        let appointmentDate: Date;
+        
+        if (existingAppointment.date instanceof Date) {
+            appointmentDate = existingAppointment.date;
+        } else if (typeof existingAppointment.date === 'string') {
+            appointmentDate = new Date(existingAppointment.date);
+        } else if (existingAppointment.date && typeof existingAppointment.date === 'object' && 'seconds' in existingAppointment.date) {
+            // Firestore Timestamp
+            appointmentDate = new Date((existingAppointment.date as any).seconds * 1000);
+        } else {
+            appointmentDate = new Date();
+        }
+        
+        // Verificar se a data é válida
+        const formattedDate = !isNaN(appointmentDate.getTime()) 
+            ? format(appointmentDate, 'dd/MM/yyyy')
+            : 'Data inválida';
 
-        <div className="rounded-md border p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="font-medium text-muted-foreground">Serviço:</span>
-            <span className="font-semibold">{existingAppointment.servico.name}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="font-medium text-muted-foreground">Profissional:</span>
-            <span>{existingAppointment.profissional.name}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="font-medium text-muted-foreground">Data:</span>
-            <span>{format(new Date(existingAppointment.date), 'dd/MM/yyyy')} às {existingAppointment.startTime}</span>
-          </div>
-        </div>
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-col items-center text-center">
+                    <CalendarDays className="h-12 w-12 text-primary mb-2" />
+                    <h3 className="text-lg font-semibold">Você já tem um agendamento</h3>
+                    <p className="text-muted-foreground text-sm">
+                        Encontramos o seguinte agendamento ativo em seu nome.
+                    </p>
+                </div>
 
-        <p className="text-xs text-center text-muted-foreground">
-          Se precisar, você pode cancelar seu agendamento.
-        </p>
+                <div className="rounded-md border p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                        <span className="font-medium text-muted-foreground">Serviço:</span>
+                        <span className="font-semibold">{existingAppointment.servico.name}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="font-medium text-muted-foreground">Profissional:</span>
+                        <span>{existingAppointment.profissional.name}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="font-medium text-muted-foreground">Data:</span>
+                        <span>{formattedDate} às {existingAppointment.startTime}</span>
+                    </div>
+                </div>
 
-        <div className="flex flex-col gap-3">
-          <Button
-            variant="destructive"
-            onClick={() => handleCancelAppointment(existingAppointment.id)}
-            disabled={isCanceling}
-          >
-            {isCanceling ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Cancelando...
-              </>
-            ) : (
-              <>
-                <XCircle className="mr-2 h-4 w-4" />
-                Cancelar Agendamento
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    );
-  };
+                <p className="text-xs text-center text-muted-foreground">
+                    Se precisar, você pode cancelar seu agendamento.
+                </p>
+
+                <div className="flex flex-col gap-3">
+                    <Button
+                        variant="destructive"
+                        onClick={() => handleCancelAppointment(existingAppointment.id)}
+                        disabled={isCanceling}
+                    >
+                        {isCanceling ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Cancelando...
+                            </>
+                        ) : (
+                            <>
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Cancelar Agendamento
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+        );
+    };
     
     const renderStep = () => {
         switch (step) {
