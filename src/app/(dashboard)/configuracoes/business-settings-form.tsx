@@ -46,14 +46,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 
 const timeSlotSchema = z.object({
-  start: z.string().optional(),
-  end: z.string().optional(),
+  start: z.string(),
+  end: z.string(),
+}).refine(data => !data.start || !data.end || data.start < data.end, {
+  message: "O horário final deve ser após o inicial.",
+  path: ["end"],
 });
 
 const daySchema = z.object({
   enabled: z.boolean(),
-  slots: z.array(timeSlotSchema).optional(),
-});
+  slots: z.array(timeSlotSchema).max(2, "Máximo de 2 intervalos por dia."),
+}).refine(
+  (data) => {
+    // Se o dia está ativo, deve ter pelo menos 1 horário configurado
+    if (data.enabled && data.slots.length === 0) {
+      return false;
+    }
+    // Se o dia está ativo, os horários não podem estar vazios
+    if (data.enabled && data.slots.some(slot => !slot.start || !slot.end)) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Dia ativo deve ter pelo menos um horário configurado.",
+    path: ["slots"],
+  }
+);
 
 const businessSettingsSchema = z.object({
   nome: z.string().min(2, { message: 'O nome do negócio deve ter pelo menos 2 caracteres.' }).max(64, { message: 'Nome muito longo (máx. 64 caracteres).' }),

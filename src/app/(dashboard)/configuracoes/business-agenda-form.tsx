@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFormContext, useFieldArray, useWatch } from 'react-hook-form';
 import {
   FormControl,
@@ -18,10 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, PlusCircle } from 'lucide-react';
+import { Trash2, PlusCircle, ChevronRight, Clock } from 'lucide-react';
 import type { DiasDaSemana, HorarioTrabalho } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const diasDaSemana: { key: DiasDaSemana, label: string }[] = [
     { key: 'segunda', label: 'Segunda-feira' },
@@ -77,6 +79,8 @@ interface WorkingHoursDayProps {
 
 function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, businessDaySchedule }: WorkingHoursDayProps) {
     const { control, watch, setValue, getValues } = useFormContext();
+    const isMobile = useIsMobile();
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const fieldName = `${workHoursField}.${diaKey}.slots`;
     const fieldEnabledName = `${workHoursField}.${diaKey}.enabled`;
 
@@ -117,123 +121,177 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
     }, [isProfessionalForm, businessDaySchedule]);
 
 
-    return (
-        <FormItem 
-            className={cn(
-                "p-4 border rounded-lg space-y-4", 
-                (!isEnabled || isDayDisabledByBusiness) && "bg-muted/50"
+    const slotsCount = fields.length;
+    const slotsText = slotsCount === 0 ? 'Sem horários' : slotsCount === 1 ? '1 intervalo' : `${slotsCount} intervalos`;
+
+    // Renderizar conteúdo dos horários
+    const renderTimeSlots = () => (
+        <div className="space-y-4">
+            {fields.map((field, index) => {
+                const startTime = watch(`${workHoursField}.${diaKey}.slots.${index}.start`);
+                const filteredEndOptions = timeOptions.filter(time => time > (startTime || '00:00'));
+
+                return (
+                    <div key={field.id} className="flex items-end gap-2">
+                        <FormField
+                            control={control}
+                            name={`${workHoursField}.${diaKey}.slots.${index}.start`}
+                            render={({ field }) => (
+                                <FormItem className="flex-1">
+                                    <FormLabel>Início</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent position="popper">
+                                            {timeOptions.slice(0, -1).map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={control}
+                            name={`${workHoursField}.${diaKey}.slots.${index}.end`}
+                            render={({ field }) => (
+                                <FormItem className="flex-1">
+                                    <FormLabel>Fim</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent position="popper">
+                                            {filteredEndOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )
+            })}
+
+            {fields.length < 2 && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                        const defaultStart = timeOptions[0] || '09:00';
+                        const defaultEnd = timeOptions[timeOptions.length - 1] || '18:00';
+                        append({ start: defaultStart, end: defaultEnd });
+                    }}
+                >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Intervalo
+                </Button>
             )}
-        >
-            <div className="flex items-center justify-between">
-                <FormLabel className="text-base font-medium">{label}</FormLabel>
-                <div className="flex items-center gap-2">
-                    {isDayDisabledByBusiness && (
-                        <span className="text-xs font-semibold text-muted-foreground pr-2">
-                            Fechado no negócio
-                        </span>
-                    )}
-                    <FormField
-                        control={control}
-                        name={fieldEnabledName}
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Switch
-                                        checked={field.value && !isDayDisabledByBusiness}
-                                        onCheckedChange={(checked) => {
-                                            field.onChange(checked);
-                                            if (checked && fields.length === 0) {
-                                                if (isProfessionalForm && businessDaySchedule && businessDaySchedule.slots.length > 0) {
+            
+            {fields.length === 0 && <FormDescription>Nenhum horário de trabalho definido. O dia será considerado fechado.</FormDescription>}
+            {fields.length === 1 && <FormDescription>Você pode adicionar um segundo intervalo para pausas, como horário de almoço.</FormDescription>}
+        </div>
+    );
+
+    return (
+        <>
+            <FormItem 
+                className={cn(
+                    "p-4 border rounded-lg space-y-4", 
+                    (!isEnabled || isDayDisabledByBusiness) && "bg-muted/50"
+                )}
+            >
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                        <FormField
+                            control={control}
+                            name={fieldEnabledName}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value && !isDayDisabledByBusiness}
+                                            onCheckedChange={(checked) => {
+                                                field.onChange(checked);
+                                                if (checked && fields.length === 0) {
+                                                    if (isProfessionalForm && businessDaySchedule && businessDaySchedule.slots.length > 0) {
+                                                        remove();
+                                                        businessDaySchedule.slots.forEach(slot => {
+                                                            append({ start: slot.start, end: slot.end });
+                                                        });
+                                                    } else {
+                                                        append({ start: '08:00', end: '18:00' });
+                                                    }
+                                                } else if (!checked) {
+                                                    // Limpar horários ao desativar
                                                     remove();
-                                                    businessDaySchedule.slots.forEach(slot => {
-                                                        append({ start: slot.start, end: slot.end });
-                                                    });
-                                                } else {
-                                                    append({ start: '08:00', end: '18:00' });
                                                 }
-                                            }
-                                        }}
-                                        disabled={isDayDisabledByBusiness}
-                                        aria-readonly={isDayDisabledByBusiness}
-                                    />
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
-                </div>
-            </div>
-
-            { isEnabled && !isDayDisabledByBusiness && (
-                <div className="space-y-4 pl-2 border-l-2 ml-2">
-                    {fields.map((field, index) => {
-                        const startTime = watch(`${workHoursField}.${diaKey}.slots.${index}.start`);
-                        const filteredEndOptions = timeOptions.filter(time => time > (startTime || '00:00'));
-
-                        return (
-                            <div key={field.id} className="flex items-end gap-2">
-                                <FormField
-                                    control={control}
-                                    name={`${workHoursField}.${diaKey}.slots.${index}.start`}
-                                    render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                            <FormLabel>Início</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value || ''}>
-                                                <FormControl>
-                                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent position="popper">
-                                                    {timeOptions.slice(0, -1).map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={control}
-                                    name={`${workHoursField}.${diaKey}.slots.${index}.end`}
-                                    render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                            <FormLabel>Fim</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value || ''}>
-                                                <FormControl>
-                                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent position="popper">
-                                                    {filteredEndOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )
-                    })}
-
-                    {fields.length < 2 && (
+                                            }}
+                                            disabled={isDayDisabledByBusiness}
+                                            aria-readonly={isDayDisabledByBusiness}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <div className="flex-1">
+                            <FormLabel className="text-base font-medium">{label}</FormLabel>
+                            {isDayDisabledByBusiness && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Fechado no negócio
+                                </p>
+                            )}
+                            {isEnabled && !isDayDisabledByBusiness && isMobile && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    <Clock className="inline h-3 w-3 mr-1" />
+                                    {slotsText}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {isMobile && isEnabled && !isDayDisabledByBusiness && (
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                           onClick={() => {
-                                const defaultStart = timeOptions[0] || '09:00';
-                                const defaultEnd = timeOptions[timeOptions.length - 1] || '18:00';
-                                append({ start: defaultStart, end: defaultEnd });
-                            }}
+                            onClick={() => setIsDialogOpen(true)}
+                            className="ml-2"
                         >
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Adicionar Intervalo
+                            Editar
+                            <ChevronRight className="ml-1 h-4 w-4" />
                         </Button>
                     )}
-                    
-                    {fields.length === 0 && <FormDescription>Nenhum horário de trabalho definido. O dia será considerado fechado.</FormDescription>}
-                    {fields.length === 1 && <FormDescription>Você pode adicionar um segundo intervalo para pausas, como horário de almoço.</FormDescription>}
                 </div>
+
+                {/* Desktop: Inline */}
+                {!isMobile && isEnabled && !isDayDisabledByBusiness && (
+                    <div className="pl-2 border-l-2 ml-2">
+                        {renderTimeSlots()}
+                    </div>
+                )}
+            </FormItem>
+
+            {/* Mobile: Modal */}
+            {isMobile && (
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogContent className="max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
+                        <DialogHeader>
+                            <DialogTitle>Horários de {label}</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            {renderTimeSlots()}
+                        </div>
+                        <Button onClick={() => setIsDialogOpen(false)} className="w-full">
+                            Concluir
+                        </Button>
+                    </DialogContent>
+                </Dialog>
             )}
-        </FormItem>
+        </>
     );
 }

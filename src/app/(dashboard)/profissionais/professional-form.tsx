@@ -36,7 +36,23 @@ const timeSlotSchema = z.object({
 const daySchema = z.object({
   enabled: z.boolean(),
   slots: z.array(timeSlotSchema).max(2, "Máximo de 2 intervalos por dia."),
-});
+}).refine(
+  (data) => {
+    // Se o dia está ativo, deve ter pelo menos 1 horário configurado
+    if (data.enabled && data.slots.length === 0) {
+      return false;
+    }
+    // Se o dia está ativo, os horários não podem estar vazios
+    if (data.enabled && data.slots.some(slot => !slot.start || !slot.end)) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Dia ativo deve ter pelo menos um horário configurado.",
+    path: ["slots"],
+  }
+);
 
 
 const professionalFormSchema = z.object({
