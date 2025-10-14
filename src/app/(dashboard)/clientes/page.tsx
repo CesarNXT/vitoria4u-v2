@@ -238,7 +238,7 @@ export default function ClientsPage() {
         }
         setIsFormModalOpen(open);
       }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{selectedClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             <DialogDescription>
