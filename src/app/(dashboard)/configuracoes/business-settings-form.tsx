@@ -36,13 +36,14 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import type { ConfiguracoesNegocio, DiasDaSemana, Endereco } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useScrollToError } from '@/lib/form-utils';
-import { Loader2, LogOut } from 'lucide-react';
+import { Loader2, LogOut, ChevronRight, Search } from 'lucide-react';
 import BusinessAgendaForm from './business-agenda-form';
 import { Separator } from '@/components/ui/separator';
 import { cn, formatPhoneNumber } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 
 const timeSlotSchema = z.object({
@@ -160,7 +161,10 @@ export default function BusinessSettingsForm({
     isSetupMode = false 
 }: BusinessSettingsFormProps) {
   const { toast } = useToast();
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
 
   const setupSteps = [
     { title: "Detalhes do Negócio", fields: ["nome", "telefone", "categoria", "endereco.cep", "endereco.logradouro", "endereco.numero", "endereco.bairro", "endereco.cidade", "endereco.estado"] },
@@ -220,9 +224,6 @@ export default function BusinessSettingsForm({
   }, [errors]);
 
   /* --- CEP lookup --- */
-  const [isFetchingCep, setIsFetchingCep] = useState(false);
-  const cepFailed = !!errors.endereco?.cep;
-
   const fetchAddressFromCep = useCallback(
     async (cep: string) => {
       const cleanCep = String(cep ?? "").replace(/\D/g, "");
@@ -368,31 +369,90 @@ export default function BusinessSettingsForm({
               <FormField
                 control={control}
                 name="categoria"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a categoria" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Barbearia">Barbearia 💈</SelectItem>
-                        <SelectItem value="ClinicaDeFisioterapia">Clínica de Fisioterapia 🏃‍♂️</SelectItem>
-                        <SelectItem value="ClinicaMedica">Clínica Médica 🩺</SelectItem>
-                        <SelectItem value="ClinicaNutricionista">Clínica Nutricionista 🥗</SelectItem>
-                        <SelectItem value="ClinicaOdontologica">Clínica Odontológica 🦷</SelectItem>
-                        <SelectItem value="ClinicaPsicologica">Clínica Psicológica 🧠</SelectItem>
-                        <SelectItem value="Estetica">Estética 💆‍♀️</SelectItem>
-                        <SelectItem value="LashDesigner">Lash Designer 👁️</SelectItem>
-                        <SelectItem value="NailDesigner">Nail Designer 💅</SelectItem>
-                        <SelectItem value="SalaoDeBeleza">Salão de Beleza 💇‍♀️</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const categories = [
+                    { value: "Barbearia", label: "Barbearia 💈" },
+                    { value: "ClinicaDeFisioterapia", label: "Clínica de Fisioterapia 🏃‍♂️" },
+                    { value: "ClinicaMedica", label: "Clínica Médica 🩺" },
+                    { value: "ClinicaNutricionista", label: "Clínica Nutricionista 🥗" },
+                    { value: "ClinicaOdontologica", label: "Clínica Odontológica 🦾" },
+                    { value: "ClinicaPsicologica", label: "Clínica Psicológica 🧠" },
+                    { value: "Estetica", label: "Estética 💆‍♀️" },
+                    { value: "LashDesigner", label: "Lash Designer 👁️" },
+                    { value: "NailDesigner", label: "Nail Designer 💅" },
+                    { value: "SalaoDeBeleza", label: "Salão de Beleza 💇‍♀️" },
+                  ];
+
+                  const selectedCategory = categories.find(cat => cat.value === field.value);
+                  const filteredCategories = categories.filter(cat => 
+                    cat.label.toLowerCase().includes(categorySearch.toLowerCase())
+                  );
+
+                  return (
+                    <>
+                      <FormItem>
+                        <FormLabel>Categoria</FormLabel>
+                        <FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            onClick={() => setIsCategoryDialogOpen(true)}
+                          >
+                            {selectedCategory ? selectedCategory.label : "Selecione a categoria"}
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0" />
+                          </Button>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+
+                      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+                        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
+                          <DialogHeader>
+                            <DialogTitle>Selecione a Categoria</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Buscar categoria..."
+                                value={categorySearch}
+                                onChange={(e) => setCategorySearch(e.target.value)}
+                                className="pl-10"
+                              />
+                            </div>
+                            <div className="max-h-[400px] overflow-y-auto space-y-1">
+                              {filteredCategories.length > 0 ? (
+                                filteredCategories.map((category) => (
+                                  <Button
+                                    key={category.value}
+                                    type="button"
+                                    variant={field.value === category.value ? "secondary" : "ghost"}
+                                    className="w-full justify-start text-left h-auto py-3"
+                                    onClick={() => {
+                                      field.onChange(category.value);
+                                      setIsCategoryDialogOpen(false);
+                                      setCategorySearch('');
+                                    }}
+                                  >
+                                    <span className="text-base">{category.label}</span>
+                                  </Button>
+                                ))
+                              ) : (
+                                <p className="text-center text-muted-foreground py-8">
+                                  Nenhuma categoria encontrada
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </>
+                  );
+                }}
               />
 
               <div className="border rounded-lg p-4 space-y-4">
@@ -425,7 +485,7 @@ export default function BusinessSettingsForm({
                         <FormItem className="md:col-span-2">
                         <FormLabel>Logradouro</FormLabel>
                         <FormControl>
-                            <Input placeholder="Rua das Flores" {...field} disabled={!cepFailed} />
+                            <Input placeholder="Rua das Flores" {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -453,7 +513,7 @@ export default function BusinessSettingsForm({
                         <FormItem className="md:col-span-3">
                         <FormLabel>Bairro</FormLabel>
                         <FormControl>
-                            <Input placeholder="Centro" {...field} disabled={!cepFailed} />
+                            <Input placeholder="Centro" {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -468,7 +528,7 @@ export default function BusinessSettingsForm({
                             <FormItem>
                             <FormLabel>Cidade</FormLabel>
                             <FormControl>
-                                <Input placeholder="São Paulo" {...field} disabled={!cepFailed} />
+                                <Input placeholder="São Paulo" {...field} />
                             </FormControl>
                             <FormMessage />
                             </FormItem>
@@ -481,7 +541,7 @@ export default function BusinessSettingsForm({
                             <FormItem>
                             <FormLabel>Estado</FormLabel>
                             <FormControl>
-                                <Input placeholder="SP" {...field} disabled={!cepFailed}/>
+                                <Input placeholder="SP" {...field} />
                             </FormControl>
                             <FormMessage />
                             </FormItem>
