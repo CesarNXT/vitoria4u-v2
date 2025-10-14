@@ -500,8 +500,8 @@ export default function BusinessSettingsForm({
                 control={control}
                 name="habilitarLembrete24h"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
                       <FormLabel className="text-base">Lembrete de 24h</FormLabel>
                       <p className="text-sm text-muted-foreground">Enviar um lembrete 24 horas antes do agendamento.</p>
                     </div>
@@ -515,8 +515,8 @@ export default function BusinessSettingsForm({
                 control={control}
                 name="habilitarLembrete2h"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
                       <FormLabel className="text-base">Lembrete de 2h</FormLabel>
                       <p className="text-sm text-muted-foreground">Enviar um lembrete 2 horas antes do agendamento.</p>
                     </div>
@@ -531,8 +531,8 @@ export default function BusinessSettingsForm({
                     control={control}
                     name="habilitarFeedback"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between">
-                        <div className="space-y-0.5">
+                      <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-0.5 flex-1">
                           <FormLabel>Feedback Pós-Serviço</FormLabel>
                           <FormDescription>
                             Ativar envio de pesquisa de satisfação.
@@ -559,7 +559,7 @@ export default function BusinessSettingsForm({
                                     <RadioGroup
                                     onValueChange={field.onChange}
                                     defaultValue={field.value}
-                                    className="flex items-center gap-4"
+                                    className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
                                     >
                                     <FormItem className="flex items-center space-x-2 space-y-0">
                                         <FormControl>
@@ -610,8 +610,8 @@ export default function BusinessSettingsForm({
                     control={control}
                     name="habilitarEscalonamento"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between">
-                        <div className="space-y-0.5">
+                      <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-0.5 flex-1">
                           <FormLabel>Escalonamento Humano</FormLabel>
                           <FormDescription>
                             Desviar para um atendente se a IA não souber.
@@ -747,27 +747,25 @@ export default function BusinessSettingsForm({
           )}
 
           {isSetupMode && (
-            <div className="flex gap-2 justify-between mt-4">
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" onClick={onLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sair
-                </Button>
-              </div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 justify-between mt-6 pt-4 border-t">
+              <Button type="button" variant="ghost" onClick={onLogout} className="w-full sm:w-auto">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sair
+              </Button>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                  {currentStep > 0 && (
-                  <Button type="button" variant="outline" onClick={() => setCurrentStep((s) => s - 1)}>
+                  <Button type="button" variant="outline" onClick={() => setCurrentStep((s) => s - 1)} className="flex-1 sm:flex-none">
                     Voltar
                   </Button>
                 )}
                 {currentStep < steps.length - 1 && (
-                  <Button type="button" onClick={handleNextStep}>
+                  <Button type="button" onClick={handleNextStep} className="flex-1 sm:flex-none">
                     Avançar
                   </Button>
                 )}
                 {currentStep === steps.length - 1 && (
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none">
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Salvar e Concluir
                   </Button>

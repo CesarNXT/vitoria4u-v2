@@ -181,14 +181,24 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     }
   }, [isUserLoading, isSettingsLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
-  const isLoading = isUserLoading || (businessUserId && isSettingsLoading);
+  // Verifica loading - inclui se está carregando settings para usuário de negócio
+  const isBusinessUser = typedUser && !isAdmin && !impersonatedId;
+  const isLoading = isUserLoading || (isBusinessUser && isSettingsLoading);
 
   // Verifica se precisa completar setup
-  const needsSetup = typedUser && !isAdmin && !impersonatedId && settings && settings.setupCompleted !== true;
+  const needsSetup = isBusinessUser && settings && settings.setupCompleted !== true;
 
-  // SEGURANÇA CRÍTICA: Bloqueia renderização até verificar setup
-  // Isso previne que usuários vejam qualquer página antes de completar configuração
+  // SEGURANÇA CRÍTICA: Mostra loading até ter certeza do estado
   if (isLoading || !typedUser) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
+  }
+  
+  // BLOQUEIO CRÍTICO: Se é usuário de negócio mas ainda não carregou settings, aguarda
+  if (isBusinessUser && !settings) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -205,11 +215,15 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // BLOQUEIO TOTAL: Não renderiza NADA até estar em /configuracoes
+  // BLOQUEIO TOTAL: Se precisa setup, mostra apenas loading até estar em /configuracoes
+  // Isso previne QUALQUER flashback do dashboard
   if (needsSetup && pathname !== '/configuracoes') {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Preparando configuração...</p>
+            </div>
         </div>
     )
   }
