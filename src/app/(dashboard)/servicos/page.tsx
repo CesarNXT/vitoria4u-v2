@@ -130,6 +130,7 @@ export default function ServicesPage() {
             description: data.description,
             price: data.price,
             priceType: data.priceType,
+            custo: data.custo || 0,
             duration: data.duration,
             status: data.status,
             professionals: professionalData,
