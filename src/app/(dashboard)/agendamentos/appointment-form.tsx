@@ -301,7 +301,7 @@ export function AppointmentForm({
                   </FormControl>
                   
                   <Dialog open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <VisuallyHidden>
                         <DialogTitle>Selecione um cliente</DialogTitle>
                       </VisuallyHidden>
@@ -371,7 +371,7 @@ export function AppointmentForm({
                   </FormControl>
                   
                   <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <VisuallyHidden>
                         <DialogTitle>Selecione um serviço</DialogTitle>
                       </VisuallyHidden>
@@ -444,7 +444,7 @@ export function AppointmentForm({
                   </FormControl>
                   
                   <Dialog open={professionalDialogOpen} onOpenChange={setProfessionalDialogOpen}>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <VisuallyHidden>
                         <DialogTitle>Selecione um profissional</DialogTitle>
                       </VisuallyHidden>

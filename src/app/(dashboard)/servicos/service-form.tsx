@@ -505,7 +505,7 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
               </FormControl>
               
               <Dialog open={professionalsDialogOpen} onOpenChange={setProfessionalsDialogOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                   <VisuallyHidden>
                     <DialogTitle>Selecione os profissionais</DialogTitle>
                   </VisuallyHidden>
