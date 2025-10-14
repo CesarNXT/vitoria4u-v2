@@ -514,7 +514,6 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
                       placeholder="Buscar profissional..."
                       value={professionalSearchTerm}
                       onChange={(e) => setProfessionalSearchTerm(e.target.value)}
-                      autoFocus
                     />
                     <div className="max-h-[300px] overflow-y-auto space-y-1">
                       {filteredProfessionals.length > 0 ? (

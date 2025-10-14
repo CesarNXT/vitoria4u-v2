@@ -310,7 +310,6 @@ export function AppointmentForm({
                           placeholder="Buscar por nome ou telefone..."
                           value={clientSearchTerm}
                           onChange={(e) => setClientSearchTerm(e.target.value)}
-                          autoFocus
                         />
                         <div className="max-h-[300px] overflow-y-auto space-y-1">
                           {filteredClients.length > 0 ? (
@@ -381,7 +380,6 @@ export function AppointmentForm({
                           placeholder="Buscar serviço..."
                           value={serviceSearchTerm}
                           onChange={(e) => setServiceSearchTerm(e.target.value)}
-                          autoFocus
                         />
                         <div className="max-h-[300px] overflow-y-auto space-y-1">
                           {filteredServices.length > 0 ? (
@@ -455,7 +453,6 @@ export function AppointmentForm({
                           placeholder="Buscar profissional..."
                           value={professionalSearchTerm}
                           onChange={(e) => setProfessionalSearchTerm(e.target.value)}
-                          autoFocus
                         />
                         <div className="max-h-[300px] overflow-y-auto space-y-1">
                           {filteredProfessionals.length > 0 ? (
