@@ -8,6 +8,7 @@ import { RecentClients } from './recent-clients';
 import { AppointmentsChart } from './appointments-chart';
 import { WhatsappStatus } from './whatsapp-status';
 import { DailyPhrase } from './daily-phrase';
+import { FinancialOverview } from './financial-overview';
 import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -47,7 +48,9 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
   return (
     <>
        <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate max-w-[90%] sm:max-w-full">
+          {settings?.nome || 'Dashboard'}
+        </h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Frase Motivacional - Full Width */}
@@ -55,14 +58,19 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
             <DailyPhrase />
         </div>
 
-        {/* Linha 1: 4 cards principais - mesmo tamanho */}
+        {/* Linha 1: WhatsApp + 3 cards gerais */}
         <div className="col-span-full sm:col-span-1 lg:col-span-1">
             <WhatsappStatus settings={settings} />
         </div>
 
         <StatsCards appointments={validAppointments} clients={validClients} />
         
-        {/* Linha 2: Próximos Agendamentos e Clientes Recentes - lado a lado */}
+        {/* Seção Financeira - Full Width com destaque */}
+        <div className="col-span-full">
+            <FinancialOverview appointments={validAppointments} />
+        </div>
+        
+        {/* Linha 2: Próximos Agendamentos e Clientes Recentes */}
         <div className="col-span-full lg:col-span-2">
             <UpcomingAppointments appointments={validAppointments} />
         </div>
@@ -70,7 +78,7 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
             <RecentClients clients={validClients} />
         </div>
         
-        {/* Linha 3: Visão Geral do Mês - Full Width por último */}
+        {/* Linha 3: Gráfico de Visão Geral - Full Width */}
         <div className="col-span-full">
             <AppointmentsChart appointments={validAppointments} />
         </div>

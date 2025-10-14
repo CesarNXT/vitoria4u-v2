@@ -98,6 +98,12 @@ export const getBusinessesColumns = ({ onEdit, onAccessPanel }: BusinessesColumn
       if (!date) return <span className="text-muted-foreground">N/A</span>;
       
       const dateObj = typeof date === 'string' ? new Date(date) : (date.toDate ? date.toDate() : date);
+      
+      // Valida se a data é válida
+      if (isNaN(dateObj.getTime())) {
+        return <span className="text-muted-foreground">Data inválida</span>;
+      }
+      
       const today = new Date();
       const daysUntilExpiration = differenceInDays(dateObj, today);
       const isExpiringSoon = isFuture(dateObj) && (daysUntilExpiration <= 7);

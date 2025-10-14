@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { ConfiguracoesNegocio, User, DiasDaSemana } from '@/lib/types';
 import BusinessSettingsForm from "@/app/(dashboard)/configuracoes/business-settings-form";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
 import { cn, isAdminUser } from '@/lib/utils';
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
@@ -45,6 +45,15 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
+  
+  // Verifica se está impersonando (admin dando suporte)
+  const [impersonatedId, setImpersonatedId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setImpersonatedId(localStorage.getItem('impersonatedBusinessId'));
+    }
+  }, []);
 
 
  useEffect(() => {
@@ -52,15 +61,20 @@ export default function SettingsPage() {
         if (!user || !firestore) return;
 
         const isAdmin = isAdminUser(user?.email);
-        if (isAdmin) {
+        
+        // Se for admin e NÃO está impersonando, não carrega configurações
+        if (isAdmin && !impersonatedId) {
             setIsLoading(false);
             return;
         }
+        
+        // Define qual ID usar: impersonatedId (admin dando suporte) ou user.uid (dono)
+        const businessId = impersonatedId || user.uid;
 
         setIsLoading(true);
         try {
             // Correctly fetch settings directly from the 'negocios' collection
-            const settingsDocRef = doc(firestore, `negocios/${user.uid}`);
+            const settingsDocRef = doc(firestore, `negocios/${businessId}`);
             const settingsDoc = await getDoc(settingsDocRef);
 
             if (settingsDoc.exists()) {
@@ -70,7 +84,7 @@ export default function SettingsPage() {
                 let bookingLink = data.linkAgendamento;
                 if (!bookingLink && data.setupCompleted === true) {
                     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                    bookingLink = `${origin}/agendar/${user.uid}`;
+                    bookingLink = `${origin}/agendar/${businessId}`;
                     
                     // Salva o link silenciosamente sem notificar o usuário
                     setDocumentNonBlocking(settingsDocRef, { linkAgendamento: bookingLink }, { merge: true });
@@ -91,7 +105,7 @@ export default function SettingsPage() {
                 setSettings(loadedSettings);
             } else {
                 // Pre-fill settings for setup mode if they don't exist
-                setSettings({ id: user.uid, setupCompleted: false } as ConfiguracoesNegocio);
+                setSettings({ id: businessId, setupCompleted: false } as ConfiguracoesNegocio);
             }
 
         } catch(e) {
@@ -111,7 +125,7 @@ export default function SettingsPage() {
         // If there's no user or firestore after initial check, stop loading.
         setIsLoading(false);
     }
-}, [user, firestore, toast]);
+}, [user, firestore, toast, impersonatedId]);
 
 
  const handleSave = async (updatedSettings: Partial<ConfiguracoesNegocio>) => {
@@ -124,7 +138,9 @@ export default function SettingsPage() {
       return;
     }
     
-    const settingsRef = doc(firestore, 'negocios', user.uid);
+    // Define qual ID usar: impersonatedId (admin dando suporte) ou user.uid (dono)
+    const businessId = impersonatedId || user.uid;
+    const settingsRef = doc(firestore, 'negocios', businessId);
     
     const wasInSetup = !settings?.setupCompleted;
     
@@ -139,7 +155,7 @@ export default function SettingsPage() {
     
     // Gera o link de agendamento se não existir (para contas novas e antigas)
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const bookingLink = `${origin}/agendar/${user.uid}`;
+    const bookingLink = `${origin}/agendar/${businessId}`;
     
     if (!settings?.linkAgendamento || settings.linkAgendamento !== bookingLink) {
       finalSettings.linkAgendamento = bookingLink;
@@ -159,7 +175,10 @@ export default function SettingsPage() {
     // Optimistically update UI
     setSettings(prev => ({...prev, ...finalSettings} as ConfiguracoesNegocio)); 
     
-    if (wasInSetup) {
+    const isAdmin = isAdminUser(user?.email);
+    
+    if (wasInSetup && !isAdmin) {
+        // Apenas redireciona usuários normais (não admin impersonando)
         toast({
           title: 'Configuração Concluída!',
           description: "Bem-vindo ao painel completo! Redirecionando...",
@@ -193,13 +212,14 @@ export default function SettingsPage() {
 
   const isAdmin = isAdminUser(user?.email);
 
-  if (isAdmin) {
+  // Bloqueia APENAS se for admin E NÃO está impersonando
+  if (isAdmin && !impersonatedId) {
      return (
         <div className="flex-1 space-y-4 p-4 md:p-8">
             <Card>
                 <CardHeader>
                     <CardTitle>Acesso de Administrador</CardTitle>
-                    <CardDescription>A página de configurações não se aplica ao perfil de administrador.</CardDescription>
+                    <CardDescription>A página de configurações não se aplica ao perfil de administrador. Use a impersonação para dar suporte a um negócio.</CardDescription>
                 </CardHeader>
             </Card>
         </div>
@@ -218,11 +238,18 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle>Configurações do Negócio</CardTitle>
                     <CardDescription>
-                        Gerencie as informações essenciais que alimentam a IA, o sistema de agendamento e outras funcionalidades.
+                        {impersonatedId && isAdmin ? (
+                            <span className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
+                                <Shield className="h-4 w-4" />
+                                Modo Suporte: Editando configurações do cliente
+                            </span>
+                        ) : (
+                            'Gerencie as informações essenciais que alimentam a IA, o sistema de agendamento e outras funcionalidades.'
+                        )}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                     {user && <BusinessSettingsForm settings={settings} userId={user.uid} onSave={handleSave} />}
+                     {user && <BusinessSettingsForm settings={settings} userId={impersonatedId || user.uid} onSave={handleSave} />}
                 </CardContent>
             </Card>
         )}

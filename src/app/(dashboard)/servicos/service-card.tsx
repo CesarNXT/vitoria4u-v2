@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, Clock, Tag, Repeat } from "lucide-react";
+import { formatServicePrice } from "@/lib/utils";
 
 interface ServiceCardProps {
   service: Servico;
@@ -25,15 +26,11 @@ const statusTraducao: { [key in Servico['status']]: string } = {
 };
 
 export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
-  const { name, price, duration, status, imageUrl, returnInDays } = service;
+  const { name, price, priceType, duration, status, imageUrl, returnInDays } = service;
   const serviceName = String(name || 'Serviço');
   const initials = serviceName.charAt(0).toUpperCase();
 
-  const formattedPrice = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(price);
-
+  const formattedPrice = formatServicePrice(price, priceType);
   const formattedDuration = `${duration} min`;
 
   return (

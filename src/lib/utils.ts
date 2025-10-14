@@ -320,3 +320,26 @@ export const calculateAvailableTimesForDate = (
     return true;
   });
 }
+
+/**
+ * Formata o preço de um serviço baseado no tipo de precificação
+ * @param price - Valor do serviço
+ * @param priceType - Tipo de precificação ('fixed', 'on_request', 'starting_from')
+ * @returns String formatada com o preço
+ */
+export const formatServicePrice = (price: number, priceType: 'fixed' | 'on_request' | 'starting_from' = 'fixed'): string => {
+  const formattedPrice = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(price);
+
+  switch (priceType) {
+    case 'on_request':
+      return 'Sob orçamento';
+    case 'starting_from':
+      return `A partir de ${formattedPrice}`;
+    case 'fixed':
+    default:
+      return formattedPrice;
+  }
+}

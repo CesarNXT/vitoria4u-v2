@@ -45,6 +45,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import type { Agendamento, Cliente, Servico, Profissional } from '@/lib/types';
 import { getAvailableTimes } from '@/lib/availability';
+import { useScrollToError } from '@/lib/form-utils';
 
 const appointmentFormSchema = z.object({
   clienteId: z.string().min(1, 'Selecione um cliente.'),
@@ -123,13 +124,20 @@ export function AppointmentForm({
     },
   });
 
-  const { watch, control, setValue } = form;
+  const { watch, control, setValue, formState } = form;
   const selectedServiceId = watch('servicoId');
   const selectedProfessionalId = watch('profissionalId');
   const selectedDate = watch('date');
   const selectedTime = watch('startTime');
 
   const selectedService = services.find((s) => s.id === selectedServiceId);
+  
+  // Scroll automático para primeiro erro
+  useEffect(() => {
+    if (Object.keys(formState.errors).length > 0) {
+      useScrollToError(formState.errors);
+    }
+  }, [formState.errors]);
   
   // Verifica conflitos de horário
   useEffect(() => {

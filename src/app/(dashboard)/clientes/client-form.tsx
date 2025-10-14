@@ -20,7 +20,8 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn, formatPhoneNumber } from '@/lib/utils'
 import type { Cliente } from '@/lib/types'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useScrollToError } from '@/lib/form-utils'
 import { useToast } from '@/hooks/use-toast'
 import Image from 'next/image'
 import { CaptionProps, useDayPicker, useNavigation } from 'react-day-picker'
@@ -116,7 +117,7 @@ function CustomCaption(props: CaptionProps) {
 export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(client?.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(client?.avatarUrl || null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const form = useForm<ClientFormValues>({
@@ -130,6 +131,13 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
     },
     mode: 'onChange',
   })
+
+  // Scroll automático para primeiro erro
+  useEffect(() => {
+    if (Object.keys(form.formState.errors).length > 0) {
+      useScrollToError(form.formState.errors);
+    }
+  }, [form.formState.errors]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -146,7 +154,7 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
 
     setIsUploading(true);
     const previewUrl = URL.createObjectURL(file);
-    setImagePreview(previewUrl);
+    setAvatarPreview(previewUrl);
 
     const formData = new FormData();
     formData.append('reqtype', 'fileupload');
@@ -182,7 +190,7 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
       toast({ variant: "destructive", title: "Erro no Upload", description: errorMessage });
-      setImagePreview(client?.avatarUrl || null);
+      setAvatarPreview(client?.avatarUrl || null);
       form.setValue('avatarUrl', client?.avatarUrl || undefined);
     } finally {
       setIsUploading(false);
@@ -191,7 +199,7 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
   };
 
   const removeImage = () => {
-    setImagePreview(null);
+    setAvatarPreview(null);
     form.setValue('avatarUrl', undefined);
   }
   
@@ -230,10 +238,10 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
               <FormLabel>Foto de Perfil (Opcional)</FormLabel>
               <div className="relative group w-32 h-32 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
                 
-                  {imagePreview ? (
+                  {avatarPreview ? (
                     <>
                       <Image 
-                        src={imagePreview} 
+                        src={avatarPreview} 
                         alt="Preview do Cliente" 
                         fill 
                         sizes="128px"
@@ -257,7 +265,7 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
                      </label>
                   )}
               </div>
-              {!imagePreview && (
+              {!avatarPreview && (
                 <Button asChild variant="outline" size="sm" className="mt-2" disabled={isUploading}>
                     <label htmlFor="image-upload" className="cursor-pointer">
                         {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4" />}

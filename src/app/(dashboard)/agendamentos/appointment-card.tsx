@@ -6,13 +6,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/lib/utils";
-import { CalendarIcon, Clock, Scissors, User, Pencil, Trash2 } from "lucide-react";
+import { CalendarIcon, Clock, Scissors, User, Pencil, Trash2, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface AppointmentCardProps {
   appointment: Agendamento;
   onEdit: (appointment: Agendamento) => void;
   onDelete: (appointment: Agendamento) => void;
+  onFinalize: (appointment: Agendamento) => void;
 }
 
 const statusVariantMap: { [key in Agendamento['status']]: "info" | "success" | "danger" } = {
@@ -27,7 +28,7 @@ const statusTraducao: { [key in Agendamento['status']]: string } = {
   Cancelado: 'Cancelado',
 };
 
-export function AppointmentCard({ appointment, onEdit, onDelete }: AppointmentCardProps) {
+export function AppointmentCard({ appointment, onEdit, onDelete, onFinalize }: AppointmentCardProps) {
   const { cliente, servico, profissional, date, startTime, status } = appointment;
   const variant = statusVariantMap[status];
   const className = '';
@@ -76,15 +77,28 @@ export function AppointmentCard({ appointment, onEdit, onDelete }: AppointmentCa
             </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-end gap-2 pb-4 px-4">
-        <Button variant="outline" size="sm" onClick={() => onEdit(appointment)}>
-          <Pencil className="h-4 w-4 mr-2" />
-          Editar
-        </Button>
-        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(appointment)}>
-          <Trash2 className="h-4 w-4 mr-2" />
-          Excluir
-        </Button>
+      <CardFooter className="flex flex-col gap-2 pb-4 px-4">
+        <div className="flex w-full gap-2">
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => onEdit(appointment)}>
+            <Pencil className="h-4 w-4 mr-1" />
+            Editar
+          </Button>
+          <Button variant="outline" size="sm" className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(appointment)}>
+            <Trash2 className="h-4 w-4 mr-1" />
+            Excluir
+          </Button>
+        </div>
+        {status === 'Agendado' && (
+          <Button 
+            variant="default"
+            size="sm" 
+            className="w-full bg-green-600 hover:bg-green-700 text-white"
+            onClick={() => onFinalize(appointment)}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Finalizar Agendamento
+          </Button>
+        )}
       </CardFooter>
     </Card>
   )

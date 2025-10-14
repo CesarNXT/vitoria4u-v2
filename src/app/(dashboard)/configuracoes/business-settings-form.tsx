@@ -37,6 +37,7 @@ import { Progress } from "@/components/ui/progress";
 import type { ConfiguracoesNegocio, DiasDaSemana, Endereco } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useCallback, useEffect } from 'react';
+import { useScrollToError } from '@/lib/form-utils';
 import { Loader2, LogOut } from 'lucide-react';
 import BusinessAgendaForm from './business-agenda-form';
 import { Separator } from '@/components/ui/separator';
@@ -191,6 +192,13 @@ export default function BusinessSettingsForm({
   });
 
   const { control, watch, setValue, trigger, formState: { errors, isSubmitting } } = form;
+
+  // Scroll automático para primeiro erro
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      useScrollToError(errors);
+    }
+  }, [errors]);
 
   /* --- CEP lookup --- */
   const [isFetchingCep, setIsFetchingCep] = useState(false);

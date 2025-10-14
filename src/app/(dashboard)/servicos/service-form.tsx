@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -28,12 +28,14 @@ import { VisuallyHidden } from '@/components/ui/visually-hidden'
 import { cn } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
 import { generateServiceDescription } from "./actions"
-import { useMemo } from "react"
+import { useScrollToError } from '@/lib/form-utils'
 
 const serviceFormSchema = z.object({
   name: z.string().min(3, "O nome deve ter no mínimo 3 caracteres."),
   description: z.string().optional(),
   price: z.number().min(0, "O preço não pode ser negativo."),
+  priceType: z.enum(["fixed", "on_request", "starting_from"]),
+  custo: z.number().min(0, "O custo não pode ser negativo.").optional(),
   duration: z.number().min(5, "A duração deve ser de no mínimo 5 minutos."),
   status: z.enum(["Ativo", "Inativo"]),
   professionals: z.array(z.string()).min(1, "Selecione pelo menos um profissional."),
@@ -66,6 +68,8 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
       name: service?.name || "",
       description: service?.description || "",
       price: service?.price || 0,
+      priceType: service?.priceType || "fixed",
+      custo: service?.custo || 0,
       duration: service?.duration || 30,
       status: service?.status || "Ativo",
       professionals: service?.professionals.map(p => p.id) || [],
@@ -76,7 +80,15 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
   })
 
   const enableReturn = form.watch("enableReturn");
+  const priceType = form.watch("priceType");
   const selectedProfessionalIds = form.watch("professionals")
+  
+  // Scroll automático para primeiro erro
+  useEffect(() => {
+    if (Object.keys(form.formState.errors).length > 0) {
+      useScrollToError(form.formState.errors);
+    }
+  }, [form.formState.errors]);
   
   const filteredProfessionals = useMemo(() => {
     if (!professionalSearchTerm) return professionals;
@@ -218,10 +230,26 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
     form.setValue('price', numericValue, { shouldValidate: true });
   }
 
+  const handleCustoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\D/g, '');
+    const numericValue = Number(rawValue) / 100;
+    form.setValue('custo', numericValue, { shouldValidate: true });
+  }
+
   const formattedPrice = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   }).format(form.watch('price') || 0);
+
+  const formattedCusto = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(form.watch('custo') || 0);
+
+  const price = form.watch('price') || 0;
+  const custo = form.watch('custo') || 0;
+  const lucro = price - custo;
+  const margemPercentual = price > 0 ? ((lucro / price) * 100).toFixed(1) : '0.0';
 
   return (
     <>
@@ -272,6 +300,34 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
           )}
         />
         
+        <FormField
+          control={form.control}
+          name="priceType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tipo de Precificação</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="fixed">Preço Fixo</SelectItem>
+                  <SelectItem value="starting_from">A partir de</SelectItem>
+                  <SelectItem value="on_request">Sob Orçamento</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                {priceType === 'fixed' && 'Preço fixo do serviço'}
+                {priceType === 'starting_from' && 'Mostra "A partir de R$ X"'}
+                {priceType === 'on_request' && 'Mostra "Sob orçamento" (sem valor fixo)'}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
             control={form.control}
@@ -282,11 +338,17 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
                   <FormControl>
                     <Input
                       type="text"
-                      placeholder="R$ 0,00"
+                      placeholder={priceType === 'on_request' ? 'R$ 0,00 (opcional)' : 'R$ 0,00'}
                       value={formattedPrice}
                       onChange={handlePriceChange}
+                      disabled={priceType === 'on_request'}
                     />
                   </FormControl>
+                  {priceType === 'on_request' && (
+                    <FormDescription className="text-xs">
+                      Campo desabilitado para "Sob Orçamento"
+                    </FormDescription>
+                  )}
                   <FormMessage />
                 </FormItem>
             )}
@@ -318,6 +380,52 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
                 </FormItem>
               )}
             />
+        </div>
+
+        <div className="space-y-4 rounded-lg border border-dashed p-4 bg-muted/20">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            💰 Controle Financeiro (Opcional)
+          </div>
+          <FormField
+            control={form.control}
+            name="custo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Custo Médio do Serviço (R$)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    placeholder="R$ 0,00"
+                    value={formattedCusto}
+                    onChange={handleCustoChange}
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  Inclua custos de produtos, materiais e insumos utilizados neste serviço
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {(price > 0 || custo > 0) && (
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Preço</p>
+                <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{formattedPrice}</p>
+              </div>
+              <div className="rounded-lg bg-red-50 dark:bg-red-950 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Custo</p>
+                <p className="text-sm font-bold text-red-700 dark:text-red-400">{formattedCusto}</p>
+              </div>
+              <div className="rounded-lg bg-green-50 dark:bg-green-950 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Lucro</p>
+                <p className="text-sm font-bold text-green-700 dark:text-green-400">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lucro)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">({margemPercentual}%)</p>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="space-y-4 rounded-lg border p-4">

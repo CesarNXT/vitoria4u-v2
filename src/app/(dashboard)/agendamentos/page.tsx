@@ -258,6 +258,59 @@ export default function AgendamentosPage() {
     setIsFeedbackConfirmOpen(false);
   };
 
+  const handleFinalize = async (appointment: Agendamento) => {
+    if (!finalUserId || !businessSettings) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Atualizar status para Finalizado
+      const updatedAppointment = {
+        ...appointment,
+        status: 'Finalizado' as const
+      };
+
+      const cliente = updatedAppointment.cliente;
+      const clientBirthDate = new Date(cliente.birthDate);
+      
+      const serializableAppointment = {
+        ...updatedAppointment,
+        date: updatedAppointment.date instanceof Date 
+          ? updatedAppointment.date.toISOString() 
+          : updatedAppointment.date.toDate 
+            ? updatedAppointment.date.toDate().toISOString()
+            : new Date(updatedAppointment.date).toISOString(),
+        cliente: {
+          ...cliente,
+          birthDate: cliente.birthDate && !isNaN(clientBirthDate.getTime()) 
+            ? clientBirthDate.toISOString() 
+            : null,
+        },
+      };
+      
+      const serializableSettings = JSON.parse(JSON.stringify(convertTimestamps(businessSettings)));
+
+      // Salvar agendamento finalizado
+      await saveOrUpdateDocument('agendamentos', appointment.id, serializableAppointment, finalUserId);
+      
+      toast({ title: "Agendamento Finalizado" });
+
+      // Verificar se deve enviar feedback
+      if (
+        businessSettings?.whatsappConectado &&
+        businessSettings?.habilitarFeedback &&
+        businessSettings?.feedbackLink
+      ) {
+        const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
+        setPendingFeedbackPayload({ settings: serializableSettings, appointment: finalData });
+        setIsFeedbackConfirmOpen(true);
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erro ao Finalizar" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDeleteRequest = (appointment: Agendamento) => {
     setAppointmentToDelete(appointment);
     setIsAlertDialogOpen(true);
@@ -352,7 +405,7 @@ export default function AgendamentosPage() {
   }
 
   // --- RENDER ---
-  const dynamicColumns = getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest });
+  const dynamicColumns = getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest, onFinalize: handleFinalize });
   
   const filteredAppointments = useMemo(() => {
     return appointments.filter(appointment => {
@@ -445,6 +498,7 @@ export default function AgendamentosPage() {
                     appointment={appointment} 
                     onEdit={handleEdit}
                     onDelete={handleDeleteRequest}
+                    onFinalize={handleFinalize}
                   />
                 ))
               ) : (

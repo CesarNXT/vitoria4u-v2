@@ -16,7 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { StandardDatePicker } from "@/components/ui/standard-date-picker"
-import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords, convertTimestamps } from '@/lib/utils';
+import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords, convertTimestamps, formatServicePrice } from '@/lib/utils';
 import { getAvailableTimes } from '@/lib/availability';
 import { format, getDay, parse, getMonth, isSameDay, isDate } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -488,7 +488,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
                             <div>
                                 <p className="font-medium">{service.name}</p>
                                 <p className="text-sm text-muted-foreground">
-                                    {service.duration} min - {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(service.price)}
+                                    {service.duration} min - {formatServicePrice(service.price, service.priceType)}
                                 </p>
                             </div>
                         </div>
@@ -673,7 +673,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
                     </div>
                     <div className="flex justify-between items-center text-lg font-semibold">
                         <span className="text-muted-foreground">Total:</span>
-                        <span>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(selectedService.price)}</span>
+                        <span>{formatServicePrice(selectedService.price, selectedService.priceType)}</span>
                     </div>
                 </div>
                 <Button 

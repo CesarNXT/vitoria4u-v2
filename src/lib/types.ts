@@ -144,17 +144,21 @@ export interface DataBloqueada {
   endDate: Timestamp;
 }
 
+export type PriceType = 'fixed' | 'on_request' | 'starting_from';
+
 export interface Servico {
     id: string;
     name: string;
     description?: string;
     price: number;
+    priceType: PriceType; // Tipo de precificação
     duration: number;
     status: 'Ativo' | 'Inativo';
     professionals: { id: string, name: string }[];
     imageUrl?: string;
     instanciaWhatsapp?: string;
     returnInDays?: number | null;
+    custo?: number; // Custo médio do serviço (produtos, materiais, etc)
 }
 
 export interface Profissional {

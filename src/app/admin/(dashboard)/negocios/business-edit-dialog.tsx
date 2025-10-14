@@ -31,7 +31,11 @@ export function BusinessEditDialog({ business, plans, onSave, onCancel }: Busine
   const [expirationDate, setExpirationDate] = useState<Date>(() => {
     if (business.access_expires_at) {
       const date = business.access_expires_at;
-      return typeof date === 'string' ? new Date(date) : (date.toDate ? date.toDate() : date);
+      const dateObj = typeof date === 'string' ? new Date(date) : (date.toDate ? date.toDate() : date);
+      // Retorna a data apenas se for válida
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj;
+      }
     }
     return new Date();
   });
@@ -50,7 +54,9 @@ export function BusinessEditDialog({ business, plans, onSave, onCancel }: Busine
       ? new Date(currentExpiration) 
       : (currentExpiration?.toDate ? currentExpiration.toDate() : currentExpiration);
     
-    if (expirationDate.getTime() !== currentDate?.getTime()) {
+    // Só atualiza se a data atual for válida e diferente
+    const currentDateValid = currentDate && !isNaN(currentDate.getTime());
+    if (!currentDateValid || expirationDate.getTime() !== currentDate.getTime()) {
       updates.access_expires_at = expirationDate;
     }
 
@@ -94,13 +100,14 @@ export function BusinessEditDialog({ business, plans, onSave, onCancel }: Busine
                   <p className="text-muted-foreground">
                     Expira em: <span className="font-medium">
                       {business.access_expires_at 
-                        ? format(
-                            typeof business.access_expires_at === 'string' 
+                        ? (() => {
+                            const dateObj = typeof business.access_expires_at === 'string' 
                               ? new Date(business.access_expires_at) 
-                              : (business.access_expires_at.toDate ? business.access_expires_at.toDate() : business.access_expires_at),
-                            "dd/MM/yyyy",
-                            { locale: ptBR }
-                          )
+                              : (business.access_expires_at.toDate ? business.access_expires_at.toDate() : business.access_expires_at);
+                            return !isNaN(dateObj.getTime()) 
+                              ? format(dateObj, "dd/MM/yyyy", { locale: ptBR })
+                              : 'Data inválida';
+                          })()
                         : 'Não definida'
                       }
                     </span>

@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlayCircle, Upload, Image as ImageIcon, Video, AlertTriangle, Info, WifiOff, MessageSquare, Gem } from 'lucide-react';
+import { Loader2, PlayCircle, Upload, Image as ImageIcon, Video, Music, AlertTriangle, Info, WifiOff, MessageSquare, Gem } from 'lucide-react';
 import { sendCampaignWebhook } from './actions';
 import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -34,7 +34,7 @@ import { convertTimestamps } from '@/lib/utils';
 
 
 type CampaignStatus = 'inactive' | 'running';
-type CampaignType = 'text' | 'image' | 'video';
+type CampaignType = 'text' | 'image' | 'video' | 'audio';
 
 interface CampaignState {
   status: CampaignStatus;
@@ -243,9 +243,10 @@ export default function CampanhasPage() {
     const campaignMessage = campaignType === 'text' ? message : '';
     const campaignMediaUrl = campaignType !== 'text' ? mediaUrl : '';
     
-    let typeMidea: 'image' | 'video' | undefined = undefined;
+    let typeMidea: 'image' | 'video' | 'audio' | undefined = undefined;
     if (campaignType === 'image') typeMidea = 'image';
     if (campaignType === 'video') typeMidea = 'video';
+    if (campaignType === 'audio') typeMidea = 'audio';
 
     const newState: CampaignState = {
       status: 'running',
@@ -322,8 +323,9 @@ export default function CampanhasPage() {
         );
       case 'image':
       case 'video':
-        const fileType = { image: "image/*", video: "video/mp4" }[campaignType];
-        const previewType = { image: 'image', video: 'video' }[campaignType];
+      case 'audio':
+        const fileType = { image: "image/*", video: "video/mp4", audio: "audio/*" }[campaignType];
+        const previewType = { image: 'image', video: 'video', audio: 'audio' }[campaignType];
         
         return (
           <div className="space-y-2">
@@ -415,6 +417,10 @@ export default function CampanhasPage() {
                  <Label htmlFor="type-video" className="flex items-center gap-2 border rounded-md p-3 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-all">
                     <RadioGroupItem value="video" id="type-video" />
                     <Video className="h-5 w-5 mr-1" /> Vídeo
+                </Label>
+                 <Label htmlFor="type-audio" className="flex items-center gap-2 border rounded-md p-3 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-all">
+                    <RadioGroupItem value="audio" id="type-audio" />
+                    <Music className="h-5 w-5 mr-1" /> Áudio
                 </Label>
             </RadioGroup>
            

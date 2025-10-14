@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { useScrollToError } from '@/lib/form-utils';
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
@@ -84,10 +85,16 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
     },
   });
 
-  const { watch, setValue, trigger } = form;
+  const { watch, setValue, trigger, formState } = form;
   const startDateValue = watch('startDate');
   const startTimeValue = watch('startTime');
 
+  // Scroll automático para primeiro erro
+  useEffect(() => {
+    if (Object.keys(formState.errors).length > 0) {
+      useScrollToError(formState.errors);
+    }
+  }, [formState.errors]);
 
   // Auto-update endDate when startDate changes (apenas para novos bloqueios)
   useEffect(() => {

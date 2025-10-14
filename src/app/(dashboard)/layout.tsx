@@ -344,7 +344,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
          {impersonatedId && (
-            <div className="sticky top-0 z-50 flex items-center justify-between bg-yellow-400/80 px-4 py-2 text-yellow-900 shadow-inner backdrop-blur-sm">
+            <div className="fixed top-0 left-0 right-0 lg:left-64 z-[60] flex items-center justify-between bg-yellow-400 px-4 py-3 text-yellow-900 shadow-md border-b-2 border-yellow-500">
                 <div className='flex items-center gap-2'>
                     <Shield className="h-5 w-5" />
                     <p className="text-sm font-semibold">
@@ -357,13 +357,13 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
                 </Button>
             </div>
         )}
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-lg md:hidden">
+        <header className={cn("fixed left-0 right-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-lg md:hidden shadow-sm", impersonatedId ? "top-[52px]" : "top-0")}>
             <SidebarTrigger />
              <div className="flex-1 text-center">
               <span className="text-lg font-semibold">Vitoria IA</span>
             </div>
         </header>
-        <main className="flex flex-1 flex-col">
+        <main className={cn("flex flex-1 flex-col pt-14 md:pt-0", impersonatedId && "lg:pt-[52px]")}>
           <BusinessUserProvider businessUserId={businessUserId || null}>
             {children}
           </BusinessUserProvider>

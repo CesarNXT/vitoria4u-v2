@@ -48,6 +48,8 @@ export async function GET(request: Request) {
         const businessesSnapshot = await getDocs(collection(firestore, 'negocios'));
         
         const today = startOfDay(new Date());
+        let returnCount = 0;
+        let businessesProcessed = 0;
         
         for (const businessDoc of businessesSnapshot.docs) {
             const businessData = businessDoc.data();
@@ -59,6 +61,9 @@ export async function GET(request: Request) {
             }
 
             logger.debug('Checking returns for business', { businessId, name: businessData.nome });
+
+            // Array para acumular retornos desta empresa
+            const returnClients = [];
 
             const appointmentsRef = collection(firestore, `negocios/${businessId}/agendamentos`);
             // We only care about appointments that were 'Finalizado' (completed)
@@ -80,27 +85,46 @@ export async function GET(request: Request) {
                         // Check if today is the day for the return reminder
                         if (isSameDay(today, returnDate)) {
                             const client = appointmentData.cliente;
-                            const payload = {
+                            returnClients.push({
                                 nomeCliente: client.name,
-                                nomeEmpresa: businessData.nome,
-                                nomeServico: service.name,
-                                diasRetorno: service.returnInDays,
-                                tokenInstancia: businessData.tokenInstancia,
-                                instancia: businessId,
                                 telefoneCliente: client.phone,
-                                categoriaEmpresa: businessData.categoria,
-                            };
-                            
-                            logger.info('Sending return reminder', sanitizeForLog({ clientName: client.name, businessId }));
-                            await callWebhook(payload);
+                                nomeServico: service.name,
+                                diasRetorno: service.returnInDays
+                            });
+                            returnCount++;
                         }
                     }
                 }
             }
+
+            // Se houver retornos nesta empresa, envia 1 webhook com todos
+            if (returnClients.length > 0) {
+                const payload = {
+                    nomeEmpresa: businessData.nome,
+                    tokenInstancia: businessData.tokenInstancia,
+                    instancia: businessId,
+                    categoriaEmpresa: businessData.categoria,
+                    retornos: returnClients,
+                    totalRetornos: returnClients.length
+                };
+                
+                logger.info('Sending return batch', { 
+                    businessId,
+                    businessName: businessData.nome,
+                    count: returnClients.length
+                });
+                
+                await callWebhook(payload);
+                businessesProcessed++;
+            }
         }
 
-        logger.success('CRON Job (check-returns) finished successfully');
-        return NextResponse.json({ message: 'Return checks completed.' });
+        logger.success(`CRON Job (check-returns) finished. Found ${returnCount} returns in ${businessesProcessed} businesses.`);
+        return NextResponse.json({ 
+            message: `Return checks completed. Found ${returnCount} returns in ${businessesProcessed} businesses.`,
+            returnCount,
+            businessesProcessed
+        });
     } catch (error: any) {
         logger.error('CRON Job (check-returns) failed', sanitizeForLog(error));
         return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });

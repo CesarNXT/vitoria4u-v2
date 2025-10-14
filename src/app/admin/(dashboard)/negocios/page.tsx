@@ -29,16 +29,34 @@ export default function AdminNegociosPage() {
     // Buscar negócios
     const businessesRef = collection(firestore, 'negocios');
     const unsubBusinesses = onSnapshot(businessesRef, (snapshot) => {
-      const businessesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        access_expires_at: doc.data().access_expires_at?.toDate 
-          ? doc.data().access_expires_at.toDate() 
-          : new Date(doc.data().access_expires_at),
-        createdAt: doc.data().createdAt?.toDate 
-          ? doc.data().createdAt.toDate() 
-          : new Date(doc.data().createdAt),
-      } as ConfiguracoesNegocio)).sort((a, b) => {
+      const businessesData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        
+        // Converte access_expires_at com validação
+        let expiresAt = null;
+        if (data.access_expires_at) {
+          const date = data.access_expires_at.toDate 
+            ? data.access_expires_at.toDate() 
+            : new Date(data.access_expires_at);
+          expiresAt = !isNaN(date.getTime()) ? date : null;
+        }
+        
+        // Converte createdAt com validação
+        let createdDate = new Date();
+        if (data.createdAt) {
+          const date = data.createdAt.toDate 
+            ? data.createdAt.toDate() 
+            : new Date(data.createdAt);
+          createdDate = !isNaN(date.getTime()) ? date : new Date();
+        }
+        
+        return {
+          id: doc.id,
+          ...data,
+          access_expires_at: expiresAt,
+          createdAt: createdDate,
+        } as ConfiguracoesNegocio;
+      }).sort((a, b) => {
         const dateA = new Date(a.createdAt);
         const dateB = new Date(b.createdAt);
         return dateB.getTime() - dateA.getTime(); // Mais recentes primeiro
@@ -144,9 +162,15 @@ export default function AdminNegociosPage() {
       <div className="md:hidden space-y-4">
         {businesses.map((business) => {
           const isExpired = !business.access_expires_at || new Date(business.access_expires_at) < new Date();
-          const expiresAt = business.access_expires_at 
-            ? (business.access_expires_at.toDate ? business.access_expires_at.toDate() : new Date(business.access_expires_at))
-            : null;
+          
+          let expiresAt = null;
+          if (business.access_expires_at) {
+            const date = business.access_expires_at.toDate 
+              ? business.access_expires_at.toDate() 
+              : new Date(business.access_expires_at);
+            // Só atribui se a data for válida
+            expiresAt = !isNaN(date.getTime()) ? date : null;
+          }
 
           return (
             <div key={business.id} className="bg-card border rounded-lg p-4 space-y-3">

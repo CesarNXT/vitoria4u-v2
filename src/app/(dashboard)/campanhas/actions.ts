@@ -9,7 +9,7 @@ interface CampaignWebhookPayload {
     businessSettings: ConfiguracoesNegocio;
     message: string;
     mediaUrl: string;
-    typeMidea?: 'image' | 'video';
+    typeMidea?: 'image' | 'video' | 'audio';
 }
 
 const CAMPAIGN_WEBHOOK_URL = "https://n8n.vitoria4u.site/webhook/a199551c-40a6-472e-ba7d-1a7076443e7c";

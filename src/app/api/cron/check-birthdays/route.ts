@@ -39,6 +39,7 @@ export async function GET(request: Request) {
         const todayDay = today.getDate();
         
         let birthdayCount = 0;
+        let businessesProcessed = 0;
 
         for (const businessDoc of businessesSnapshot.docs) {
             const businessData = businessDoc.data();
@@ -48,6 +49,9 @@ export async function GET(request: Request) {
             if (!businessData.whatsappConectado || !businessData.tokenInstancia) {
                 continue;
             }
+
+            // Array para acumular aniversariantes desta empresa
+            const birthdayClients = [];
 
             // Buscar todos os clientes do negócio
             const clientsSnapshot = await getDocs(collection(firestore, `negocios/${businessId}/clientes`));
@@ -63,32 +67,43 @@ export async function GET(request: Request) {
                     
                     // Verificar se é aniversário hoje
                     if (birthMonth === todayMonth && birthDay === todayDay) {
-                        const payload = {
-                            nomeCliente: clientData.name,
-                            telefoneCliente: clientData.phone,
-                            nomeEmpresa: businessData.nome,
-                            tokenInstancia: businessData.tokenInstancia,
-                            instancia: businessId,
-                            categoriaEmpresa: businessData.categoria,
+                        birthdayClients.push({
+                            nome: clientData.name,
+                            telefone: clientData.phone,
                             dataNascimento: clientData.birthDate
-                        };
-                        
-                        logger.info('Sending birthday reminder', { 
-                            clientName: clientData.name, 
-                            businessId 
                         });
-                        
-                        await callWebhook(payload);
                         birthdayCount++;
                     }
                 }
             }
+
+            // Se houver aniversariantes nesta empresa, envia 1 webhook com todos
+            if (birthdayClients.length > 0) {
+                const payload = {
+                    nomeEmpresa: businessData.nome,
+                    tokenInstancia: businessData.tokenInstancia,
+                    instancia: businessId,
+                    categoriaEmpresa: businessData.categoria,
+                    aniversariantes: birthdayClients,
+                    totalAniversariantes: birthdayClients.length
+                };
+                
+                logger.info('Sending birthday batch', { 
+                    businessId,
+                    businessName: businessData.nome,
+                    count: birthdayClients.length
+                });
+                
+                await callWebhook(payload);
+                businessesProcessed++;
+            }
         }
 
-        logger.success(`CRON Job (check-birthdays) finished. Found ${birthdayCount} birthdays.`);
+        logger.success(`CRON Job (check-birthdays) finished. Found ${birthdayCount} birthdays in ${businessesProcessed} businesses.`);
         return NextResponse.json({ 
-            message: `Birthday checks completed. Found ${birthdayCount} birthdays today.`,
-            birthdayCount 
+            message: `Birthday checks completed. Found ${birthdayCount} birthdays in ${businessesProcessed} businesses.`,
+            birthdayCount,
+            businessesProcessed
         });
     } catch (error) {
         logger.error('CRON Job (check-birthdays) failed', sanitizeForLog(error));

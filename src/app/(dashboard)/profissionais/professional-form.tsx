@@ -18,8 +18,9 @@ import { Loader2, Upload, X } from 'lucide-react'
 import type { Profissional, HorarioTrabalho } from '@/lib/types'
 import BusinessAgendaForm from '../configuracoes/business-agenda-form'
 import { Separator } from '@/components/ui/separator'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { useScrollToError } from '@/lib/form-utils'
 import Image from 'next/image'
 import { formatPhoneNumber } from '@/lib/utils'
 import { getAuth } from 'firebase/auth'
@@ -91,6 +92,13 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
     },
     mode: 'onChange',
   })
+
+  // Scroll automático para primeiro erro
+  useEffect(() => {
+    if (Object.keys(form.formState.errors).length > 0) {
+      useScrollToError(form.formState.errors);
+    }
+  }, [form.formState.errors]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

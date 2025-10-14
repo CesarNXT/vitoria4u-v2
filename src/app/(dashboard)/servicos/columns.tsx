@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowUpDown, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { formatServicePrice } from "@/lib/utils"
 
 type ColumnsProps = {
   onEdit: (service: Servico) => void;
@@ -48,7 +49,7 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Servic
   {
     accessorKey: "price",
     header: "Preço",
-    cell: ({ row }) => `R$ ${row.original.price.toFixed(2)}`,
+    cell: ({ row }) => formatServicePrice(row.original.price, row.original.priceType),
   },
   {
     accessorKey: "duration",

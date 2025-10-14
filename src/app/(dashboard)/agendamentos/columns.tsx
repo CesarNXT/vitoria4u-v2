@@ -3,7 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import type { Agendamento } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, ArrowUpDown, Pencil, Trash2 } from "lucide-react"
+import { MoreHorizontal, ArrowUpDown, Pencil, Trash2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { formatPhoneNumber } from "@/lib/utils"
@@ -12,6 +12,7 @@ import { format, isDate } from "date-fns";
 type ColumnsProps = {
   onEdit: (appointment: Agendamento) => void;
   onDelete: (appointment: Agendamento) => void;
+  onFinalize: (appointment: Agendamento) => void;
 }
 
 const statusVariantMap: { [key in Agendamento['status']]: "info" | "success" | "danger" } = {
@@ -26,7 +27,7 @@ const statusTraducao: { [key in Agendamento['status']]: string } = {
   Cancelado: 'Cancelado',
 };
 
-export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Agendamento>[] => [
+export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): ColumnDef<Agendamento>[] => [
   {
     accessorKey: "cliente.name",
     header: "Cliente",
@@ -95,9 +96,22 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Agenda
     header: "Ações",
     cell: ({ row }) => {
       const appointment = row.original
+      const isAgendado = appointment.status === 'Agendado';
  
       return (
         <div className="flex items-center gap-2">
+            {isAgendado && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                onClick={() => onFinalize(appointment)}
+                title="Finalizar agendamento"
+              >
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="sr-only">Finalizar</span>
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => onEdit(appointment)}>
                 <Pencil className="h-4 w-4" />
                 <span className="sr-only">Editar</span>
