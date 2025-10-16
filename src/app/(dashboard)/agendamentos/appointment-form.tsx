@@ -228,30 +228,56 @@ export function AppointmentForm({
 
   useEffect(() => {
     const fetchAvailableTimes = () => {
+      console.log('Fetching times:', { 
+        hasDate: !!selectedDate, 
+        hasService: !!selectedService, 
+        hasProfessional: !!selectedProfessionalId 
+      });
+      
       if (selectedDate && selectedService && selectedProfessionalId) {
         setIsLoadingTimes(true);
         
-        // Gera horários das 08:00 às 20:00 de 30 em 30 minutos
-        const times: string[] = [];
-        for (let hour = 8; hour < 20; hour++) {
-          times.push(`${String(hour).padStart(2, '0')}:00`);
-          times.push(`${String(hour).padStart(2, '0')}:30`);
-        }
-        
-        // If editing, make sure the current appointment's time is in the list
-        if (appointment && appointment.startTime && !times.includes(appointment.startTime)) {
-            times.push(appointment.startTime);
-            times.sort();
-        }
+        try {
+          // Gera horários das 08:00 às 20:00 de 30 em 30 minutos
+          const times: string[] = [];
+          for (let hour = 8; hour < 20; hour++) {
+            times.push(`${String(hour).padStart(2, '0')}:00`);
+            times.push(`${String(hour).padStart(2, '0')}:30`);
+          }
+          
+          // If editing, make sure the current appointment's time is in the list
+          if (appointment && appointment.startTime && !times.includes(appointment.startTime)) {
+              times.push(appointment.startTime);
+              times.sort();
+          }
 
-        setAvailableTimes(times);
-        setIsLoadingTimes(false);
+          console.log('Generated times:', times.length);
+          setAvailableTimes(times);
+          
+          // Reset startTime se não estiver na nova lista de horários disponíveis
+          // (exceto se for o horário do agendamento em edição)
+          const currentTime = selectedTime;
+          if (currentTime && !times.includes(currentTime)) {
+            const isEditingOriginalTime = appointment && appointment.startTime === currentTime;
+            if (!isEditingOriginalTime) {
+              setValue('startTime', '');
+            }
+          }
+        } catch (error) {
+          console.error('Error generating times:', error);
+          setAvailableTimes([]);
+        } finally {
+          setIsLoadingTimes(false);
+        }
       } else {
+        console.log('Missing required fields for time generation');
         setAvailableTimes([]);
+        setIsLoadingTimes(false);
       }
     };
+    
     fetchAvailableTimes();
-  }, [selectedDate, selectedService, selectedProfessionalId, appointment]);
+  }, [selectedDate, selectedService, selectedProfessionalId, appointment, selectedTime, setValue]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
     if (conflictWarning) {
@@ -516,14 +542,35 @@ export function AppointmentForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Horário</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value || undefined}
+                    disabled={isLoadingTimes || !selectedProfessionalId || !selectedServiceId || !selectedDate}
+                  >
                     <FormControl>
-                      <SelectTrigger disabled={isLoadingTimes || !selectedProfessionalId || !selectedServiceId}>
-                        <SelectValue placeholder={isLoadingTimes ? "Carregando..." : "Selecione um horário"} />
+                      <SelectTrigger>
+                        {isLoadingTimes ? (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Carregando horários...</span>
+                          </div>
+                        ) : (
+                          <SelectValue placeholder={
+                            !selectedServiceId ? "Escolha um serviço" :
+                            !selectedProfessionalId ? "Escolha um profissional" :
+                            !selectedDate ? "Escolha uma data" :
+                            "Selecione um horário"
+                          } />
+                        )}
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      {availableTimes.length > 0 ? (
+                    <SelectContent className="max-h-[300px]">
+                      {isLoadingTimes ? (
+                        <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Carregando horários...
+                        </div>
+                      ) : availableTimes.length > 0 ? (
                         availableTimes.map((time) => (
                           <SelectItem key={time} value={time}>
                             {time}
@@ -531,11 +578,19 @@ export function AppointmentForm({
                         ))
                       ) : (
                         <div className="p-4 text-sm text-center text-muted-foreground">
-                          Nenhum horário disponível.
+                          {!selectedServiceId || !selectedProfessionalId || !selectedDate
+                            ? "Complete os campos anteriores"
+                            : "Nenhum horário disponível para esta data"
+                          }
                         </div>
                       )}
                     </SelectContent>
                   </Select>
+                  {selectedDate && selectedService && selectedProfessionalId && availableTimes.length > 0 && !isLoadingTimes && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {availableTimes.length} horários disponíveis
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

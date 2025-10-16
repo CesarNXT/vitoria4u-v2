@@ -19,8 +19,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Servico, Profissional } from "@/lib/types"
+import type { Servico, Profissional, PlanoSaude } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
+import { isCategoriaClinica } from '@/lib/categoria-utils'
 import { getAuth } from 'firebase/auth'
 import Image from 'next/image'
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -42,6 +43,7 @@ const serviceFormSchema = z.object({
   imageUrl: z.string().optional(),
   enableReturn: z.boolean().optional(),
   returnInDays: z.string().optional(),
+  planosAceitos: z.array(z.string()).optional(), // IDs dos planos aceitos
 })
 
 type ServiceFormValues = z.infer<typeof serviceFormSchema>
@@ -49,18 +51,23 @@ type ServiceFormValues = z.infer<typeof serviceFormSchema>
 interface ServiceFormProps {
   service: Servico | null
   professionals: Profissional[]
-  onSubmit: (data: Omit<Servico, 'id' | 'professionals'> & { professionals: string[] }) => void
+  planosSaudeDisponiveis?: PlanoSaude[] // Planos cadastrados no negócio
+  onSubmit: (data: Omit<Servico, 'id' | 'professionals'> & { professionals: string[], planosAceitos?: string[] }) => void
   isSubmitting: boolean
   businessCategory?: string;
 }
 
-export function ServiceForm({ service, professionals, onSubmit, isSubmitting, businessCategory }: ServiceFormProps) {
+export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [], onSubmit, isSubmitting, businessCategory }: ServiceFormProps) {
   const { toast } = useToast()
   const [isUploading, setIsUploading] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(service?.imageUrl || null)
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false)
   const [professionalsDialogOpen, setProfessionalsDialogOpen] = useState(false)
   const [professionalSearchTerm, setProfessionalSearchTerm] = useState('')
+  const [planosDialogOpen, setPlanosDialogOpen] = useState(false)
+  const [planoSearchTerm, setPlanoSearchTerm] = useState('')
+
+  const isClinica = isCategoriaClinica(businessCategory);
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceFormSchema),
@@ -76,12 +83,14 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
       imageUrl: service?.imageUrl || "",
       enableReturn: !!service?.returnInDays,
       returnInDays: service?.returnInDays ? String(service.returnInDays) : '',
+      planosAceitos: service?.planosAceitos?.map(p => p.id) || [],
     },
   })
 
   const enableReturn = form.watch("enableReturn");
   const priceType = form.watch("priceType");
   const selectedProfessionalIds = form.watch("professionals")
+  const selectedPlanosIds = form.watch("planosAceitos")
   
   // Scroll automático para primeiro erro
   useEffect(() => {
@@ -97,6 +106,14 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
       p.name.toLowerCase().includes(lower)
     );
   }, [professionalSearchTerm, professionals]);
+
+  const filteredPlanos = useMemo(() => {
+    if (!planoSearchTerm) return planosSaudeDisponiveis;
+    const lower = planoSearchTerm.toLowerCase();
+    return planosSaudeDisponiveis.filter(p => 
+      p.nome.toLowerCase().includes(lower)
+    );
+  }, [planoSearchTerm, planosSaudeDisponiveis]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -222,6 +239,7 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
   };
 
   const selectedProfessionalsDetails = professionals.filter(p => selectedProfessionalIds.includes(p.id));
+  const selectedPlanosDetails = planosSaudeDisponiveis.filter(p => selectedPlanosIds?.includes(p.id));
 
   // Handle currency formatting
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -300,35 +318,35 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
           )}
         />
         
-        <FormField
-          control={form.control}
-          name="priceType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tipo de Precificação</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="fixed">Preço Fixo</SelectItem>
-                  <SelectItem value="starting_from">A partir de</SelectItem>
-                  <SelectItem value="on_request">Sob Orçamento</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                {priceType === 'fixed' && 'Preço fixo do serviço'}
-                {priceType === 'starting_from' && 'Mostra "A partir de R$ X"'}
-                {priceType === 'on_request' && 'Mostra "Sob orçamento" (sem valor fixo)'}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="priceType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Precificação</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="fixed">Preço Fixo</SelectItem>
+                      <SelectItem value="starting_from">A partir de</SelectItem>
+                      <SelectItem value="on_request">Sob Orçamento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    {priceType === 'fixed' && 'Preço fixo do serviço'}
+                    {priceType === 'starting_from' && 'Mostra "A partir de R$ X"'}
+                    {priceType === 'on_request' && 'Mostra "Sob orçamento"'}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <FormField
             control={form.control}
             name="price"
@@ -353,34 +371,35 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
                 </FormItem>
             )}
             />
-            <FormField
-              control={form.control}
-              name="duration"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duração (min)</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(Number(value))}
-                    defaultValue={String(field.value)}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {[30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map(minutes => (
-                        <SelectItem key={minutes} value={String(minutes)}>
-                          {minutes} min
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
         </div>
+        
+        <FormField
+          control={form.control}
+          name="duration"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Duração (min)</FormLabel>
+              <Select
+                onValueChange={(value) => field.onChange(Number(value))}
+                defaultValue={String(field.value)}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {[30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map(minutes => (
+                    <SelectItem key={minutes} value={String(minutes)}>
+                      {minutes} min
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <div className="space-y-4 rounded-lg border border-dashed p-4 bg-muted/20">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -479,127 +498,129 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
             )}
         </div>
 
-        <FormField
-          control={form.control}
-          name="professionals"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Profissionais que realizam</FormLabel>
-              <FormControl>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setProfessionalsDialogOpen(true)}
-                  className={cn(
-                    "w-full justify-between",
-                    !field.value.length && "text-muted-foreground"
-                  )}
-                >
-                  <span className="truncate">
-                    {selectedProfessionalsDetails.length > 0 
-                      ? selectedProfessionalsDetails.map(p => p.name).join(', ')
-                      : "Selecione os profissionais"}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </FormControl>
-              
-              <Dialog open={professionalsDialogOpen} onOpenChange={setProfessionalsDialogOpen}>
-                <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
-                  <VisuallyHidden>
-                    <DialogTitle>Selecione os profissionais</DialogTitle>
-                  </VisuallyHidden>
-                  <div className="space-y-4">
-                    <Input
-                      placeholder="Buscar profissional..."
-                      value={professionalSearchTerm}
-                      onChange={(e) => setProfessionalSearchTerm(e.target.value)}
-                    />
-                    <div className="max-h-[300px] overflow-y-auto space-y-1">
-                      {filteredProfessionals.length > 0 ? (
-                        filteredProfessionals.map((prof) => {
-                          const isSelected = field.value.includes(prof.id);
-                          const isInactive = prof.status === 'Inativo';
-                          return (
-                            <Button
-                              key={prof.id}
-                              variant={isSelected ? "secondary" : "ghost"}
-                              className={cn(
-                                "w-full justify-start",
-                                isInactive && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
-                              )}
-                              onClick={() => {
-                                if (isInactive) {
-                                  toast({
-                                    variant: "destructive",
-                                    title: "Profissional Inativo",
-                                    description: `${prof.name} está inativo e não pode ser selecionado. Ative o profissional primeiro.`,
-                                  });
-                                  return;
-                                }
-                                const currentIds = field.value || [];
-                                const newIds = currentIds.includes(prof.id)
-                                  ? currentIds.filter((id) => id !== prof.id)
-                                  : [...currentIds, prof.id];
-                                field.onChange(newIds);
-                              }}
-                              disabled={isInactive}
-                            >
-                              {isSelected && (
-                                <Check className="mr-2 h-4 w-4" />
-                              )}
-                              <span className="flex-1 text-left">{prof.name}</span>
-                              {isInactive && (
-                                <span className="text-xs text-muted-foreground ml-2">(Inativo)</span>
-                              )}
-                            </Button>
-                          );
-                        })
-                      ) : (
-                        <p className="text-center text-sm text-muted-foreground py-6">
-                          Nenhum profissional encontrado
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex justify-end gap-2 pt-4 border-t">
-                      <Button
-                        type="button"
-                        onClick={() => setProfessionalsDialogOpen(false)}
-                        className="w-full sm:w-auto"
-                      >
-                        Salvar Seleção
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status do Serviço</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="professionals"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Profissionais que realizam</FormLabel>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setProfessionalsDialogOpen(true)}
+                    className={cn(
+                      "w-full justify-between",
+                      !field.value.length && "text-muted-foreground"
+                    )}
+                  >
+                    <span className="truncate">
+                      {selectedProfessionalsDetails.length > 0 
+                        ? selectedProfessionalsDetails.map(p => p.name).join(', ')
+                        : "Selecione os profissionais"}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                
+                <Dialog open={professionalsDialogOpen} onOpenChange={setProfessionalsDialogOpen}>
+                  <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <VisuallyHidden>
+                      <DialogTitle>Selecione os profissionais</DialogTitle>
+                    </VisuallyHidden>
+                    <div className="space-y-4">
+                      <Input
+                        placeholder="Buscar profissional..."
+                        value={professionalSearchTerm}
+                        onChange={(e) => setProfessionalSearchTerm(e.target.value)}
+                      />
+                      <div className="max-h-[300px] overflow-y-auto space-y-1">
+                        {filteredProfessionals.length > 0 ? (
+                          filteredProfessionals.map((prof) => {
+                            const isSelected = field.value.includes(prof.id);
+                            const isInactive = prof.status === 'Inativo';
+                            return (
+                              <Button
+                                key={prof.id}
+                                variant={isSelected ? "secondary" : "ghost"}
+                                className={cn(
+                                  "w-full justify-start",
+                                  isInactive && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
+                                )}
+                                onClick={() => {
+                                  if (isInactive) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Profissional Inativo",
+                                      description: `${prof.name} está inativo e não pode ser selecionado. Ative o profissional primeiro.`,
+                                    });
+                                    return;
+                                  }
+                                  const currentIds = field.value || [];
+                                  const newIds = currentIds.includes(prof.id)
+                                    ? currentIds.filter((id) => id !== prof.id)
+                                    : [...currentIds, prof.id];
+                                  field.onChange(newIds);
+                                }}
+                                disabled={isInactive}
+                              >
+                                {isSelected && (
+                                  <Check className="mr-2 h-4 w-4" />
+                                )}
+                                <span className="flex-1 text-left">{prof.name}</span>
+                                {isInactive && (
+                                  <span className="text-xs text-muted-foreground ml-2">(Inativo)</span>
+                                )}
+                              </Button>
+                            );
+                          })
+                        ) : (
+                          <p className="text-center text-sm text-muted-foreground py-6">
+                            Nenhum profissional encontrado
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-2 pt-4 border-t">
+                        <Button
+                          type="button"
+                          onClick={() => setProfessionalsDialogOpen(false)}
+                          className="w-full sm:w-auto"
+                        >
+                          Salvar Seleção
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status do Serviço</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <FormField
           control={form.control}
@@ -657,6 +678,97 @@ export function ServiceForm({ service, professionals, onSubmit, isSubmitting, bu
             </FormItem>
           )}
         />
+
+        {/* Planos de Saúde Aceitos - Só aparece para clínicas */}
+        {isClinica && planosSaudeDisponiveis.length > 0 && (
+          <FormField
+            control={form.control}
+            name="planosAceitos"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Planos de Saúde Aceitos (Opcional)</FormLabel>
+                <FormDescription>
+                  Selecione quais planos de saúde aceitam este serviço. Deixe em branco para aceitar todos.
+                </FormDescription>
+                <FormControl>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    onClick={() => setPlanosDialogOpen(true)}
+                    className={cn(
+                      "w-full justify-between",
+                      !field.value?.length && "text-muted-foreground"
+                    )}
+                  >
+                    <span className="truncate">
+                      {selectedPlanosDetails.length > 0 
+                        ? selectedPlanosDetails.map(p => p.nome).join(', ')
+                        : "Selecione os planos de saúde"}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </FormControl>
+                
+                <Dialog open={planosDialogOpen} onOpenChange={setPlanosDialogOpen}>
+                  <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <VisuallyHidden>
+                      <DialogTitle>Selecione os planos de saúde</DialogTitle>
+                    </VisuallyHidden>
+                    <div className="space-y-4">
+                      <Input
+                        placeholder="Buscar plano..."
+                        value={planoSearchTerm}
+                        onChange={(e) => setPlanoSearchTerm(e.target.value)}
+                      />
+                      <div className="max-h-[300px] overflow-y-auto space-y-1">
+                        {filteredPlanos.length > 0 ? (
+                          filteredPlanos.map((plano) => {
+                            const isSelected = field.value?.includes(plano.id);
+                            return (
+                              <Button
+                                key={plano.id}
+                                variant={isSelected ? "secondary" : "ghost"}
+                                className="w-full justify-start"
+                                onClick={() => {
+                                  const currentIds = field.value || [];
+                                  const newIds = currentIds.includes(plano.id)
+                                    ? currentIds.filter((id) => id !== plano.id)
+                                    : [...currentIds, plano.id];
+                                  field.onChange(newIds);
+                                }}
+                              >
+                                {isSelected && (
+                                  <Check className="mr-2 h-4 w-4" />
+                                )}
+                                <span className="flex-1 text-left">{plano.nome}</span>
+                              </Button>
+                            );
+                          })
+                        ) : (
+                          <p className="text-center text-sm text-muted-foreground py-6">
+                            Nenhum plano encontrado
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-2 pt-4 border-t">
+                        <Button
+                          type="button"
+                          onClick={() => setPlanosDialogOpen(false)}
+                          className="w-full sm:w-auto"
+                        >
+                          Salvar Seleção
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <Button type="submit" className="w-full" disabled={isSubmitting || isUploading || isGeneratingDescription}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

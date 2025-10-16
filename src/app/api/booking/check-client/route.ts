@@ -24,23 +24,18 @@ export async function POST(request: NextRequest) {
         // Validar telefone (aceita 11 ou 13 dígitos)
         const originalPhoneStr = String(phone).replace(/\D/g, '');
         
-        // Validar tamanho
+        // Validar tamanho - aceita 11 dígitos (DDD + número) ou 13 dígitos (DDI + DDD + número)
         if (originalPhoneStr.length !== 11 && originalPhoneStr.length !== 13) {
             return NextResponse.json(
-                { error: 'Telefone deve ter 11 ou 13 dígitos' },
+                { error: 'Celular deve ter 11 dígitos (DDD + número). Exemplo: 11999887766' },
                 { status: 400 }
             );
         }
 
-        // Preparar variações do telefone para busca
-        let phone11digits = originalPhoneStr;
-        let phone13digits = originalPhoneStr;
-        
-        if (originalPhoneStr.length === 13 && originalPhoneStr.startsWith('55')) {
-            phone11digits = originalPhoneStr.substring(2);
-        } else if (originalPhoneStr.length === 11) {
-            phone13digits = `55${originalPhoneStr}`;
-        }
+        // Se já vem com 13 dígitos (DDI 55), usar como está
+        // Se vem com 11 dígitos, adicionar DDI 55
+        const phone11digits = originalPhoneStr.length === 13 ? originalPhoneStr.substring(2) : originalPhoneStr;
+        const phone13digits = originalPhoneStr.length === 13 ? originalPhoneStr : `55${originalPhoneStr}`;
 
         const clientsRef = adminDb.collection(`negocios/${businessId}/clientes`);
         
@@ -74,7 +69,7 @@ export async function POST(request: NextRequest) {
         const clientData = clientDoc.data();
 
         // Converter Firestore Timestamp para ISO string
-        const client = {
+        const client: any = {
             id: clientDoc.id,
             name: clientData.name,
             phone: clientData.phone,
@@ -83,6 +78,11 @@ export async function POST(request: NextRequest) {
             avatarUrl: clientData.avatarUrl || null,
             instanciaWhatsapp: clientData.instanciaWhatsapp,
         };
+
+        // Incluir plano de saúde se existir
+        if (clientData.planoSaude) {
+            client.planoSaude = clientData.planoSaude;
+        }
 
         logger.info('Cliente encontrado via booking', sanitizeForLog({ clientId: client.id, businessId }));
 

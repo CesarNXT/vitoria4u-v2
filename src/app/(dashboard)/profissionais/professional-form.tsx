@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -14,7 +15,9 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, Upload, X } from 'lucide-react'
+import { CustomSwitch } from '@/components/ui/custom-switch'
+import { Loader2, Upload, X, Bell, BellOff, Calendar } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Profissional, HorarioTrabalho } from '@/lib/types'
 import BusinessAgendaForm from '../configuracoes/business-agenda-form'
 import { Separator } from '@/components/ui/separator'
@@ -57,10 +60,14 @@ const daySchema = z.object({
 
 const professionalFormSchema = z.object({
   name: z.string().min(3, 'O nome deve ter no mínimo 3 caracteres.'),
-  phone: z.string().refine(v => String(v).replace(/\D/g, "").length === 11, {
-    message: "O telefone deve ter 11 dígitos (DDD + número)."
+  phone: z.string().refine(v => {
+    const digits = String(v).replace(/\D/g, "").length;
+    return digits === 11;
+  }, {
+    message: "O celular deve ter 11 dígitos (DDD + 9 + número). Exemplo: 11999887766"
   }),
   status: z.enum(['Ativo', 'Inativo']),
+  notificarAgendamentos: z.boolean().default(true),
   workHours: z.object({
     domingo: daySchema,
     segunda: daySchema,
@@ -86,6 +93,7 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(professional?.avatarUrl || null);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   
   const defaultWorkHours = businessHours || {
         domingo: { enabled: false, slots: [] },
@@ -103,11 +111,29 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
       name: professional?.name || '',
       phone: formatPhoneNumber(String(professional?.phone || "")),
       status: professional?.status || 'Ativo',
+      notificarAgendamentos: professional?.notificarAgendamentos ?? true,
       workHours: professional?.workHours || defaultWorkHours,
       avatarUrl: professional?.avatarUrl || "",
     },
     mode: 'onChange',
   })
+
+  // Resetar formulário quando professional mudar (modo edição)
+  React.useEffect(() => {
+    if (professional) {
+      // Usar setTimeout para evitar flushSync durante montagem
+      setTimeout(() => {
+        form.reset({
+          name: professional.name || '',
+          phone: formatPhoneNumber(String(professional.phone || "")),
+          status: professional.status || 'Ativo',
+          notificarAgendamentos: professional.notificarAgendamentos ?? true,
+          workHours: professional.workHours || defaultWorkHours,
+          avatarUrl: professional.avatarUrl || "",
+        });
+      }, 0);
+    }
+  }, [professional?.id]);
 
   // Scroll automático para primeiro erro
   useEffect(() => {
@@ -184,6 +210,7 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
     onSubmit({
         ...data,
         workHours: data.workHours,
+        notificarAgendamentos: data.notificarAgendamentos,
     });
   };
 
@@ -307,17 +334,55 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
               />
           </div>
 
+          <FormField
+            control={form.control}
+            name="notificarAgendamentos"
+            render={({ field }) => {
+              // Armazenar o ícone para evitar mudança durante render
+              const NotificationIcon = field.value ? Bell : BellOff;
+              
+              return (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base flex items-center gap-2">
+                      <NotificationIcon className="h-4 w-4" />
+                      Notificações de Agendamentos
+                    </FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      Quando ativado, o profissional recebe notificações via WhatsApp sobre novos agendamentos e cancelamentos.
+                    </div>
+                  </div>
+                  <FormControl>
+                    <CustomSwitch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              );
+            }}
+          />
+
 
           <Separator />
           
-          <div>
-            <h3 className="text-lg font-medium">Horários de Trabalho</h3>
-            <p className="text-sm text-muted-foreground">
-                Defina os horários específicos para este profissional. Se um dia estiver fechado para o negócio, ele também estará para o profissional.
-            </p>
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-medium">Horários de Trabalho</h3>
+              <p className="text-sm text-muted-foreground">
+                  Defina os horários específicos para este profissional. Se um dia estiver fechado para o negócio, ele também estará para o profissional.
+              </p>
+            </div>
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setIsScheduleModalOpen(true)}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              Configurar Horários de Trabalho
+            </Button>
           </div>
-
-          <BusinessAgendaForm businessHours={businessHours} />
 
           <Button type="submit" className="w-full" disabled={isSubmitting || isUploading}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -325,6 +390,26 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
           </Button>
         </form>
       </Form>
+
+      {/* Modal de Horários */}
+      <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Horários de Trabalho</DialogTitle>
+            <DialogDescription>
+              Configure os dias e horários específicos deste profissional. Os dias fechados para o negócio também estarão fechados para o profissional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-1 -mx-1">
+            <BusinessAgendaForm businessHours={businessHours} />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setIsScheduleModalOpen(false)}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </FormProvider>
   )
 }

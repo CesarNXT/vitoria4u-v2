@@ -45,7 +45,7 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
             <p className="font-semibold">{serviceName}</p>
           </div>
         </div>
-         <Badge variant={statusVariantMap[status]} className={status === 'Ativo' ? 'bg-accent text-accent-foreground' : ''}>{statusTraducao[status]}</Badge>
+         <Badge variant={statusVariantMap[status]} className={status === 'Ativo' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/20 dark:text-green-400' : ''}>{statusTraducao[status]}</Badge>
       </CardHeader>
       <CardContent className="space-y-2 text-sm pb-4">
         <div className="flex items-center gap-2 text-muted-foreground">

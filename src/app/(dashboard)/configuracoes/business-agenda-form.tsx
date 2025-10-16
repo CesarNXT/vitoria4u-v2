@@ -53,7 +53,7 @@ export default function BusinessAgendaForm({ businessHours }: BusinessAgendaForm
     const workHoursField = isProfessionalForm ? 'workHours' : 'horariosFuncionamento';
 
     return (
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {diasDaSemana.map((dia) => (
                 <WorkingHoursDay 
                     key={dia.key} 
@@ -126,10 +126,16 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
 
     // Renderizar conteúdo dos horários
     const renderTimeSlots = () => (
-        <div className="space-y-4">
+        <div className="space-y-3">
             {fields.map((field, index) => {
                 const startTime = watch(`${workHoursField}.${diaKey}.slots.${index}.start`);
                 const filteredEndOptions = timeOptions.filter(time => time > (startTime || '00:00'));
+                
+                // Para o 2º turno, filtrar opções de início para não permitir antes do fim do 1º turno
+                const previousSlotEnd = index > 0 ? watch(`${workHoursField}.${diaKey}.slots.${index - 1}.end`) : null;
+                const filteredStartOptions = index > 0 && previousSlotEnd 
+                    ? timeOptions.filter(time => time >= previousSlotEnd)
+                    : timeOptions.slice(0, -1);
 
                 return (
                     <div key={field.id} className="flex items-end gap-2">
@@ -138,13 +144,18 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                             name={`${workHoursField}.${diaKey}.slots.${index}.start`}
                             render={({ field }) => (
                                 <FormItem className="flex-1">
-                                    <FormLabel>Início</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                                    <FormLabel className="text-xs">Início</FormLabel>
+                                    <Select 
+                                        onValueChange={field.onChange} 
+                                        value={field.value || ''}
+                                    >
                                         <FormControl>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectTrigger className="h-9">
+                                                <SelectValue />
+                                            </SelectTrigger>
                                         </FormControl>
                                         <SelectContent position="popper">
-                                            {timeOptions.slice(0, -1).map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
+                                            {filteredStartOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -156,10 +167,10 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                             name={`${workHoursField}.${diaKey}.slots.${index}.end`}
                             render={({ field }) => (
                                 <FormItem className="flex-1">
-                                    <FormLabel>Fim</FormLabel>
+                                    <FormLabel className="text-xs">Fim</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value || ''}>
                                         <FormControl>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent position="popper">
                                             {filteredEndOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
@@ -169,7 +180,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                 </FormItem>
                             )}
                         />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive h-9 w-9 shrink-0">
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
@@ -182,18 +193,34 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                        const defaultStart = timeOptions[0] || '09:00';
-                        const defaultEnd = timeOptions[timeOptions.length - 1] || '18:00';
-                        append({ start: defaultStart, end: defaultEnd });
+                        if (fields.length > 0) {
+                            // Segundo turno: sugerir começar onde o primeiro terminou (mas pode ser editado)
+                            const lastSlot = watch(`${workHoursField}.${diaKey}.slots.${fields.length - 1}`);
+                            const suggestedStart = lastSlot?.end || timeOptions[0] || '14:00';
+                            const suggestedEnd = timeOptions[timeOptions.length - 1] || '23:30';
+                            
+                            // Validar que há espaço para novo turno
+                            if (suggestedStart < suggestedEnd) {
+                                append({ start: suggestedStart, end: suggestedEnd });
+                            } else {
+                                alert('Não há mais horários disponíveis para adicionar um novo intervalo.');
+                            }
+                        } else {
+                            // Primeiro turno: usar padrão
+                            const defaultStart = timeOptions[0] || '08:00';
+                            const defaultEnd = timeOptions[timeOptions.length - 1] || '18:00';
+                            append({ start: defaultStart, end: defaultEnd });
+                        }
                     }}
+                    className="w-full"
                 >
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Adicionar Intervalo
                 </Button>
             )}
             
-            {fields.length === 0 && <FormDescription>Nenhum horário de trabalho definido. O dia será considerado fechado.</FormDescription>}
-            {fields.length === 1 && <FormDescription>Você pode adicionar um segundo intervalo para pausas, como horário de almoço.</FormDescription>}
+            {fields.length === 0 && <FormDescription className="text-xs">Nenhum horário definido. O dia será considerado fechado.</FormDescription>}
+            {fields.length === 1 && <FormDescription className="text-xs">Adicione um segundo turno para criar intervalo (ex: almoço). Pode começar após o fim do 1º turno.</FormDescription>}
         </div>
     );
 
@@ -201,12 +228,12 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
         <>
             <FormItem 
                 className={cn(
-                    "p-4 border rounded-lg space-y-4", 
+                    "p-3 border rounded-lg space-y-3 h-full flex flex-col", 
                     (!isEnabled || isDayDisabledByBusiness) && "bg-muted/50"
                 )}
             >
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                         <FormField
                             control={control}
                             name={fieldEnabledName}
@@ -238,15 +265,15 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                 </FormItem>
                             )}
                         />
-                        <div className="flex-1">
-                            <FormLabel className="text-base font-medium">{label}</FormLabel>
+                        <div className="flex-1 min-w-0">
+                            <FormLabel className="text-sm font-medium truncate block">{label}</FormLabel>
                             {isDayDisabledByBusiness && (
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-xs text-muted-foreground mt-0.5">
                                     Fechado no negócio
                                 </p>
                             )}
                             {isEnabled && !isDayDisabledByBusiness && isMobile && (
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-xs text-muted-foreground mt-0.5">
                                     <Clock className="inline h-3 w-3 mr-1" />
                                     {slotsText}
                                 </p>
@@ -260,7 +287,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsDialogOpen(true)}
-                            className="ml-2"
+                            className="ml-2 shrink-0"
                         >
                             Editar
                             <ChevronRight className="ml-1 h-4 w-4" />
@@ -270,7 +297,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
 
                 {/* Desktop: Inline */}
                 {!isMobile && isEnabled && !isDayDisabledByBusiness && (
-                    <div className="pl-2 border-l-2 ml-2">
+                    <div className="space-y-3 flex-1">
                         {renderTimeSlots()}
                     </div>
                 )}

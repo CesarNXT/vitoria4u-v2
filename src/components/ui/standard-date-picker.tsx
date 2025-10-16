@@ -79,13 +79,13 @@ function CustomCaption(props: CaptionProps) {
   }
 
   return (
-    <div className="flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+    <div className="flex justify-center gap-2 mb-2" onClick={(e) => e.stopPropagation()}>
       <Select
         value={currentMonth.getMonth().toString()}
         onValueChange={handleMonthChange}
         aria-label="Mês"
       >
-        <SelectTrigger className="w-[120px]" onClick={(e) => e.stopPropagation()}>
+        <SelectTrigger className="w-[130px] font-medium" onClick={(e) => e.stopPropagation()}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent onClick={(e) => e.stopPropagation()}>
@@ -101,7 +101,7 @@ function CustomCaption(props: CaptionProps) {
         onValueChange={handleYearChange}
         aria-label="Ano"
       >
-        <SelectTrigger className="w-[80px]" onClick={(e) => e.stopPropagation()}>
+        <SelectTrigger className="w-[90px] font-medium" onClick={(e) => e.stopPropagation()}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent onClick={(e) => e.stopPropagation()}>
@@ -166,18 +166,18 @@ export function StandardDatePicker({
       type="button"
       variant="outline"
       className={cn(
-        'w-full justify-start text-left font-normal',
+        'w-full justify-start text-left font-normal hover:bg-accent transition-colors',
         !value && 'text-muted-foreground',
         className
       )}
       disabled={disabled}
     >
+      <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
       {value && value instanceof Date && !isNaN(value.getTime()) ? (
-        format(value, 'PPP', { locale: ptBR })
+        <span className="font-medium">{format(value, 'PPP', { locale: ptBR })}</span>
       ) : (
         <span>{placeholder}</span>
       )}
-      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
     </Button>
   )
 
@@ -186,7 +186,7 @@ export function StandardDatePicker({
       <DialogTrigger asChild>
         {triggerButton}
       </DialogTrigger>
-      <DialogContent className="w-auto p-2 max-w-[calc(100vw-2rem)]">
+      <DialogContent className="w-auto p-4 max-w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="sr-only">Selecione uma data</DialogTitle>
           <DialogDescription className="sr-only">

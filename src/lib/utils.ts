@@ -130,21 +130,25 @@ export const formatPhoneNumber = (phone: string | null | undefined): string => {
   // Ensure phone is a string before calling replace
   const phoneStr = String(phone);
   
-  // Remove "55" prefix and any non-digit characters
+  // Remove non-digit characters
   const cleaned = phoneStr.replace(/\D/g, '');
-  const numberWithoutCountryCode = cleaned.startsWith('55') ? cleaned.substring(2) : cleaned;
   
-  // Now format the remaining 11 or 10 digits
+  // Remover DDI "55" APENAS se tiver 13 dígitos (DDI + DDD + número)
+  // Se tiver 11 dígitos e começar com 55, é DDD de Santa Catarina, NÃO remover!
+  let numberWithoutCountryCode = cleaned;
+  if (cleaned.length === 13 && cleaned.startsWith('55')) {
+    numberWithoutCountryCode = cleaned.substring(2); // Remove DDI 55
+  } else if (cleaned.length === 12 && cleaned.startsWith('55')) {
+    numberWithoutCountryCode = cleaned.substring(2); // Remove DDI 55 (fixo)
+  }
+  
+  // Formatar 11 dígitos (DDD + 9 + número)
   if (numberWithoutCountryCode.length === 11) {
     const match = numberWithoutCountryCode.match(/^(\d{2})(\d{5})(\d{4})$/);
     if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
   }
-  if (numberWithoutCountryCode.length === 10) {
-    const match = numberWithoutCountryCode.match(/^(\d{2})(\d{4})(\d{4})$/);
-    if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
-  }
   
-  // Fallback for incomplete numbers or other formats
+  // Fallback: retornar o que foi digitado (sem formatação)
   return numberWithoutCountryCode; 
 };
 
@@ -154,23 +158,31 @@ export const normalizePhoneNumber = (phone: string) => {
   // Remove all non-digit characters
   const cleaned = phone.replace(/\D/g, '');
   
-  // If it already starts with 55 and is the correct length (13 digits), return it
-  if (cleaned.startsWith('55') && cleaned.length === 13) {
+  // Se já tem 13 dígitos e começa com 55, retorna como está (DDI + DDD + celular)
+  if (cleaned.length === 13 && cleaned.startsWith('55')) {
     return cleaned;
   }
   
-  // If it's 11 digits (DDD + number), prepend 55
+  // Se tem 12 dígitos e começa com 55, retorna como está (DDI + DDD + fixo)
+  if (cleaned.length === 12 && cleaned.startsWith('55')) {
+    return cleaned;
+  }
+  
+  // Se tem 11 dígitos (DDD + celular), SEMPRE adiciona DDI 55 na frente
+  // Exemplo: 55995207521 → 5555995207521 (13 dígitos)
+  // Exemplo: 95995207521 → 5595995207521 (13 dígitos)
   if (cleaned.length === 11) {
     return `55${cleaned}`;
   }
   
-  // If it's 10 digits (DDD without 9 + number), prepend 55
-  // This is less common now but good to handle
+  // Se tem 10 dígitos (DDD + fixo), SEMPRE adiciona DDI 55 na frente
+  // Exemplo: 5595207521 → 555595207521 (12 dígitos)
+  // Exemplo: 9532075210 → 559532075210 (12 dígitos)
   if (cleaned.length === 10) {
     return `55${cleaned}`;
   }
 
-  // Fallback for other formats, though they are less likely
+  // Fallback: adiciona 55 na frente para qualquer outro tamanho
   return `55${cleaned}`; 
 }
 

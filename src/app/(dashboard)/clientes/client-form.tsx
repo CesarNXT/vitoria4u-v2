@@ -12,15 +12,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form'
+import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarIcon, Loader2, Upload, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn, formatPhoneNumber } from '@/lib/utils'
-import type { Cliente } from '@/lib/types'
+import type { Cliente, PlanoSaude, ConfiguracoesNegocio } from '@/lib/types'
 import { useState, useEffect } from 'react'
+import { isCategoriaClinica } from '@/lib/categoria-utils'
 import { useScrollToError } from '@/lib/form-utils'
 import { useToast } from '@/hooks/use-toast'
 import Image from 'next/image'
@@ -31,12 +35,21 @@ import { getAuth } from 'firebase/auth'
 
 const clientFormSchema = z.object({
   name: z.string().min(3, 'O nome deve ter no mínimo 3 caracteres.'),
-  phone: z.string().refine(v => String(v).replace(/\D/g, "").length === 11, {
-    message: "O telefone deve ter 11 dígitos (DDD + número)."
+  phone: z.string().refine(v => {
+    const digits = String(v).replace(/\D/g, "").length;
+    return digits === 11;
+  }, {
+    message: "O celular deve ter 11 dígitos (DDD + 9 + número). Exemplo: 11999887766"
   }),
   birthDate: z.date().optional(),
-  status: z.enum(['Ativo', 'Inativo']),
+  status: z.boolean().default(true), // true = Ativo, false = Inativo
   avatarUrl: z.string().optional(),
+  observacoes: z.string().max(500, 'As observações devem ter no máximo 500 caracteres.').optional(),
+  temPlano: z.boolean().optional(),
+  planoSaude: z.object({
+    id: z.string(),
+    nome: z.string(),
+  }).optional(),
 })
 
 type ClientFormValues = z.infer<typeof clientFormSchema>
@@ -45,6 +58,7 @@ interface ClientFormProps {
   client: Cliente | null
   onSubmit: (data: ClientFormValues) => void
   isSubmitting: boolean
+  businessSettings?: ConfiguracoesNegocio
 }
 
 function CustomCaption(props: CaptionProps) {
@@ -114,11 +128,14 @@ function CustomCaption(props: CaptionProps) {
 }
 
 
-export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) {
+export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }: ClientFormProps) {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(client?.avatarUrl || null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const isClinica = isCategoriaClinica(businessSettings?.categoria);
+  const planosSaudeDisponiveis = businessSettings?.planosSaudeAceitos || [];
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
@@ -126,11 +143,16 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
       name: client?.name || '',
       phone: formatPhoneNumber(String(client?.phone || "")),
       birthDate: client?.birthDate ? new Date(client.birthDate) : undefined,
-      status: client?.status || 'Ativo',
+      status: client?.status === 'Ativo' || client?.status === true || !client?.status,
       avatarUrl: client?.avatarUrl || undefined,
+      observacoes: client?.observacoes || '',
+      temPlano: client?.planoSaude ? true : false,
+      planoSaude: client?.planoSaude || undefined,
     },
     mode: 'onChange',
   })
+
+  const temPlano = form.watch('temPlano');
 
   // Scroll automático para primeiro erro
   useEffect(() => {
@@ -227,9 +249,18 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
        </div>
   )
 
+  const handleFormSubmit = (data: ClientFormValues) => {
+    // Converter status boolean para string 'Ativo'/'Inativo'
+    const formattedData = {
+      ...data,
+      status: data.status ? 'Ativo' : 'Inativo',
+    };
+    onSubmit(formattedData as any);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6 pt-4">
         <FormField
           control={form.control}
           name="avatarUrl"
@@ -363,30 +394,117 @@ export function ClientForm({ client, onSubmit, isSubmitting }: ClientFormProps) 
           control={form.control}
           name="status"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Interação com IA</FormLabel>
+                <FormDescription className="text-sm">
+                  Quando ativado, a Vitória IA poderá interagir com este cliente via WhatsApp para agendar consultas, responder dúvidas e enviar lembretes.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="observacoes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Observações (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Anotações sobre o cliente, preferências, histórico, etc."
+                  className="resize-none"
+                  rows={4}
+                  maxLength={500}
+                  {...field}
+                />
+              </FormControl>
+              <div className="flex justify-between items-center">
+                <FormMessage />
+                <span className="text-xs text-muted-foreground">
+                  {field.value?.length || 0}/500
+                </span>
+              </div>
+            </FormItem>
+          )}
+        />
+
+        {/* Plano de Saúde - Só aparece para clínicas */}
+        {isClinica && planosSaudeDisponiveis.length > 0 && (
+          <>
+            <FormField
+              control={form.control}
+              name="temPlano"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Possui plano de saúde?</FormLabel>
+                    <FormDescription className="text-sm">
+                      Indique se o cliente possui convênio médico/odontológico
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked);
+                        if (!checked) {
+                          form.setValue('planoSaude', undefined);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            {temPlano && (
+              <FormField
+                control={form.control}
+                name="planoSaude"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Qual plano?</FormLabel>
+                    <Select
+                      value={field.value?.id}
+                      onValueChange={(planoId) => {
+                        const plano = planosSaudeDisponiveis.find(p => p.id === planoId);
+                        field.onChange(plano);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o plano do cliente" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {planosSaudeDisponiveis.map((plano) => (
+                          <SelectItem key={plano.id} value={plano.id}>
+                            {plano.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </>
+        )}
+
         <Button type="submit" className="w-full" disabled={isSubmitting || isUploading}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Salvando...' : 'Salvar'}
+          {client ? 'Salvar Alterações' : 'Cadastrar Cliente'}
         </Button>
       </form>
     </Form>
   )
 }
-
-    

@@ -88,6 +88,13 @@ async function sendProfessionalNotification(
         return;
     }
 
+    // Verifica se o profissional tem notificações ativadas (padrão: true para profissionais antigos)
+    const notificationsEnabled = appointment.profissional.notificarAgendamentos ?? true;
+    if (!notificationsEnabled) {
+        logger.debug('🔕 Notificação de profissional desabilitada', { professionalId: appointment.profissional.id });
+        return;
+    }
+
     if (appointment.profissional.phone === businessSettings.telefone) {
         return;
     }

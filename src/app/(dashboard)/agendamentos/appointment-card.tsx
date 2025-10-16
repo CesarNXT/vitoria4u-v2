@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/lib/utils";
-import { CalendarIcon, Clock, Scissors, User, Pencil, Trash2, CheckCircle } from "lucide-react";
+import { CalendarIcon, Clock, Settings, User, Pencil, Trash2, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface AppointmentCardProps {
@@ -59,7 +59,7 @@ export function AppointmentCard({ appointment, onEdit, onDelete, onFinalize }: A
       </CardHeader>
       <CardContent className="space-y-3 text-sm pb-4">
         <div className="flex items-center gap-2 text-muted-foreground">
-            <Scissors className="h-4 w-4" />
+            <Settings className="h-4 w-4" />
             <span>{servico.name}</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">

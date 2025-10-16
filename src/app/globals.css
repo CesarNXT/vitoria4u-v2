@@ -112,3 +112,57 @@ body {
     
     /* Animações removidas para melhor performance no scroll */
 }
+
+/* Toast Swipe Improvements for Mobile */
+@layer components {
+  [data-radix-toast] {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    cursor: grab;
+  }
+
+  [data-radix-toast]:active {
+    cursor: grabbing;
+  }
+
+  /* Melhorar área de toque no mobile */
+  @media (max-width: 640px) {
+    [data-radix-toast] {
+      min-height: 60px;
+      touch-action: pan-x;
+    }
+    
+    /* Tornar swipe mais fácil */
+    [data-swipe="move"] {
+      opacity: 0.7;
+    }
+  }
+
+  /* Melhorias visuais do calendário */
+  .rdp-day_button {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .rdp-day_button:hover:not([disabled]) {
+    transform: scale(1.05);
+  }
+
+  .rdp-day_button:active:not([disabled]) {
+    transform: scale(0.95);
+  }
+
+  .rdp-day_selected {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    box-shadow: 0 2px 8px rgba(var(--primary) / 0.3);
+  }
+
+  .rdp-nav_button {
+    transition: all 0.2s ease;
+  }
+
+  .rdp-nav_button:hover:not([disabled]) {
+    transform: scale(1.1);
+    background-color: hsl(var(--accent) / 0.1);
+  }
+}

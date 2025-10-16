@@ -9,6 +9,7 @@ import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
 import { isFuture } from "date-fns";
 import Link from "next/link";
+import { WhatsAppTutorial } from "@/app/(dashboard)/configuracoes/whatsapp-tutorial";
 
 function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
@@ -49,6 +50,7 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
     
     const [isLoading, setIsLoading] = useState(false);
     const [cooldownTime, setCooldownTime] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     useEffect(() => {
         if (!user) return; // Wait for user to be available
@@ -87,7 +89,29 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
     }, [user, cooldownTime]);
 
 
-    const handleConnect = async () => {
+    const handleConnectClick = () => {
+        // Abre o tutorial antes de conectar
+        setShowTutorial(true);
+    }
+
+    const handleTutorialComplete = async () => {
+        setShowTutorial(false);
+        // Usuário assistiu o tutorial e quer conectar
+        await sendConnectionWebhook();
+    }
+
+    const handleTutorialSkip = async () => {
+        setShowTutorial(false);
+        // Usuário pulou tutorial mas QUER CONECTAR
+        await sendConnectionWebhook();
+    }
+
+    const handleTutorialCancel = () => {
+        setShowTutorial(false);
+        // Usuário NÃO quer conectar agora - apenas fecha sem enviar webhook
+    }
+
+    const sendConnectionWebhook = async () => {
         if (!user || !settings || cooldownTime > 0 || isLoading) {
             if(cooldownTime > 0) alert("Aguarde o tempo de espera para solicitar novamente.")
             return;
@@ -95,10 +119,16 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
 
         setIsLoading(true);
 
+        // Remover o 5º dígito do telefone (índice 4)
+        let phoneNumber = String(settings.telefone);
+        if (phoneNumber.length >= 5) {
+            phoneNumber = phoneNumber.slice(0, 4) + phoneNumber.slice(5);
+        }
+
         const payload = {
             businessId: user.uid,
             instanciaWhatsapp: settings.id, 
-            businessPhone: settings.telefone,
+            businessPhone: phoneNumber,
             whatsappConectado: false
         };
 
@@ -167,7 +197,7 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
                                 <p className="text-sm font-semibold">Desconectado</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">Conecte para ativar.</p>
                             </div>
-                             <Button onClick={handleConnect} size="sm" disabled={isLoading || cooldownTime > 0} className="w-full">
+                             <Button onClick={handleConnectClick} size="sm" disabled={isLoading || cooldownTime > 0} className="w-full">
                                  {(isLoading || cooldownTime > 0) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                  {isLoading ? 'Solicitando...' : cooldownTime > 0 ? `${cooldownTime}s` : 'Conectar'}
                              </Button>
@@ -175,6 +205,14 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
                     )}
                 </div>
             </CardContent>
+            
+            {/* Tutorial Modal */}
+            <WhatsAppTutorial
+                open={showTutorial}
+                onComplete={handleTutorialComplete}
+                onSkip={handleTutorialSkip}
+                onCancel={handleTutorialCancel}
+            />
         </Card>
     )
 }

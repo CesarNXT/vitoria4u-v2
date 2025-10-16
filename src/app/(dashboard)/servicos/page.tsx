@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getServicesOnSnapshot, getProfessionalsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBusinessConfig } from '@/lib/firestore';
 import { useFirebase } from '@/firebase';
 import { useBusinessUser } from '@/contexts/BusinessUserContext';
-import type { Servico, Profissional, User, ConfiguracoesNegocio } from '@/lib/types';
+import type { Servico, Profissional, User, ConfiguracoesNegocio, PlanoSaude } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2, Users } from 'lucide-react';
 import { getColumns } from './columns';
@@ -112,7 +112,7 @@ export default function ServicesPage() {
   };
 
 
-  const handleFormSubmit = async (data: Omit<Servico, 'id' | 'professionals'> & { professionals: string[] }) => {
+  const handleFormSubmit = async (data: Omit<Servico, 'id' | 'professionals'> & { professionals: string[], planosAceitos?: string[] }) => {
     if (!finalUserId || isSubmitting || !businessSettings) return;
     
     setIsSubmitting(true);
@@ -124,6 +124,13 @@ export default function ServicesPage() {
             const prof = professionals.find(p => p.id === profId);
             return { id: profId, name: prof ? prof.name : 'Desconhecido' };
         });
+        
+        // Converter IDs de planos para objetos PlanoSaude
+        const planosAceitosData = data.planosAceitos && data.planosAceitos.length > 0
+            ? data.planosAceitos
+                .map(planoId => businessSettings.planosSaudeAceitos?.find(p => p.id === planoId))
+                .filter((plano): plano is PlanoSaude => plano !== undefined)
+            : undefined;
         
         const serviceData: Omit<Servico, 'id'> = {
             name: data.name,
@@ -137,6 +144,7 @@ export default function ServicesPage() {
             imageUrl: data.imageUrl || undefined,
             returnInDays: data.returnInDays,
             instanciaWhatsapp: businessSettings.id,
+            planosAceitos: planosAceitosData,
         };
 
         await saveOrUpdateDocument('servicos', id, serviceData, finalUserId);
@@ -257,7 +265,7 @@ export default function ServicesPage() {
           }
           setIsFormModalOpen(open);
       }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
            <DialogHeader>
             <DialogTitle>{selectedService ? 'Editar Serviço' : 'Adicionar Novo Serviço'}</DialogTitle>
             <DialogDescription>
@@ -274,6 +282,7 @@ export default function ServicesPage() {
                   service={selectedService}
                   onSubmit={handleFormSubmit}
                   professionals={professionals}
+                  planosSaudeDisponiveis={businessSettings.planosSaudeAceitos || []}
                   isSubmitting={isSubmitting}
                   businessCategory={businessSettings.categoria}
               />

@@ -3,7 +3,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Cliente, Servico, Profissional, Agendamento, ConfiguracoesNegocio, DataBloqueada, HorarioTrabalho } from '@/lib/types';
+import type { Cliente, Servico, Profissional, Agendamento, ConfiguracoesNegocio, DataBloqueada, HorarioTrabalho, PlanoSaude } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { StandardDatePicker } from "@/components/ui/standard-date-picker"
 import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords, convertTimestamps, formatServicePrice } from '@/lib/utils';
+import { isCategoriaClinica } from '@/lib/categoria-utils';
 import { getAvailableTimes } from '@/lib/availability';
 import { format, getDay, parse, getMonth, isSameDay, isDate } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -28,17 +29,31 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form"
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 
-type Step = 'IDENTIFICACAO' | 'NEW_CLIENT_FORM' | 'LIMIT_REACHED' | 'MODIFY_EXISTING' | 'SERVICE' | 'PROFESSIONAL' | 'DATETIME' | 'CONFIRMATION' | 'COMPLETED';
+type Step = 'IDENTIFICACAO' | 'NEW_CLIENT_FORM' | 'LIMIT_REACHED' | 'MODIFY_EXISTING' | 'TIPO_ATENDIMENTO' | 'SERVICE' | 'PROFESSIONAL' | 'DATETIME' | 'CONFIRMATION' | 'COMPLETED';
 
 const newClientFormSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
   birthDate: z.date({
     required_error: "A data de nascimento é obrigatória.",
   }),
+  temPlano: z.boolean().optional(),
+  planoSaude: z.object({
+    id: z.string(),
+    nome: z.string(),
+  }).optional(),
 })
 
 type NewClientFormValues = z.infer<typeof newClientFormSchema>
@@ -79,7 +94,6 @@ export default function BookingClient({
     const [isEditing, setIsEditing] = useState(false);
     const [existingAppointment, setExistingAppointment] = useState<Agendamento | null>(null);
 
-
     const [selectedService, setSelectedService] = useState<Servico | null>(null);
     const [selectedProfessional, setSelectedProfessional] = useState<Profissional | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -87,6 +101,12 @@ export default function BookingClient({
     const [calendarMonth, setCalendarMonth] = useState(new Date());
     const [isCanceling, setIsCanceling] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
+    const [tipoAtendimento, setTipoAtendimento] = useState<'particular' | 'plano' | null>(null);
+    const [planoSaudeSelecionado, setPlanoSaudeSelecionado] = useState<PlanoSaude | null>(null);
+    
+    // Verificar se o negócio é uma clínica
+    const isClinica = isCategoriaClinica(businessSettings?.categoria);
+    const temPlanosSaude = isClinica && businessSettings?.planosSaudeAceitos && businessSettings.planosSaudeAceitos.length > 0;
 
     // Appointments são carregados via props (initialAppointments)
     // E atualizados localmente após criar/cancelar via API
@@ -260,6 +280,7 @@ export default function BookingClient({
                     name: capitalizedName,
                     phone: normalizedPhoneStr,
                     birthDate: data.birthDate?.toISOString(),
+                    planoSaude: data.temPlano && data.planoSaude ? data.planoSaude : null,
                 }),
             });
 
@@ -278,6 +299,7 @@ export default function BookingClient({
                 status: currentUser?.status || "Ativo",
                 avatarUrl: currentUser?.avatarUrl || undefined,
                 instanciaWhatsapp: businessSettings.id,
+                planoSaude: data.temPlano && data.planoSaude ? data.planoSaude : undefined,
             };
             
             if (currentUser) {
@@ -287,7 +309,10 @@ export default function BookingClient({
             }
             
             setCurrentUser(clientData);
-            setStep('SERVICE');
+            
+            // Se É CLÍNICA e o cliente tem plano cadastrado, ir para seleção de tipo de atendimento
+            // Senão, ir direto para seleção de serviço
+            setStep(isClinica && clientData.planoSaude ? 'TIPO_ATENDIMENTO' : 'SERVICE');
             
             toast({
                 title: currentUser ? "Dados Confirmados!" : "Cadastro Concluído!",
@@ -342,6 +367,8 @@ export default function BookingClient({
                     date: selectedDate.toISOString(),
                     startTime: selectedTime,
                     clientPhone: currentUser.phone.toString(),
+                    tipoAtendimento: tipoAtendimento || 'particular',
+                    planoSaude: planoSaudeSelecionado || null,
                 }),
             });
 
@@ -458,7 +485,15 @@ const handleCancelAppointment = async (appointmentId: string) => {
         case 'NEW_CLIENT_FORM': setStep('IDENTIFICACAO'); setCurrentUser(null); break;
         case 'LIMIT_REACHED': setStep('IDENTIFICACAO'); setCurrentUser(null); break;
         case 'MODIFY_EXISTING': resetFlow(); break;
-        case 'SERVICE': setStep('NEW_CLIENT_FORM'); break;
+        case 'TIPO_ATENDIMENTO': 
+            setStep('NEW_CLIENT_FORM'); 
+            setTipoAtendimento(null);
+            setPlanoSaudeSelecionado(null);
+            break;
+        case 'SERVICE': 
+            // Voltar para seleção de tipo de atendimento se É CLÍNICA e o cliente tem plano
+            setStep(isClinica && currentUser?.planoSaude ? 'TIPO_ATENDIMENTO' : 'NEW_CLIENT_FORM'); 
+            break;
         case 'PROFESSIONAL': setStep('SERVICE'); setSelectedProfessional(null); break;
         case 'DATETIME':
             if (isEditing) {
@@ -489,13 +524,19 @@ const handleCancelAppointment = async (appointmentId: string) => {
             currentUser?.birthDate ? new Date(currentUser.birthDate) : new Date()
         );
         
+        // temPlanosSaude agora é definido globalmente com isClinica
+        
         const form = useForm<NewClientFormValues>({
             resolver: zodResolver(newClientFormSchema),
             defaultValues: {
                 name: currentUser?.name || "",
                 birthDate: currentUser?.birthDate ? new Date(currentUser.birthDate) : undefined,
+                temPlano: currentUser?.planoSaude ? true : false,
+                planoSaude: currentUser?.planoSaude || undefined,
             },
         });
+
+        const temPlano = form.watch('temPlano');
 
         return (
             <Form {...form}>
@@ -538,38 +579,182 @@ const handleCancelAppointment = async (appointmentId: string) => {
                         </FormItem>
                     )}
                     />
+                    
+                    {/* Plano de Saúde - só aparece se a clínica aceita planos */}
+                    {temPlanosSaude && (
+                        <>
+                            <FormField
+                                control={form.control}
+                                name="temPlano"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-base">Possui plano de saúde?</FormLabel>
+                                            <FormDescription className="text-sm">
+                                                Informe se você possui convênio médico/odontológico
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={(checked) => {
+                                                    field.onChange(checked);
+                                                    if (!checked) {
+                                                        form.setValue('planoSaude', undefined);
+                                                    }
+                                                }}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            
+                            {temPlano && (
+                                <FormField
+                                    control={form.control}
+                                    name="planoSaude"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Qual seu plano?</FormLabel>
+                                            <Select
+                                                value={field.value?.id}
+                                                onValueChange={(planoId) => {
+                                                    const plano = businessSettings.planosSaudeAceitos?.find(p => p.id === planoId);
+                                                    field.onChange(plano);
+                                                }}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecione seu plano" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {businessSettings.planosSaudeAceitos?.map((plano) => (
+                                                        <SelectItem key={plano.id} value={plano.id}>
+                                                            {plano.nome}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+                        </>
+                    )}
+                    
                     <Button variant="gradient" type="submit" className="w-full">{currentUser ? 'Confirmar e Continuar' : 'Finalizar Cadastro'}</Button>
                 </form>
             </Form>
         )
     }
 
+    const TipoAtendimentoSelector = () => {
+        const planoCliente = currentUser?.planoSaude;
+        
+        const handleSelectTipoAtendimento = (tipo: 'particular' | 'plano') => {
+            setTipoAtendimento(tipo);
+            if (tipo === 'particular') {
+                setPlanoSaudeSelecionado(null);
+            } else if (tipo === 'plano' && planoCliente) {
+                // Usar o plano cadastrado do cliente
+                setPlanoSaudeSelecionado(planoCliente);
+            }
+            setStep('SERVICE');
+        };
+
+        return (
+            <div className="space-y-6">
+                <div className="text-center space-y-2 mb-6">
+                    <h3 className="text-lg font-semibold">Tipo de Atendimento</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Como deseja ser atendido nesta consulta?
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                        onClick={() => handleSelectTipoAtendimento('particular')}
+                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-lg border-2 border-border hover:border-primary hover:bg-accent transition-all"
+                    >
+                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+                            <span className="text-3xl">💳</span>
+                        </div>
+                        <div className="text-center">
+                            <p className="font-semibold">Particular</p>
+                            <p className="text-xs text-muted-foreground mt-1">Pagamento direto</p>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => handleSelectTipoAtendimento('plano')}
+                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-lg border-2 border-border hover:border-primary hover:bg-accent transition-all"
+                    >
+                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+                            <span className="text-3xl">🏥</span>
+                        </div>
+                        <div className="text-center">
+                            <p className="font-semibold">Plano de Saúde</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {planoCliente ? planoCliente.nome : 'Convênio médico'}
+                            </p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     const ServiceList = () => {
-        const activeServices = services.filter(s => s.status === 'Ativo');
+        // Filtrar serviços ativos
+        let filteredServices = services.filter(s => s.status === 'Ativo');
+        
+        // Se o cliente escolheu usar plano, filtrar apenas serviços que aceitam o plano dele
+        if (tipoAtendimento === 'plano' && planoSaudeSelecionado) {
+            filteredServices = filteredServices.filter(service => {
+                // Só mostrar serviços que TÊM o plano específico vinculado
+                if (!service.planosAceitos || service.planosAceitos.length === 0) {
+                    return false; // Não aceita planos
+                }
+                // Verificar se o plano do cliente está na lista de planos aceitos
+                return service.planosAceitos.some(plano => plano.id === planoSaudeSelecionado.id);
+            });
+        }
         
         return (
             <div className="flex flex-col gap-3">
-                {activeServices.map(service => (
-                    <button 
-                        key={service.id}
-                        onClick={() => handleSelectService(service)}
-                        className="flex w-full items-center justify-between rounded-md border p-4 text-left transition-all hover:bg-muted"
-                    >
-                        <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12 rounded-md">
-                                <AvatarImage src={service.imageUrl || undefined} alt={service.name} className="object-cover" />
-                                <AvatarFallback>{String(service.name || 'S').charAt(0).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-medium">{service.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    {service.duration} min - {formatServicePrice(service.price, service.priceType)}
-                                </p>
+                {filteredServices.length > 0 ? (
+                    filteredServices.map(service => (
+                        <button 
+                            key={service.id}
+                            onClick={() => handleSelectService(service)}
+                            className="flex w-full items-center justify-between rounded-md border p-4 text-left transition-all hover:bg-muted"
+                        >
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-12 w-12 rounded-md">
+                                    <AvatarImage src={service.imageUrl || undefined} alt={service.name} className="object-cover" />
+                                    <AvatarFallback>{String(service.name || 'S').charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-medium">{service.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {service.duration} min - {formatServicePrice(service.price, service.priceType)}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </button>
-                ))}
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        </button>
+                    ))
+                ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                        <p className="font-medium mb-2">Nenhum serviço disponível</p>
+                        <p className="text-sm">
+                            {tipoAtendimento === 'plano' 
+                                ? `Não há serviços vinculados ao plano ${planoSaudeSelecionado?.nome || 'selecionado'}. Entre em contato com a clínica para mais informações.`
+                                : 'Não há serviços disponíveis no momento.'
+                            }
+                        </p>
+                    </div>
+                )}
             </div>
         );
     }
@@ -898,6 +1083,8 @@ const handleCancelAppointment = async (appointmentId: string) => {
             return <NewClientForm />;
         case 'MODIFY_EXISTING':
             return <ModifyExisting />;
+        case 'TIPO_ATENDIMENTO':
+            return <TipoAtendimentoSelector />;
         case 'SERVICE':
             return <ServiceList />;
         case 'PROFESSIONAL':
@@ -924,6 +1111,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
         case 'IDENTIFICACAO': return `Bem-vindo(a) ao ${businessSettings?.nome || 'agendamento'}`;
         case 'NEW_CLIENT_FORM': return currentUser ? 'Confirme seus dados' : 'Quase lá! Faltam alguns dados.';
         case 'MODIFY_EXISTING': return 'Gerenciar Agendamento';
+        case 'TIPO_ATENDIMENTO': return 'Tipo de Atendimento';
         case 'SERVICE': return `Serviços disponíveis para você, ${currentUser?.name?.split(' ')[0] || ''}.`;
         case 'PROFESSIONAL': return 'Quem irá te atender?';
         case 'DATETIME': return 'Escolha Data e Hora';
@@ -938,6 +1126,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
         case 'IDENTIFICACAO': return 'Para começar, insira seu número de celular para identificarmos seu cadastro.';
         case 'NEW_CLIENT_FORM': return currentUser ? 'Por favor, confirme ou atualize seus dados para continuar.' : 'Vimos que você é novo por aqui. Por favor, complete seu cadastro para continuar.';
         case 'MODIFY_EXISTING': return 'Você já possui um horário marcado. Escolha uma das opções abaixo.';
+        case 'TIPO_ATENDIMENTO': return 'Selecione como você será atendido(a).';
         case 'SERVICE': return 'Escolha um dos serviços abaixo para continuar.';
         case 'PROFESSIONAL': return `Escolha o profissional para realizar ${selectedService?.name || ''}.`;
         case 'DATETIME': return `Escolha o melhor dia e horário para você.`;

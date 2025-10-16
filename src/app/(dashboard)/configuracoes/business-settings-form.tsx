@@ -38,10 +38,13 @@ import type { ConfiguracoesNegocio, DiasDaSemana, Endereco } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useScrollToError } from '@/lib/form-utils';
-import { Loader2, LogOut, ChevronRight, Search } from 'lucide-react';
+import { Loader2, LogOut, ChevronRight, Search, Building2, Bell, Bot, Clock, Heart } from 'lucide-react';
 import BusinessAgendaForm from './business-agenda-form';
+import HealthInsuranceManager from './health-insurance-manager';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn, formatPhoneNumber } from '@/lib/utils';
+import { isCategoriaClinica } from '@/lib/categoria-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -77,12 +80,17 @@ const daySchema = z.object({
 
 const businessSettingsSchema = z.object({
   nome: z.string().min(2, { message: 'O nome do negócio deve ter pelo menos 2 caracteres.' }).max(64, { message: 'Nome muito longo (máx. 64 caracteres).' }),
-  telefone: z.string().refine(v => String(v).replace(/\D/g, "").length === 11, {
-    message: "O WhatsApp deve ter 11 dígitos (DDD + número)."
+  telefone: z.string().refine(v => {
+    const digits = String(v).replace(/\D/g, "").length;
+    return digits === 11;
+  }, {
+    message: "O WhatsApp deve ter 11 dígitos (DDD + 9 + número). Exemplo: 11999887766"
   }),
   categoria: z.string().min(1, { message: 'A categoria é obrigatória.' }),
   endereco: z.object({
-    cep: z.string().refine(v => String(v).replace(/\D/g, "").length === 8, { message: 'O CEP deve ter 8 dígitos.' }),
+    cep: z.string()
+      .min(1, { message: 'O CEP é obrigatório.' })
+      .refine(v => String(v).replace(/\D/g, "").length === 8, { message: 'O CEP deve ter 8 dígitos.' }),
     logradouro: z.string().min(2, { message: 'Logradouro é obrigatório.' }),
     numero: z.string().min(1, { message: 'Número é obrigatório.' }).max(10, { message: 'Número muito longo (máx. 10 caracteres).' }),
     bairro: z.string().min(2, { message: 'Bairro é obrigatório.' }),
@@ -100,6 +108,7 @@ const businessSettingsSchema = z.object({
   }),
   habilitarLembrete24h: z.boolean().optional(),
   habilitarLembrete2h: z.boolean().optional(),
+  habilitarAniversario: z.boolean().optional(),
   habilitarFeedback: z.boolean().optional(),
   feedbackPlatform: z.enum(['google', 'instagram']).optional(),
   feedbackLink: z.string().optional(),
@@ -107,12 +116,26 @@ const businessSettingsSchema = z.object({
   numeroEscalonamento: z.string().optional(),
   nomeIa: z.string().optional(),
   instrucoesIa: z.string().optional(),
+  iaAtiva: z.boolean().optional(),
+  planosSaudeAceitos: z.array(z.object({
+    id: z.string(),
+    nome: z.string(),
+  })).optional(),
 }).superRefine((data, ctx) => {
     // Escalation validation
-     if (data.habilitarEscalonamento && (!data.numeroEscalonamento || String(data.numeroEscalonamento).replace(/\D/g, "").length < 11)) {
+     if (data.habilitarEscalonamento && data.numeroEscalonamento) {
+      const digits = String(data.numeroEscalonamento).replace(/\D/g, "").length;
+      if (digits !== 11) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "O celular deve ter 11 dígitos (DDD + 9 + número). Exemplo: 11999887766",
+          path: ["numeroEscalonamento"],
+        });
+      }
+    } else if (data.habilitarEscalonamento && !data.numeroEscalonamento) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "O número para escalonamento deve ter 11 dígitos.",
+        message: "O número para escalonamento é obrigatório.",
         path: ["numeroEscalonamento"],
       });
     }
@@ -136,11 +159,16 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
   const denom = Math.max(totalSteps - 1, 1);
   const progress = (currentStep / denom) * 100;
   return (
-    <div className="mb-8">
-      <Progress value={progress} className="w-full" />
-      <p className="text-sm text-muted-foreground mt-2">
-        Passo {currentStep + 1} de {totalSteps}
-      </p>
+    <div className="mb-8 space-y-3">
+      <div className="flex justify-between items-center">
+        <p className="text-sm font-medium text-muted-foreground">
+          Passo {currentStep + 1} de {totalSteps}
+        </p>
+        <p className="text-sm font-medium text-primary">
+          {Math.round(progress)}% concluído
+        </p>
+      </div>
+      <Progress value={progress} className="w-full h-2" />
     </div>
   );
 }
@@ -169,7 +197,7 @@ export default function BusinessSettingsForm({
   const setupSteps = [
     { title: "Detalhes do Negócio", fields: ["nome", "telefone", "categoria", "endereco.cep", "endereco.logradouro", "endereco.numero", "endereco.bairro", "endereco.cidade", "endereco.estado"] },
     { title: "Horários de Funcionamento", fields: ["horariosFuncionamento"] },
-    { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] },
+    { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] },
   ];
 
   const allSteps = [...setupSteps, { title: "Configurações de IA", fields: ["nomeIa", "instrucoesIa"] }];
@@ -198,6 +226,7 @@ export default function BusinessSettingsForm({
         : defaultHorarios,
     habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
     habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
+    habilitarAniversario: settings?.habilitarAniversario ?? false,
     habilitarFeedback: settings?.habilitarFeedback ?? false,
     feedbackPlatform: settings?.feedbackPlatform ?? 'google',
     feedbackLink: settings?.feedbackLink || "",
@@ -205,6 +234,8 @@ export default function BusinessSettingsForm({
     numeroEscalonamento: formatPhoneNumber(settings?.numeroEscalonamento ? String(settings.numeroEscalonamento) : ""),
     nomeIa: settings?.nomeIa || 'Vitoria',
     instrucoesIa: settings?.instrucoesIa || '',
+    iaAtiva: settings?.iaAtiva ?? true, // Sempre ativo por padrão
+    planosSaudeAceitos: settings?.planosSaudeAceitos || [],
   };
 
 
@@ -216,6 +247,10 @@ export default function BusinessSettingsForm({
 
   const { control, watch, setValue, trigger, formState: { errors, isSubmitting } } = form;
 
+  // Verificar se a categoria atual é uma clínica
+  const categoriaAtual = watch('categoria');
+  const isClinica = isCategoriaClinica(categoriaAtual);
+
   // Scroll automático para primeiro erro
   useEffect(() => {
     if (Object.keys(errors).length > 0) {
@@ -223,32 +258,43 @@ export default function BusinessSettingsForm({
     }
   }, [errors]);
 
-  /* --- CEP lookup --- */
+  /* --- CEP lookup via ViaCEP (API confiável) --- */
   const fetchAddressFromCep = useCallback(
     async (cep: string) => {
       const cleanCep = String(cep ?? "").replace(/\D/g, "");
       if (cleanCep.length !== 8) return;
       setIsFetchingCep(true);
       try {
-        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-        if (!response.ok) throw new Error("CEP não encontrado");
+        // Usar API própria que consulta ViaCEP
+        const response = await fetch(`/api/address/cep?cep=${cleanCep}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "CEP não encontrado");
+        }
+        
         const data = await response.json();
-        if (data.erro) throw new Error("CEP inválido");
 
-        setValue("endereco.logradouro", data.logradouro ?? "", { shouldValidate: true });
-        setValue("endereco.bairro", data.bairro ?? "", { shouldValidate: true });
-        setValue("endereco.cidade", data.localidade ?? "", { shouldValidate: true });
-        setValue("endereco.estado", data.uf ?? "", { shouldValidate: true });
-        trigger(); 
-      } catch (error) {
-        form.setError("endereco.cep", {
-          type: "manual",
-          message: "CEP não encontrado. Preencha os campos manualmente.",
+        // Preencher campos automaticamente
+        setValue("endereco.logradouro", data.logradouro || "", { shouldValidate: true });
+        setValue("endereco.bairro", data.bairro || "", { shouldValidate: true });
+        setValue("endereco.cidade", data.localidade || "", { shouldValidate: true });
+        setValue("endereco.estado", data.uf || "", { shouldValidate: true });
+        
+        // Limpar erro do CEP se havia
+        form.clearErrors("endereco.cep");
+        
+        await trigger();
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "❌ CEP não encontrado",
+          description: error.message || "Verifique o CEP digitado ou preencha os campos manualmente.",
         });
       } finally {
         setIsFetchingCep(false);
       }
-    }, [setValue, form, trigger]
+    }, [setValue, form, trigger, toast]
   );
 
   useEffect(() => {
@@ -256,7 +302,8 @@ export default function BusinessSettingsForm({
       if (name === "endereco.cep") {
         const cepValue = value.endereco?.cep || "";
         if (String(cepValue).replace(/\D/g, "").length === 8) {
-          fetchAddressFromCep(cepValue);
+          // Usar setTimeout para evitar flushSync durante renderização
+          setTimeout(() => fetchAddressFromCep(cepValue), 0);
         }
       }
     });
@@ -380,7 +427,9 @@ export default function BusinessSettingsForm({
                     { value: "Estetica", label: "Estética 💆‍♀️" },
                     { value: "LashDesigner", label: "Lash Designer 👁️" },
                     { value: "NailDesigner", label: "Nail Designer 💅" },
+                    { value: "OficinaMecanica", label: "Oficina Mecânica 🔧" },
                     { value: "SalaoDeBeleza", label: "Salão de Beleza 💇‍♀️" },
+                    { value: "TecnicoInformatica", label: "Técnico de Informática 💻" },
                   ];
 
                   const selectedCategory = categories.find(cat => cat.value === field.value);
@@ -455,25 +504,32 @@ export default function BusinessSettingsForm({
                 }}
               />
 
-              <div className="border rounded-lg p-4 space-y-4">
-                <h4 className="text-sm font-medium">Endereço</h4>
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-medium">Endereço</h4>
+                  <p className="text-xs text-muted-foreground">Digite o CEP para preencher automaticamente</p>
+                </div>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={control}
                     name="endereco.cep"
                     render={({ field }) => (
                       <FormItem className="md:col-span-1 relative">
-                        <FormLabel>CEP</FormLabel>
+                        <FormLabel>CEP *</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Apenas números"
+                            placeholder="Ex: 01310100"
                             {...field}
                             inputMode="numeric"
                             maxLength={8}
                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                            className="pr-10"
                           />
                         </FormControl>
-                        {isFetchingCep && <Loader2 className="absolute right-3 top-9 h-4 w-4 animate-spin" />}
+                        {isFetchingCep && (
+                          <Loader2 className="absolute right-3 top-9 h-4 w-4 animate-spin text-primary" />
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">8 dígitos sem traço</p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -485,8 +541,14 @@ export default function BusinessSettingsForm({
                         <FormItem className="md:col-span-2">
                         <FormLabel>Logradouro</FormLabel>
                         <FormControl>
-                            <Input placeholder="Rua das Flores" {...field} />
+                            <Input 
+                              placeholder="Rua das Flores" 
+                              {...field} 
+                              readOnly
+                              className="bg-muted/50 cursor-not-allowed"
+                            />
                         </FormControl>
+                        <p className="text-xs text-muted-foreground mt-1">Preenchido automaticamente pelo CEP</p>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -498,10 +560,16 @@ export default function BusinessSettingsForm({
                     name="endereco.numero"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Número</FormLabel>
+                        <FormLabel>Número *</FormLabel>
                         <FormControl>
-                            <Input placeholder="123" {...field} maxLength={10} />
+                            <Input 
+                              placeholder="Ex: 123" 
+                              {...field} 
+                              maxLength={10}
+                              className="border-primary/50"
+                            />
                         </FormControl>
+                        <p className="text-xs text-muted-foreground mt-1">Editável</p>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -513,8 +581,14 @@ export default function BusinessSettingsForm({
                         <FormItem className="md:col-span-3">
                         <FormLabel>Bairro</FormLabel>
                         <FormControl>
-                            <Input placeholder="Centro" {...field} />
+                            <Input 
+                              placeholder="Centro" 
+                              {...field}
+                              readOnly
+                              className="bg-muted/50 cursor-not-allowed"
+                            />
                         </FormControl>
+                        <p className="text-xs text-muted-foreground mt-1">Preenchido automaticamente pelo CEP</p>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -528,8 +602,14 @@ export default function BusinessSettingsForm({
                             <FormItem>
                             <FormLabel>Cidade</FormLabel>
                             <FormControl>
-                                <Input placeholder="São Paulo" {...field} />
+                                <Input 
+                                  placeholder="São Paulo" 
+                                  {...field}
+                                  readOnly
+                                  className="bg-muted/50 cursor-not-allowed"
+                                />
                             </FormControl>
+                            <p className="text-xs text-muted-foreground mt-1">Preenchido automaticamente</p>
                             <FormMessage />
                             </FormItem>
                         )}
@@ -541,8 +621,15 @@ export default function BusinessSettingsForm({
                             <FormItem>
                             <FormLabel>Estado</FormLabel>
                             <FormControl>
-                                <Input placeholder="SP" {...field} />
+                                <Input 
+                                  placeholder="SP" 
+                                  {...field}
+                                  readOnly
+                                  className="bg-muted/50 cursor-not-allowed"
+                                  maxLength={2}
+                                />
                             </FormControl>
+                            <p className="text-xs text-muted-foreground mt-1">Preenchido automaticamente</p>
                             <FormMessage />
                             </FormItem>
                         )}
@@ -579,6 +666,21 @@ export default function BusinessSettingsForm({
                     <div className="space-y-0.5 flex-1">
                       <FormLabel className="text-base">Lembrete de 2h</FormLabel>
                       <p className="text-sm text-muted-foreground">Enviar um lembrete 2 horas antes do agendamento.</p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="habilitarAniversario"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">Mensagem de Aniversário</FormLabel>
+                      <p className="text-sm text-muted-foreground">Enviar mensagem automática de felicitação no aniversário do cliente.</p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -715,6 +817,26 @@ export default function BusinessSettingsForm({
            <div className="space-y-4">
               <FormField
                 control={control}
+                name="iaAtiva"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Status da IA</FormLabel>
+                      <FormDescription>
+                        Ative ou desative o atendimento automático por IA. Quando desativado, a IA não responderá mensagens.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
                 name="nomeIa"
                 render={({ field }) => (
                   <FormItem>
@@ -760,74 +882,201 @@ export default function BusinessSettingsForm({
           {isSetupMode && <StepIndicator currentStep={currentStep} totalSteps={steps.length} />}
 
           {!isSetupMode ? (
-            <div className="space-y-6">
-              <Card id="business-details"><CardContent className="pt-6">{renderStepContent(0)}</CardContent></Card>
-               <Accordion type="single" collapsible className="w-full" id="operating-hours" defaultValue="item-1">
-                <AccordionItem value="item-1">
-                  <AccordionTrigger className="hover:no-underline">
-                      Horários de Funcionamento
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <Card><CardContent className="pt-6">{renderStepContent(1)}</CardContent></Card>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-               <Accordion type="single" collapsible className="w-full" id="notifications" defaultValue="item-1">
-                <AccordionItem value="item-1">
-                  <AccordionTrigger className="hover:no-underline">
-                     Notificações
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <Card><CardContent className="pt-6">{renderStepContent(2)}</CardContent></Card>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-                <Accordion type="single" collapsible className="w-full" id="ai-settings" defaultValue="item-1">
-                <AccordionItem value="item-1">
-                  <AccordionTrigger className="hover:no-underline">
-                     Configurações de IA
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <Card><CardContent className="pt-6">{renderStepContent(3)}</CardContent></Card>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+            <Tabs defaultValue="business" className="w-full">
+              <TabsList className={cn(
+                "grid w-full gap-2 h-auto p-1",
+                isClinica ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-4"
+              )}>
+                <TabsTrigger value="business" className="flex items-center gap-2 py-3">
+                  <Building2 className="h-5 w-5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Negócio</span>
+                </TabsTrigger>
+                <TabsTrigger value="hours" className="flex items-center gap-2 py-3">
+                  <Clock className="h-5 w-5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Horários</span>
+                </TabsTrigger>
+                {isClinica && (
+                  <TabsTrigger value="health" className="flex items-center gap-2 py-3">
+                    <Heart className="h-5 w-5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Planos</span>
+                  </TabsTrigger>
+                )}
+                <TabsTrigger value="notifications" className="flex items-center gap-2 py-3">
+                  <Bell className="h-5 w-5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Notificações</span>
+                </TabsTrigger>
+                <TabsTrigger value="ai" className="flex items-center gap-2 py-3">
+                  <Bot className="h-5 w-5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">IA</span>
+                </TabsTrigger>
+              </TabsList>
 
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar Alterações
-                </Button>
-              </div>
-            </div>
+              <TabsContent value="business" className="space-y-6 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Dados do Negócio
+                    </CardTitle>
+                    <CardDescription>
+                      Informações básicas e endereço do seu estabelecimento
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>{renderStepContent(0)}</CardContent>
+                </Card>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar Alterações
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="hours" className="space-y-6 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5" />
+                      Horários de Funcionamento
+                    </CardTitle>
+                    <CardDescription>
+                      Configure os dias e horários que seu negócio está aberto
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>{renderStepContent(1)}</CardContent>
+                </Card>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar Alterações
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {isClinica && (
+                <TabsContent value="health" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Heart className="h-5 w-5" />
+                        Planos de Saúde
+                      </CardTitle>
+                      <CardDescription>
+                        Configure os planos de saúde e odontológicos que sua clínica aceita
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <HealthInsuranceManager categoria={categoriaAtual} />
+                    </CardContent>
+                  </Card>
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </TabsContent>
+              )}
+
+              <TabsContent value="notifications" className="space-y-6 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bell className="h-5 w-5" />
+                      Notificações
+                    </CardTitle>
+                    <CardDescription>
+                      Configure lembretes e notificações para seus clientes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>{renderStepContent(2)}</CardContent>
+                </Card>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar Alterações
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="ai" className="space-y-6 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bot className="h-5 w-5" />
+                      Configurações de IA
+                    </CardTitle>
+                    <CardDescription>
+                      Personalize o assistente virtual do seu negócio
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>{renderStepContent(3)}</CardContent>
+                </Card>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar Alterações
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           ) : (
-            <>
-              <div className="min-h-[500px]">{renderStepContent(currentStep)}</div>
-            </>
+            <div className="space-y-6">
+              {/* Título do Step Atual */}
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-semibold">{steps[currentStep].title}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {currentStep === 0 && "Configure as informações básicas do seu negócio"}
+                  {currentStep === 1 && "Defina os horários de funcionamento do seu estabelecimento"}
+                  {currentStep === 2 && "Configure as notificações e lembretes para seus clientes"}
+                </p>
+              </div>
+              <div className="min-h-[350px]">{renderStepContent(currentStep)}</div>
+            </div>
           )}
 
           {isSetupMode && (
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 justify-between mt-6 pt-4 border-t">
-              <Button type="button" variant="ghost" onClick={onLogout} className="w-full sm:w-auto">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 justify-between items-center mt-8 pt-6 border-t">
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={onLogout} 
+                size="sm"
+                className="w-full sm:w-auto text-muted-foreground"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Sair
               </Button>
 
               <div className="flex gap-2 w-full sm:w-auto">
-                 {currentStep > 0 && (
-                  <Button type="button" variant="outline" onClick={() => setCurrentStep((s) => s - 1)} className="flex-1 sm:flex-none">
+                {currentStep > 0 && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setCurrentStep((s) => s - 1)} 
+                    className="flex-1 sm:w-32"
+                  >
                     Voltar
                   </Button>
                 )}
                 {currentStep < steps.length - 1 && (
-                  <Button type="button" onClick={handleNextStep} className="flex-1 sm:flex-none">
+                  <Button 
+                    type="button" 
+                    onClick={handleNextStep} 
+                    className="flex-1 sm:w-32"
+                  >
                     Avançar
+                    <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 )}
                 {currentStep === steps.length - 1 && (
-                  <Button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none">
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting} 
+                    className="flex-1 sm:w-auto"
+                  >
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Salvar e Concluir
+                    {isSubmitting ? 'Salvando...' : 'Salvar e Concluir'}
                   </Button>
                 )}
               </div>

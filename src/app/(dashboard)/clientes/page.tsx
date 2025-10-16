@@ -129,15 +129,23 @@ export default function ClientsPage() {
 
       const id = selectedClient ? selectedClient.id : `client-${Date.now()}`;
 
-      const clientData = {
+      const clientData: any = {
         name: data.name,
         phone: numericPhone,
         birthDate: data.birthDate ? data.birthDate.toISOString() : null, // String ISO
         status: data.status,
         avatarUrl: data.avatarUrl || null,
+        observacoes: data.observacoes || null,
         instanciaWhatsapp: businessSettings.id,
         id: id,
       };
+
+      // Adicionar plano de saúde se fornecido
+      if (data.temPlano && data.planoSaude) {
+        clientData.planoSaude = data.planoSaude;
+      } else {
+        clientData.planoSaude = null; // Remover plano se desativado
+      }
 
       await saveOrUpdateDocument('clientes', id, clientData, finalUserId)
 
@@ -250,7 +258,8 @@ export default function ClientsPage() {
                     key={selectedClient?.id || 'new-client-form'}
                     client={selectedClient}
                     onSubmit={handleFormSubmit} 
-                    isSubmitting={isSubmitting} 
+                    isSubmitting={isSubmitting}
+                    businessSettings={businessSettings || undefined}
                 />
            </div>
         </DialogContent>

@@ -16,7 +16,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Calendar, Users, Briefcase, Scissors, BarChart3, Settings, LogOut, Sun, Gem, Moon, Loader2, ArrowLeft, Shield } from 'lucide-react';
+import { Home, Calendar, Users, Briefcase, Wrench, BarChart3, Settings, LogOut, Sun, Gem, Moon, Loader2, ArrowLeft, Shield } from 'lucide-react';
 import Link from 'next/link';
 import type { ConfiguracoesNegocio, User } from '@/lib/types';
 import { cn, isAdminUser } from '@/lib/utils';
@@ -243,7 +243,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     { href: '/agendamentos', label: 'Agendamentos', icon: Calendar },
     { href: '/clientes', label: 'Clientes', icon: Users },
     { href: '/profissionais', label: 'Profissionais', icon: Briefcase },
-    { href: '/servicos', label: 'Serviços', icon: Scissors },
+    { href: '/servicos', label: 'Serviços', icon: Wrench },
     { href: '/campanhas', label: 'Campanhas', icon: BarChart3 },
     { href: '/planos', label: 'Planos', icon: Gem },
     { href: '/configuracoes', label: 'Configurações', icon: Settings },

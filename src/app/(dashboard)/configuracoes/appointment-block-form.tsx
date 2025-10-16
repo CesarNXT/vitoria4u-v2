@@ -33,7 +33,7 @@ const timeOptions = Array.from({ length: 48 }, (_, i) => {
 });
 
 const blockFormSchema = z.object({
-  reason: z.string().min(3, "O motivo é obrigatório.").max(120, "O motivo não pode ter mais de 120 caracteres."),
+  reason: z.string().max(120, "O motivo não pode ter mais de 120 caracteres.").optional(),
   startDate: z.date({ required_error: "A data de início é obrigatória." }),
   startTime: z.string({ required_error: "A hora de início é obrigatória." }),
   endDate: z.date({ required_error: "A data de término é obrigatória." }),
@@ -60,9 +60,10 @@ interface AppointmentBlockFormProps {
   block: DataBloqueada | null;
   onSubmit: (data: Omit<DataBloqueada, 'id'>) => void;
   isSubmitting: boolean;
+  isPastBlock?: boolean;
 }
 
-export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: AppointmentBlockFormProps) {
+export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBlock = false }: AppointmentBlockFormProps) {
   const isMobile = useIsMobile();
   const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false);
   const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
@@ -77,7 +78,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
       endDate: new Date(block.endDate),
       endTime: format(new Date(block.endDate), 'HH:mm'),
     } : {
-      reason: "",
+      reason: undefined,
       startDate: new Date(),
       startTime: '07:00',
       endDate: new Date(),
@@ -135,17 +136,27 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pt-4">
+        {isPastBlock && (
+          <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              ℹ️ Este é um bloqueio passado. Você pode editar apenas o motivo/descrição. As datas não podem ser alteradas.
+            </p>
+          </div>
+        )}
+        
         <FormField
           control={form.control}
           name="reason"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Motivo do Bloqueio</FormLabel>
+              <FormLabel>Motivo do Bloqueio (Opcional)</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="Ex: Feriado, Férias da equipe" />
+                <Input {...field} placeholder="Ex: Feriado, Férias da equipe" value={field.value || ""} />
               </FormControl>
               <FormDescription>
-                Todo o estabelecimento será bloqueado durante este período.
+                {isPastBlock 
+                  ? "Atualize a descrição para manter seu histórico organizado." 
+                  : "Todo o estabelecimento será bloqueado durante este período."}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -167,6 +178,8 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
                             isMobile={false}
                             fromYear={new Date().getFullYear()}
                             toYear={new Date().getFullYear() + 2}
+                            disabled={isPastBlock}
+                            minDate={!block ? new Date() : undefined}
                         />
                     </FormControl>
                     <FormMessage />
@@ -179,7 +192,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Hora de Início</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
                         <FormControl>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         </FormControl>
@@ -205,6 +218,8 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
                             isMobile={false}
                             fromYear={new Date().getFullYear()}
                             toYear={new Date().getFullYear() + 2}
+                            disabled={isPastBlock}
+                            minDate={!block ? new Date() : undefined}
                         />
                     </FormControl>
                     <FormMessage />
@@ -217,7 +232,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting }: Appointm
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Hora de Término</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
                         <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                         </FormControl>

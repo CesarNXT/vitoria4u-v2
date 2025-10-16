@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { logger, sanitizeForLog } from '@/lib/logger';
 import { FieldValue } from 'firebase-admin/firestore';
+import { sendCancellationHooks } from '@/app/(dashboard)/agendamentos/actions';
 
 /**
  * POST /api/booking/cancel
@@ -25,23 +26,18 @@ export async function POST(request: NextRequest) {
         // Validar telefone (aceita 11 ou 13 dígitos)
         const phoneStr = String(clientPhone).replace(/\D/g, '');
         
-        // Validar tamanho
+        // Validar tamanho - aceita 11 dígitos (DDD + número) ou 13 dígitos (DDI + DDD + número)
         if (phoneStr.length !== 11 && phoneStr.length !== 13) {
             return NextResponse.json(
-                { error: 'Telefone inválido' },
+                { error: 'Celular deve ter 11 dígitos (DDD + número). Exemplo: 11999887766' },
                 { status: 400 }
             );
         }
 
-        // Preparar variações do telefone
-        let phone11 = phoneStr;
-        let phone13 = phoneStr;
-        
-        if (phoneStr.length === 13 && phoneStr.startsWith('55')) {
-            phone11 = phoneStr.substring(2);
-        } else if (phoneStr.length === 11) {
-            phone13 = `55${phoneStr}`;
-        }
+        // Se já vem com 13 dígitos (DDI 55), usar como está
+        // Se vem com 11 dígitos, adicionar DDI 55
+        const phone11 = phoneStr.length === 13 ? phoneStr.substring(2) : phoneStr;
+        const phone13 = phoneStr.length === 13 ? phoneStr : `55${phoneStr}`;
 
         // Buscar o agendamento
         const appointmentRef = adminDb.collection('negocios').doc(businessId).collection('agendamentos').doc(appointmentId);
@@ -97,10 +93,30 @@ export async function POST(request: NextRequest) {
             clientName: appointmentData.cliente.name 
         }));
 
-        // Enviar webhook de cancelamento (se configurado)
+        // ✅ Enviar webhook de cancelamento (notificação gestor + notificação profissional)
         try {
-            // Não enviaremos webhooks no cancelamento via booking por enquanto
-            // Para evitar complexidade
+            // Buscar configurações do negócio para enviar webhooks
+            const businessRef = adminDb.collection('negocios').doc(businessId);
+            const businessDoc = await businessRef.get();
+            
+            if (businessDoc.exists) {
+                const businessSettings = businessDoc.data();
+                
+                // Preparar agendamento completo para webhooks
+                const fullAppointment = {
+                    id: appointmentId,
+                    cliente: appointmentData.cliente,
+                    servico: appointmentData.servico,
+                    profissional: appointmentData.profissional,
+                    date: appointmentData.date,
+                    startTime: appointmentData.startTime,
+                    status: 'Cancelado',
+                };
+                
+                // Enviar webhooks (notificação gestor + notificação profissional)
+                await sendCancellationHooks(businessSettings as any, fullAppointment as any);
+                logger.success('Webhooks de cancelamento enviados', { appointmentId });
+            }
         } catch (webhookError) {
             logger.error('Erro ao enviar webhook de cancelamento', sanitizeForLog(webhookError));
             // Não falhar a request por causa do webhook

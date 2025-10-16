@@ -8,6 +8,7 @@ import { ArrowUpDown, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { formatServicePrice } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type ColumnsProps = {
   onEdit: (service: Servico) => void;
@@ -62,7 +63,7 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Servic
     cell: ({ row }) => {
       const status = row.original.status;
       const variant = statusVariantMap[status];
-      const className = status === 'Ativo' ? 'bg-accent text-accent-foreground' : '';
+      const className = status === 'Ativo' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/20 dark:text-green-400' : '';
       return <Badge variant={variant} className={className}>{status}</Badge>
     },
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
@@ -72,16 +73,32 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Servic
     cell: ({ row }) => {
       const service = row.original
       return (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(service)}>
-            <Pencil className="h-4 w-4" />
-            <span className="sr-only">Editar</span>
-          </Button>
-          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(service)}>
-            <Trash2 className="h-4 w-4" />
-            <span className="sr-only">Excluir</span>
-          </Button>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center justify-end gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={() => onEdit(service)}>
+                  <Pencil className="h-4 w-4" />
+                  <span className="sr-only">Editar</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Editar</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(service)}>
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Excluir</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Excluir</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       )
     },
   },

@@ -33,6 +33,11 @@ export interface Endereco {
     estado: string;
 }
 
+export interface PlanoSaude {
+  id: string;
+  nome: string;
+}
+
 export interface ConfiguracoesNegocio {
   id: string;
   nome: string;
@@ -62,6 +67,7 @@ export interface ConfiguracoesNegocio {
   clientes?: Cliente[];
   habilitarLembrete24h?: boolean;
   habilitarLembrete2h?: boolean;
+  habilitarAniversario?: boolean; // Enviar mensagem de aniversário para clientes
   habilitarFeedback?: boolean;
   feedbackPlatform?: 'google' | 'instagram';
   feedbackLink?: string;
@@ -69,6 +75,7 @@ export interface ConfiguracoesNegocio {
   numeroEscalonamento?: number | null;
   nomeIa?: string;
   instrucoesIa?: string;
+  iaAtiva?: boolean; // Se a IA está ativa (padrão true) - usado para controle externo (n8n)
   resumoEndereco?: string;
   resumoHorarios?: string;
   linkAgendamento?: string;
@@ -76,6 +83,7 @@ export interface ConfiguracoesNegocio {
   nextPlanId?: string | null;
   audit?: any;
   setupCompleted?: boolean; // Flag que indica se a configuração inicial obrigatória foi concluída
+  planosSaudeAceitos?: PlanoSaude[]; // Planos de saúde/odontológicos aceitos
 }
 
 export interface Agendamento {
@@ -91,6 +99,8 @@ export interface Agendamento {
   createdAt?: Timestamp;
   canceledAt?: Timestamp;
   canceledBy?: string;
+  tipoAtendimento?: 'particular' | 'plano'; // Tipo de atendimento
+  planoSaude?: PlanoSaude; // Plano de saúde usado (se tipoAtendimento === 'plano')
 }
 
 export interface Cliente {
@@ -101,6 +111,8 @@ export interface Cliente {
   avatarUrl?: string;
   birthDate: Timestamp;
   instanciaWhatsapp?: string;
+  observacoes?: string; // Observações/notas sobre o cliente
+  planoSaude?: PlanoSaude; // Plano de saúde do cliente (se tiver)
 }
 
 export type PlanFeature = 
@@ -139,7 +151,7 @@ export interface AdminData {
 
 export interface DataBloqueada {
   id: string;
-  reason: string;
+  reason?: string;
   startDate: Timestamp;
   endDate: Timestamp;
 }
@@ -159,6 +171,7 @@ export interface Servico {
     instanciaWhatsapp?: string;
     returnInDays?: number | null;
     custo?: number; // Custo médio do serviço (produtos, materiais, etc)
+    planosAceitos?: PlanoSaude[]; // Planos de saúde que aceitam este serviço (só para clínicas)
 }
 
 export interface Profissional {
@@ -169,6 +182,7 @@ export interface Profissional {
     avatarUrl?: string;
     workHours?: HorarioTrabalho;
     instanciaWhatsapp?: string;
+    notificarAgendamentos?: boolean; // Se true, profissional recebe notificações de agendamentos/cancelamentos
 }
 
 export type HorarioTrabalho = ConfiguracoesNegocio['horariosFuncionamento'];

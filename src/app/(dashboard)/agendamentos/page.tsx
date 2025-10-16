@@ -88,9 +88,8 @@ export default function AgendamentosPage() {
 
     getBusinessConfig(finalUserId).then(settings => {
       setBusinessSettings(settings);
+      setIsLoading(false); // Mover para cá: só desliga loading após carregar settings
     });
-
-    setIsLoading(false);
 
     return () => {
         unsubAppointments();
@@ -390,6 +389,24 @@ export default function AgendamentosPage() {
 
   const handleDeleteBlockedDate = async (id: string) => {
     if (!finalUserId) return;
+    
+    // Encontrar o bloqueio para verificar se é passado
+    const block = blockedDates.find(b => b.id === id);
+    if (block) {
+      const now = new Date();
+      const blockEnd = new Date(block.endDate);
+      
+      // Verificar se o bloqueio já terminou (passado)
+      if (blockEnd < now) {
+        toast({ 
+          variant: "destructive",
+          title: "Não é possível excluir", 
+          description: "Bloqueios passados não podem ser removidos. Eles servem como histórico." 
+        });
+        return;
+      }
+    }
+    
     await deleteDocument('datasBloqueadas', id, finalUserId);
     toast({ title: "Bloqueio Removido" });
   }
@@ -588,40 +605,50 @@ export default function AgendamentosPage() {
                 <DialogHeader>
                     <DialogTitle>Gerenciar Bloqueios de Agenda</DialogTitle>
                     <DialogDescription>
-                        Adicione, edite ou remova bloqueios na agenda. Limite de {MAX_BLOCKED_DATES} bloqueios.
+                        Adicione, edite ou remova bloqueios na agenda. Limite de {MAX_BLOCKED_DATES} bloqueios futuros.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
                         {blockedDates.length > 0 ? (
                             blockedDates
-                                .filter(d => new Date(d.endDate) >= new Date(new Date().setHours(0, 0, 0, 0)))
-                                .map(d => (
-                                    <div key={d.id} className="flex items-center justify-between text-sm p-3 rounded-md border">
-                                        <div>
-                                            <span className="font-medium">{d.reason}</span>
-                                            <p className="text-muted-foreground text-xs mt-1">
-                                                {isSameDay(new Date(d.startDate), new Date(d.endDate))
-                                                    ? `${format(new Date(d.startDate), "dd/MM/yyyy 'das' HH:mm", { locale: ptBR })} às ${format(new Date(d.endDate), "HH:mm", { locale: ptBR })}`
-                                                    : `${format(new Date(d.startDate), "dd/MM/yy HH:mm", { locale: ptBR })} até ${format(new Date(d.endDate), "dd/MM/yy HH:mm", { locale: ptBR })}`
-                                                }
-                                            </p>
+                                .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+                                .map(d => {
+                                    const isPast = new Date(d.endDate) < new Date();
+                                    return (
+                                        <div key={d.id} className={`flex items-center justify-between text-sm p-3 rounded-md border ${isPast ? 'opacity-60 bg-muted/30' : ''}`}>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium">{d.reason || 'Sem motivo informado'}</span>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${isPast ? 'bg-gray-100 text-gray-600 dark:bg-gray-800' : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'}`}>
+                                                        {isPast ? 'Histórico' : 'Futuro'}
+                                                    </span>
+                                                </div>
+                                                <p className="text-muted-foreground text-xs mt-1">
+                                                    {isSameDay(new Date(d.startDate), new Date(d.endDate))
+                                                        ? `${format(new Date(d.startDate), "dd/MM/yyyy 'das' HH:mm", { locale: ptBR })} às ${format(new Date(d.endDate), "HH:mm", { locale: ptBR })}`
+                                                        : `${format(new Date(d.startDate), "dd/MM/yy HH:mm", { locale: ptBR })} até ${format(new Date(d.endDate), "dd/MM/yy HH:mm", { locale: ptBR })}`
+                                                    }
+                                                </p>
+                                            </div>
+                                            <div className='flex items-center'>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditBlock(d)}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                {!isPast && (
+                                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => handleDeleteBlockedDate(d.id)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className='flex items-center'>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditBlock(d)}>
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => handleDeleteBlockedDate(d.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                         ) : (
-                            <p className="text-sm text-muted-foreground text-center py-4">Nenhum bloqueio ativo.</p>
+                            <p className="text-sm text-muted-foreground text-center py-4">Nenhum bloqueio cadastrado.</p>
                         )}
                     </div>
-                     <Button variant="outline" className="w-full" onClick={handleAddNewBlock} disabled={blockedDates.length >= MAX_BLOCKED_DATES}>
+                     <Button variant="outline" className="w-full" onClick={handleAddNewBlock} disabled={blockedDates.filter(d => new Date(d.endDate) >= new Date()).length >= MAX_BLOCKED_DATES}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Adicionar Novo Bloqueio
                     </Button>
@@ -642,14 +669,15 @@ export default function AgendamentosPage() {
                     Selecione o período que o estabelecimento estará fechado.
                 </DialogDescription>
                 </DialogHeader>
-                 <div className="overflow-y-auto px-1 -mx-1 md:px-6 md:-mx-6">
-                    <AppointmentBlockForm
-                        key={selectedBlock ? selectedBlock.id : 'new-block'}
-                        block={selectedBlock}
-                        onSubmit={handleBlockFormSubmit}
-                        isSubmitting={isSubmittingBlock}
-                    />
-                </div>
+                 <div className="flex-1 overflow-y-auto px-1 -mx-1 md:px-6 md:-mx-6">
+            <AppointmentBlockForm 
+                key={selectedBlock?.id || 'new-block-form'}
+                block={selectedBlock}
+                onSubmit={handleBlockFormSubmit}
+                isSubmitting={isSubmittingBlock}
+                isPastBlock={selectedBlock ? new Date(selectedBlock.endDate) < new Date() : false}
+            />
+          </div>
             </DialogContent>
         </Dialog>
     </div>

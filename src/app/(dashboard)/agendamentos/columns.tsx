@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { formatPhoneNumber } from "@/lib/utils"
 import { format, isDate } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type ColumnsProps = {
   onEdit: (appointment: Agendamento) => void;
@@ -99,28 +100,50 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
       const isAgendado = appointment.status === 'Agendado';
  
       return (
-        <div className="flex items-center gap-2">
-            {isAgendado && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                onClick={() => onFinalize(appointment)}
-                title="Finalizar agendamento"
-              >
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="sr-only">Finalizar</span>
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={() => onEdit(appointment)}>
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">Editar</span>
-            </Button>
-            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(appointment)}>
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Excluir</span>
-            </Button>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+              {isAgendado && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-600/30"
+                      onClick={() => onFinalize(appointment)}
+                    >
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="sr-only">Finalizar</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Finalizar agendamento</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => onEdit(appointment)}>
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Editar</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Editar</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(appointment)}>
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Excluir</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Excluir</p>
+                </TooltipContent>
+              </Tooltip>
+          </div>
+        </TooltipProvider>
       )
     },
   },

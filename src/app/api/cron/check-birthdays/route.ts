@@ -45,8 +45,14 @@ export async function GET(request: Request) {
             const businessData = businessDoc.data();
             const businessId = businessDoc.id;
 
-            // Só processar se o negócio tem WhatsApp conectado
+            // Só processar se o negócio tem WhatsApp conectado E a funcionalidade de aniversário habilitada
             if (!businessData.whatsappConectado || !businessData.tokenInstancia) {
+                continue;
+            }
+            
+            // Verificar se a funcionalidade de mensagem de aniversário está habilitada
+            if (businessData.habilitarAniversario === false) {
+                logger.debug('Birthday messages disabled for business', { businessId, businessName: businessData.nome });
                 continue;
             }
 

@@ -12,7 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { businessId, name, phone, birthDate } = body;
+        const { businessId, name, phone, birthDate, planoSaude } = body;
 
         // Validação básica
         if (!businessId || !name || !phone) {
@@ -25,23 +25,18 @@ export async function POST(request: NextRequest) {
         // Validar telefone (aceita 11 ou 13 dígitos)
         const originalPhoneStr = String(phone).replace(/\D/g, '');
         
-        // Validar tamanho
+        // Validar tamanho - aceita 11 dígitos (DDD + número) ou 13 dígitos (DDI + DDD + número)
         if (originalPhoneStr.length !== 11 && originalPhoneStr.length !== 13) {
             return NextResponse.json(
-                { error: 'Telefone deve ter 11 ou 13 dígitos' },
+                { error: 'Celular deve ter 11 dígitos (DDD + número). Exemplo: 11999887766' },
                 { status: 400 }
             );
         }
 
-        // Preparar variações do telefone
-        let phone11digits = originalPhoneStr;
-        let phone13digits = originalPhoneStr;
-        
-        if (originalPhoneStr.length === 13 && originalPhoneStr.startsWith('55')) {
-            phone11digits = originalPhoneStr.substring(2);
-        } else if (originalPhoneStr.length === 11) {
-            phone13digits = `55${originalPhoneStr}`;
-        }
+        // Se já vem com 13 dígitos (DDI 55), usar como está
+        // Se vem com 11 dígitos, adicionar DDI 55
+        const phone11digits = originalPhoneStr.length === 13 ? originalPhoneStr.substring(2) : originalPhoneStr;
+        const phone13digits = originalPhoneStr.length === 13 ? originalPhoneStr : `55${originalPhoneStr}`;
 
         // Salvar sempre com 13 dígitos como número (padrão do sistema)
         const numericPhone = parseInt(phone13digits, 10);
@@ -79,7 +74,7 @@ export async function POST(request: NextRequest) {
         }
 
         let clientId: string;
-        let clientData = {
+        let clientData: any = {
             name,
             phone: numericPhone, // Salvar como número
             birthDate: birthDate || null, // String ISO ou null
@@ -88,17 +83,32 @@ export async function POST(request: NextRequest) {
             createdAt: FieldValue.serverTimestamp(),
         };
 
+        // Adicionar plano de saúde se fornecido
+        if (planoSaude) {
+            clientData.planoSaude = planoSaude;
+        }
+
         if (!existingClients.empty) {
             // Atualizar cliente existente
             const existingClient = existingClients.docs[0];
             clientId = existingClient.id;
             
             // Atualizar dados + normalizar telefone para número
-            await clientsRef.doc(clientId).update({
+            const updateData: any = {
                 name,
                 phone: numericPhone, // Normalizar telefone para número
                 birthDate: birthDate || null, // String ISO ou null
-            });
+            };
+
+            // Atualizar plano de saúde se fornecido
+            if (planoSaude) {
+                updateData.planoSaude = planoSaude;
+            } else {
+                // Se não forneceu plano, remover o plano existente
+                updateData.planoSaude = null;
+            }
+
+            await clientsRef.doc(clientId).update(updateData);
 
             logger.info('Cliente atualizado via booking (telefone normalizado)', sanitizeForLog({ clientId, businessId }));
         } else {

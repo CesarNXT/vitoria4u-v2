@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { logger, sanitizeForLog } from '@/lib/logger';
 import { FieldValue } from 'firebase-admin/firestore';
+import { sendCreationHooks } from '@/app/(dashboard)/agendamentos/actions';
 
 /**
  * POST /api/booking/appointment
@@ -19,7 +20,9 @@ export async function POST(request: NextRequest) {
             professionalId, 
             date, 
             startTime,
-            clientPhone 
+            clientPhone,
+            tipoAtendimento,
+            planoSaude 
         } = body;
 
         // Validação básica
@@ -157,7 +160,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Criar agendamento
-        const appointmentData = {
+        const appointmentData: any = {
             cliente: {
                 id: clientId,
                 name: clientData.name,
@@ -181,6 +184,14 @@ export async function POST(request: NextRequest) {
             instanciaWhatsapp: businessId,
         };
 
+        // Adicionar informações de plano de saúde se fornecidas
+        if (tipoAtendimento) {
+            appointmentData.tipoAtendimento = tipoAtendimento;
+        }
+        if (planoSaude) {
+            appointmentData.planoSaude = planoSaude;
+        }
+
         const newAppointmentRef = await appointmentsRef.add(appointmentData);
 
         logger.success('Agendamento criado via booking', sanitizeForLog({ 
@@ -189,10 +200,52 @@ export async function POST(request: NextRequest) {
             clientName: clientData.name 
         }));
 
-        // Enviar webhooks (se configurado)
+        // ✅ Enviar webhooks de criação (notificação, lembretes 24h e 2h, notificação ao profissional)
         try {
-            // Não enviaremos webhooks na criação via booking por enquanto
-            // Para evitar complexidade de buscar todos os dados necessários
+            // Buscar configurações do negócio para enviar webhooks
+            const businessRef = adminDb.collection('negocios').doc(businessId);
+            const businessDoc = await businessRef.get();
+            
+            if (businessDoc.exists) {
+                const businessSettings = businessDoc.data();
+                
+                // Preparar agendamento completo para webhooks
+                const fullAppointment: any = {
+                    id: newAppointmentRef.id,
+                    cliente: {
+                        id: clientId,
+                        name: clientData.name,
+                        phone: clientData.phone,
+                    },
+                    servico: {
+                        id: serviceId,
+                        name: serviceData.name,
+                        duration: serviceData.duration,
+                        price: serviceData.price,
+                    },
+                    profissional: {
+                        id: professionalId,
+                        name: professionalData.name,
+                        phone: professionalData.phone,
+                        notificarAgendamentos: professionalData.notificarAgendamentos,
+                    },
+                    date: appointmentDateISO,
+                    startTime,
+                    status: 'Agendado',
+                };
+                
+                // Adicionar informações de plano de saúde ao webhook
+                if (tipoAtendimento) {
+                    fullAppointment.tipoAtendimento = tipoAtendimento;
+                }
+                if (planoSaude) {
+                    fullAppointment.planoSaude = planoSaude;
+                }
+                
+                // Enviar webhooks (notificação gestor + lembretes + notificação profissional)
+                await sendCreationHooks(businessSettings as any, fullAppointment as any);
+                logger.success('Webhooks de criação enviados', { appointmentId: newAppointmentRef.id });
+            }
         } catch (webhookError) {
             logger.error('Erro ao enviar webhook de criação', sanitizeForLog(webhookError));
             // Não falhar a request por causa do webhook

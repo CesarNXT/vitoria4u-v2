@@ -69,13 +69,20 @@ export default function PagamentoPendentePage() {
     }
   };
 
-  const handleCopyPaymentId = () => {
+  const handleCopyPaymentId = async () => {
     if (paymentId) {
-      navigator.clipboard.writeText(paymentId);
-      toast({
-        title: 'ID Copiado!',
-        description: 'O ID do pagamento foi copiado para a área de transferência.',
-      });
+      // Usar setTimeout para evitar flushSync durante renderização
+      setTimeout(async () => {
+        try {
+          await navigator.clipboard.writeText(paymentId);
+          toast({
+            title: 'ID Copiado!',
+            description: 'O ID do pagamento foi copiado para a área de transferência.',
+          });
+        } catch (error) {
+          console.error('Failed to copy:', error);
+        }
+      }, 0);
     }
   };
 

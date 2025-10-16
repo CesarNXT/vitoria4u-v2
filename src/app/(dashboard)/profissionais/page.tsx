@@ -141,6 +141,7 @@ export default function ProfessionalsPage() {
         status: data.status,
         avatarUrl: data.avatarUrl || null,
         workHours: data.workHours,
+        notificarAgendamentos: data.notificarAgendamentos ?? true,
         instanciaWhatsapp: businessSettings.id,
         id: id,
       };
