@@ -143,7 +143,7 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
       name: client?.name || '',
       phone: formatPhoneNumber(String(client?.phone || "")),
       birthDate: client?.birthDate ? new Date(client.birthDate) : undefined,
-      status: client?.status === 'Ativo' || client?.status === true || !client?.status,
+      status: client?.status === 'Ativo' || !client?.status,
       avatarUrl: client?.avatarUrl || undefined,
       observacoes: client?.observacoes || '',
       temPlano: client?.planoSaude ? true : false,
