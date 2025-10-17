@@ -427,7 +427,6 @@ export default function BusinessSettingsForm({
                     { value: "Estetica", label: "Estética 💆‍♀️" },
                     { value: "LashDesigner", label: "Lash Designer 👁️" },
                     { value: "NailDesigner", label: "Nail Designer 💅" },
-                    { value: "OficinaMecanica", label: "Oficina Mecânica 🔧" },
                     { value: "SalaoDeBeleza", label: "Salão de Beleza 💇‍♀️" },
                     { value: "TecnicoInformatica", label: "Técnico de Informática 💻" },
                   ];

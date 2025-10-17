@@ -11,10 +11,101 @@ import { ptBR } from 'date-fns/locale';
 import { getAccessStatus, formatPhoneNumber } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 type BusinessesColumnsProps = {
   onEdit: (business: ConfiguracoesNegocio) => void;
   onAccessPanel: (business: ConfiguracoesNegocio) => void;
+};
+
+// Função helper para copiar texto com fallback
+const copyToClipboard = async (text: string, toast: any) => {
+  console.log('Tentando copiar:', text);
+  
+  try {
+    // Método 1: Clipboard API moderna (funciona em HTTPS e localhost com permissão)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        console.log('✅ Copiado com Clipboard API:', text);
+        toast({
+          title: "✅ ID Copiado!",
+          description: `${text}`,
+          duration: 3000,
+        });
+        return;
+      } catch (clipboardError) {
+        console.log('Clipboard API falhou, tentando fallback...', clipboardError);
+      }
+    }
+    
+    // Método 2: Fallback com textarea e selection
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    
+    // Posicionar fora da tela mas ainda visível
+    textArea.style.position = "absolute";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    
+    document.body.appendChild(textArea);
+    
+    // Selecionar o texto
+    if (navigator.userAgent.match(/ipad|iphone/i)) {
+      // iOS específico
+      const range = document.createRange();
+      range.selectNodeContents(textArea);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      textArea.setSelectionRange(0, 999999);
+    } else {
+      textArea.select();
+    }
+    
+    // Tentar copiar
+    let successful = false;
+    try {
+      successful = document.execCommand('copy');
+    } catch (err) {
+      console.error('execCommand erro:', err);
+    }
+    
+    document.body.removeChild(textArea);
+    
+    if (successful) {
+      console.log('✅ Copiado com execCommand:', text);
+      toast({
+        title: "✅ ID Copiado!",
+        description: `${text}`,
+        duration: 3000,
+      });
+    } else {
+      // Se tudo falhar, mostrar prompt para copiar manualmente
+      console.error('❌ Todos os métodos falharam');
+      
+      // Criar modal visual para copiar manualmente
+      const copyText = prompt('Copie o ID abaixo:', text);
+      
+      toast({
+        title: "⚠️ Copie Manualmente",
+        description: `ID: ${text}`,
+        duration: 5000,
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erro geral ao copiar:', error);
+    
+    // Último recurso: mostrar em prompt
+    prompt('Erro ao copiar automaticamente. Copie o ID:', text);
+    
+    toast({
+      title: "❌ Erro ao copiar",
+      description: "Use o prompt para copiar",
+      variant: "destructive",
+      duration: 5000,
+    });
+  }
 };
 
 export const getBusinessesColumns = ({ onEdit, onAccessPanel }: BusinessesColumnsProps): ColumnDef<ConfiguracoesNegocio>[] => [
@@ -154,41 +245,55 @@ export const getBusinessesColumns = ({ onEdit, onAccessPanel }: BusinessesColumn
     id: "actions",
     cell: ({ row }) => {
       const business = row.original;
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Abrir menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => onAccessPanel(business)} className="cursor-pointer">
-              <LogIn className="mr-2 h-4 w-4" />
-              Acessar Painel
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(business)} className="cursor-pointer">
-              <Edit className="mr-2 h-4 w-4" />
-              Editar Assinatura
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => navigator.clipboard.writeText(business.id)}
-              className="cursor-pointer"
-            >
-              Copiar ID do Negócio
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/agendar/${business.id}`} target="_blank" className="cursor-pointer">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Ver Página Pública
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+      return <BusinessActionsCell business={business} onEdit={onEdit} onAccessPanel={onAccessPanel} />;
     },
   },
 ];
+
+// Componente separado para usar hooks
+function BusinessActionsCell({ 
+  business, 
+  onEdit, 
+  onAccessPanel 
+}: { 
+  business: ConfiguracoesNegocio; 
+  onEdit: (business: ConfiguracoesNegocio) => void;
+  onAccessPanel: (business: ConfiguracoesNegocio) => void;
+}) {
+  const { toast } = useToast();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Abrir menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => onAccessPanel(business)} className="cursor-pointer">
+          <LogIn className="mr-2 h-4 w-4" />
+          Acessar Painel
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onEdit(business)} className="cursor-pointer">
+          <Edit className="mr-2 h-4 w-4" />
+          Editar Assinatura
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          onClick={() => copyToClipboard(business.id, toast)}
+          className="cursor-pointer"
+        >
+          Copiar ID do Negócio
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/agendar/${business.id}`} target="_blank" className="cursor-pointer">
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Ver Página Pública
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

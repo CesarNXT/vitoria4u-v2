@@ -176,6 +176,8 @@ export async function POST(request: NextRequest) {
             profissional: {
                 id: professionalId,
                 name: professionalData.name,
+                phone: professionalData.phone,
+                notificarAgendamentos: professionalData.notificarAgendamentos ?? true,
             },
             date: appointmentDateISO, // String ISO
             startTime,

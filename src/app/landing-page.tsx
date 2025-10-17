@@ -236,12 +236,23 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t">
-        <div className="container flex flex-col items-center justify-between gap-4 py-10 md:h-24 md:flex-row md:py-0">
-          <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-            <Logo />
-            <p className="text-center text-sm leading-loose md:text-left">
-              © {new Date().getFullYear()} Vitoria. Todos os direitos reservados.
-            </p>
+        <div className="container flex flex-col items-center justify-between gap-4 py-10 md:py-6">
+          <div className="flex flex-col md:flex-row items-center justify-between w-full gap-4">
+            <div className="flex flex-col items-center gap-4 md:flex-row md:gap-2">
+              <Logo />
+              <p className="text-center text-sm leading-loose md:text-left">
+                © {new Date().getFullYear()} Vitoria4u. Todos os direitos reservados.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
+              <Link href="/termos-uso" className="text-muted-foreground hover:text-primary transition-colors">
+                Termos de Uso
+              </Link>
+              <span className="text-muted-foreground">•</span>
+              <Link href="/politica-privacidade" className="text-muted-foreground hover:text-primary transition-colors">
+                Política de Privacidade
+              </Link>
+            </div>
           </div>
         </div>
       </footer>

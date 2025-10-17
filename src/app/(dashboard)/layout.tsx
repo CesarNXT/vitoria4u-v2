@@ -28,6 +28,7 @@ import { useTheme } from 'next-themes';
 import { useToast } from '@/hooks/use-toast';
 import { BusinessUserProvider } from '@/contexts/BusinessUserContext';
 import { destroyUserSession } from '@/app/(public)/login/session-actions';
+import { checkAndUpdateExpiration } from '@/lib/check-expiration';
 
 
 function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,24 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
+
+  // ✅ Verificar expiração do plano quando carregar o dashboard
+  useEffect(() => {
+    if (user && !isUserLoading) {
+      checkAndUpdateExpiration().then((result) => {
+        if (result.expired) {
+          toast({
+            title: "✨ Adquira um Plano Premium",
+            description: "Continue usando o sistema gratuitamente! Para ter automações no WhatsApp e IA, escolha um plano que cabe no seu bolso.",
+            variant: "default",
+            duration: 8000,
+          });
+          // Força refresh para atualizar os dados do Firestore
+          router.refresh();
+        }
+      });
+    }
+  }, [user, isUserLoading]);
 
   const searchParams = useSearchParams();
   // ⚠️ SEGURANÇA: Impersonação via localStorage pode ser manipulada no DevTools

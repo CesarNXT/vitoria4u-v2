@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/theme-provider';
+import { CookieBanner } from '@/components/cookie-banner';
 import { Poppins } from 'next/font/google';
 
 const poppins = Poppins({
@@ -36,6 +37,7 @@ export default function RootLayout({
           <FirebaseClientProvider>
             {children}
             <Toaster />
+            <CookieBanner />
           </FirebaseClientProvider>
         </ThemeProvider>
       </body>

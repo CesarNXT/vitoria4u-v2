@@ -100,7 +100,13 @@ export async function POST(request: NextRequest) {
             const businessDoc = await businessRef.get();
             
             if (businessDoc.exists) {
-                const businessSettings = businessDoc.data();
+                const businessData = businessDoc.data();
+                
+                // Adicionar o ID ao businessSettings
+                const businessSettings = {
+                    ...businessData,
+                    id: businessId
+                };
                 
                 // Preparar agendamento completo para webhooks
                 const fullAppointment = {
@@ -113,12 +119,20 @@ export async function POST(request: NextRequest) {
                     status: 'Cancelado',
                 };
                 
+                console.log('📤 Enviando webhooks de cancelamento...', {
+                    appointmentId,
+                    clientName: appointmentData.cliente.name,
+                    professionalName: appointmentData.profissional?.name,
+                    professionalPhone: appointmentData.profissional?.phone
+                });
+                
                 // Enviar webhooks (notificação gestor + notificação profissional)
                 await sendCancellationHooks(businessSettings as any, fullAppointment as any);
                 logger.success('Webhooks de cancelamento enviados', { appointmentId });
             }
         } catch (webhookError) {
             logger.error('Erro ao enviar webhook de cancelamento', sanitizeForLog(webhookError));
+            console.error('Detalhes do erro webhook:', webhookError);
             // Não falhar a request por causa do webhook
         }
 

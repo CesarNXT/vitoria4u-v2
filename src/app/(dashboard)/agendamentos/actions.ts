@@ -81,10 +81,25 @@ async function sendProfessionalNotification(
     appointment: Agendamento,
     status: 'Novo Agendamento' | 'Agendamento Cancelado'
 ) {
-    if (!businessSettings.whatsappConectado) return;
+    logger.debug('🔔 Iniciando notificação profissional', { 
+        status, 
+        professionalName: appointment.profissional?.name,
+        professionalPhone: appointment.profissional?.phone 
+    });
+
+    if (!businessSettings.whatsappConectado) {
+        logger.debug('❌ WhatsApp não conectado - notificação profissional cancelada');
+        return;
+    }
 
     const hasAccess = await checkFeatureAccess(businessSettings, 'lembrete_profissional');
-    if (!hasAccess || !appointment.profissional.phone) {
+    if (!hasAccess) {
+        logger.debug('❌ Sem acesso à feature lembrete_profissional');
+        return;
+    }
+
+    if (!appointment.profissional?.phone) {
+        logger.debug('❌ Profissional sem telefone cadastrado');
         return;
     }
 
@@ -96,6 +111,7 @@ async function sendProfessionalNotification(
     }
 
     if (appointment.profissional.phone === businessSettings.telefone) {
+        logger.debug('❌ Telefone do profissional é igual ao do gestor - não enviando duplicado');
         return;
     }
 
@@ -117,6 +133,7 @@ async function sendProfessionalNotification(
         ? WEBHOOK_URLS.notificacaoProfissionalNovo
         : WEBHOOK_URLS.notificacaoProfissionalCancelado;
 
+    logger.debug('✅ Enviando webhook para profissional', { webhookUrl, professionalPhone: appointment.profissional.phone });
     await callWebhook(webhookUrl, payload);
 }
 
@@ -140,29 +157,45 @@ export async function sendCreationHooks(
     // Lembretes e notificação ao profissional (automações pagas)
     await sendProfessionalNotification(businessSettings, appointment, 'Novo Agendamento');
     
-    const reminderPayload = {
-        tokenInstancia: businessSettings.tokenInstancia,
-        nomeEmpresa: businessSettings.nome,
-        nomeCliente: appointment.cliente.name,
-        nomeServico: appointment.servico.name,
-        instancia: businessSettings.id,
-        telefoneCliente: appointment.cliente.phone,
-        idCliente: appointment.cliente.id,
-        startTime: appointment.startTime,
-        idAgendamento: appointment.id,
-        dataHoraAtendimento: dataHoraAtendimento,
-        horarioEnvio: format(appointmentDateTime, "yyyy-MM-dd HH:mm:ss")
-    };
-
+    // Lembrete 24h - envia 24 horas ANTES do agendamento
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_24h')) {
         if (appointmentDateTime > add(new Date(), { hours: 21 })) {
-             await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload);
+            const horarioEnvio24h = add(appointmentDateTime, { hours: -24 });
+            const reminderPayload24h = {
+                tokenInstancia: businessSettings.tokenInstancia,
+                nomeEmpresa: businessSettings.nome,
+                nomeCliente: appointment.cliente.name,
+                nomeServico: appointment.servico.name,
+                instancia: businessSettings.id,
+                telefoneCliente: appointment.cliente.phone,
+                idCliente: appointment.cliente.id,
+                startTime: appointment.startTime,
+                idAgendamento: appointment.id,
+                dataHoraAtendimento: dataHoraAtendimento,
+                horarioEnvio: format(horarioEnvio24h, "yyyy-MM-dd HH:mm:ss")
+            };
+            await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload24h);
         }
     }
     
+    // Lembrete 2h - envia 2 horas ANTES do agendamento
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_2h')) {
         if (appointmentDateTime > add(new Date(), { hours: 1 })) {
-            await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload);
+            const horarioEnvio2h = add(appointmentDateTime, { hours: -2 });
+            const reminderPayload2h = {
+                tokenInstancia: businessSettings.tokenInstancia,
+                nomeEmpresa: businessSettings.nome,
+                nomeCliente: appointment.cliente.name,
+                nomeServico: appointment.servico.name,
+                instancia: businessSettings.id,
+                telefoneCliente: appointment.cliente.phone,
+                idCliente: appointment.cliente.id,
+                startTime: appointment.startTime,
+                idAgendamento: appointment.id,
+                dataHoraAtendimento: dataHoraAtendimento,
+                horarioEnvio: format(horarioEnvio2h, "yyyy-MM-dd HH:mm:ss")
+            };
+            await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload2h);
         }
     }
 }
@@ -177,34 +210,50 @@ export async function sendReminderHooksOnly(
 ): Promise<void> {
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
     const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
-    
-    const reminderPayload = {
-        tokenInstancia: businessSettings.tokenInstancia,
-        nomeEmpresa: businessSettings.nome,
-        nomeCliente: appointment.cliente.name,
-        nomeServico: appointment.servico.name,
-        instancia: businessSettings.id,
-        telefoneCliente: appointment.cliente.phone,
-        idCliente: appointment.cliente.id,
-        startTime: appointment.startTime,
-        idAgendamento: appointment.id,
-        dataHoraAtendimento: dataHoraAtendimento,
-        horarioEnvio: format(appointmentDateTime, "yyyy-MM-dd HH:mm:ss")
-    };
 
+    // Lembrete 24h - envia 24 horas ANTES do agendamento
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_24h')) {
         if (appointmentDateTime > add(new Date(), { hours: 21 })) {
+            const horarioEnvio24h = add(appointmentDateTime, { hours: -24 });
+            const reminderPayload24h = {
+                tokenInstancia: businessSettings.tokenInstancia,
+                nomeEmpresa: businessSettings.nome,
+                nomeCliente: appointment.cliente.name,
+                nomeServico: appointment.servico.name,
+                instancia: businessSettings.id,
+                telefoneCliente: appointment.cliente.phone,
+                idCliente: appointment.cliente.id,
+                startTime: appointment.startTime,
+                idAgendamento: appointment.id,
+                dataHoraAtendimento: dataHoraAtendimento,
+                horarioEnvio: format(horarioEnvio24h, "yyyy-MM-dd HH:mm:ss")
+            };
             logger.debug('📅 Enviando lembrete 24h (agendamento editado)');
-            await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload);
+            await callWebhook(WEBHOOK_URLS.lembrete24h, reminderPayload24h);
         } else {
             logger.debug('⏭️ Lembrete 24h não enviado - agendamento em menos de 21 horas');
         }
     }
     
+    // Lembrete 2h - envia 2 horas ANTES do agendamento
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_2h')) {
         if (appointmentDateTime > add(new Date(), { hours: 1 })) {
+            const horarioEnvio2h = add(appointmentDateTime, { hours: -2 });
+            const reminderPayload2h = {
+                tokenInstancia: businessSettings.tokenInstancia,
+                nomeEmpresa: businessSettings.nome,
+                nomeCliente: appointment.cliente.name,
+                nomeServico: appointment.servico.name,
+                instancia: businessSettings.id,
+                telefoneCliente: appointment.cliente.phone,
+                idCliente: appointment.cliente.id,
+                startTime: appointment.startTime,
+                idAgendamento: appointment.id,
+                dataHoraAtendimento: dataHoraAtendimento,
+                horarioEnvio: format(horarioEnvio2h, "yyyy-MM-dd HH:mm:ss")
+            };
             logger.debug('⏰ Enviando lembrete 2h (agendamento editado)');
-            await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload);
+            await callWebhook(WEBHOOK_URLS.lembrete2h, reminderPayload2h);
         } else {
             logger.debug('⏭️ Lembrete 2h não enviado - agendamento em menos de 1 hora');
         }

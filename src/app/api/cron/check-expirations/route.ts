@@ -1,9 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { collection, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { adminDb } from '@/lib/firebase-admin';
 import type { ConfiguracoesNegocio } from '@/lib/types';
 import { isPast } from 'date-fns';
 
@@ -27,10 +24,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-    const firestore = getFirestore(app);
-
-    const businessesSnapshot = await getDocs(collection(firestore, 'negocios'));
+    const businessesSnapshot = await adminDb.collection('negocios').get();
     let updatedCount = 0;
 
     for (const businessDoc of businessesSnapshot.docs) {
@@ -49,13 +43,23 @@ export async function GET(request: Request) {
             console.log(`Plano expirado detectado para o negócio: ${businessId}`);
 
             // 1. Enviar webhook para remover instância do WhatsApp
-            if (business.tokenInstancia) {
+            if (business.whatsappConectado) {
                 try {
-                    await fetch('https://n8n.vitoria4u.site/webhook/a7f5bb51-fee4-491f-b820-9dc78c502150', {
+                    const webhookPayload = { 
+                        token: business.tokenInstancia, 
+                        id: businessId,
+                        status: "disconnected"
+                    };
+                    
+                    console.log('📤 Enviando webhook:', webhookPayload);
+                    
+                    const response = await fetch('https://n8n.vitoria4u.site/webhook/d4a54dda-982c-4046-9dbc-c77a405c8474', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token: business.tokenInstancia, id: businessId }),
+                        body: JSON.stringify(webhookPayload),
                     });
+                    
+                    console.log('✅ Webhook enviado com sucesso. Status:', response.status);
                 } catch (error) {
                     console.error(`Falha ao enviar webhook para ${businessId}:`, error);
                 }
@@ -63,12 +67,10 @@ export async function GET(request: Request) {
 
             // 2. Atualizar o documento do negócio no Firestore para o plano expirado
             // Remove acesso a todas as funcionalidades pagas
-            const businessDocRef = doc(firestore, 'negocios', businessId);
-            await updateDoc(businessDocRef, {
+            // Nota: O N8N é quem vai desconectar o WhatsApp e atualizar o status
+            const businessDocRef = adminDb.collection('negocios').doc(businessId);
+            await businessDocRef.update({
                 planId: 'plano_expirado',
-                whatsappConectado: false, // Desconecta WhatsApp do negócio
-                instanciaWhatsapp: null,
-                tokenInstancia: null,
                 // Desabilita todas as automações
                 habilitarLembrete24h: false,
                 habilitarLembrete2h: false,

@@ -1,10 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import { getFirestore, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
+import { adminDb } from '@/lib/firebase-admin';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
-import { logger, sanitizeForLog } from '@/lib/logger';
 
 const N8N_RETURN_WEBHOOK_URL = 'https://n8n.vitoria4u.site/webhook/c01c14e1-beea-4ee4-b58d-ea8b433ff6df';
 
@@ -16,10 +13,12 @@ async function callWebhook(payload: any) {
             body: JSON.stringify(payload),
         });
         if (!response.ok) {
-            logger.error('Webhook call failed', { status: response.status });
+            console.error('Return webhook call failed', { status: response.status });
+        } else {
+            console.log('✅ Return webhook sent successfully');
         }
     } catch (error) {
-        logger.error('Error calling return webhook', sanitizeForLog(error));
+        console.error('Error calling return webhook', error);
     }
 }
 
@@ -40,12 +39,11 @@ export async function GET(request: Request) {
     if (authToken !== process.env.CRON_SECRET) {
         return new Response('Unauthorized', { status: 401 });
     }
-    logger.info('CRON Job (check-returns) started');
+    
+    console.log('🔄 CRON Job (check-returns) started');
+    
     try {
-        const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-        const firestore = getFirestore(app);
-
-        const businessesSnapshot = await getDocs(collection(firestore, 'negocios'));
+        const businessesSnapshot = await adminDb.collection('negocios').get();
         
         const today = startOfDay(new Date());
         let returnCount = 0;
@@ -55,20 +53,20 @@ export async function GET(request: Request) {
             const businessData = businessDoc.data();
             const businessId = businessDoc.id;
 
-            // Only proceed if the business has the feature enabled
-            if (!businessData.whatsappConectado) {
+            // Only proceed if the business has WhatsApp connected
+            if (!businessData.whatsappConectado || !businessData.tokenInstancia) {
                 continue;
             }
 
-            logger.debug('Checking returns for business', { businessId, name: businessData.nome });
+            console.log(`Checking returns for business: ${businessId} (${businessData.nome})`);
 
-            // Array para acumular retornos desta empresa
-            const returnClients = [];
+            let businessHasReturns = false;
 
-            const appointmentsRef = collection(firestore, `negocios/${businessId}/agendamentos`);
-            // We only care about appointments that were 'Finalizado' (completed)
-            const q = query(appointmentsRef, where('status', '==', 'Finalizado'));
-            const appointmentsSnapshot = await getDocs(q);
+            // Query appointments that are 'Finalizado' (completed)
+            const appointmentsSnapshot = await adminDb
+                .collection(`negocios/${businessId}/agendamentos`)
+                .where('status', '==', 'Finalizado')
+                .get();
 
             for (const appointmentDoc of appointmentsSnapshot.docs) {
                 const appointmentData = appointmentDoc.data();
@@ -85,48 +83,42 @@ export async function GET(request: Request) {
                         // Check if today is the day for the return reminder
                         if (isSameDay(today, returnDate)) {
                             const client = appointmentData.cliente;
-                            returnClients.push({
+                            
+                            // Envia 1 webhook para cada cliente de retorno
+                            const payload = {
+                                nomeEmpresa: businessData.nome,
+                                tokenInstancia: businessData.tokenInstancia,
+                                instancia: businessId,
+                                categoriaEmpresa: businessData.categoria,
                                 nomeCliente: client.name,
                                 telefoneCliente: client.phone,
                                 nomeServico: service.name,
                                 diasRetorno: service.returnInDays
-                            });
+                            };
+                            
+                            console.log(`🔄 Sending return webhook for ${client.name} at ${businessData.nome}`);
+                            
+                            await callWebhook(payload);
                             returnCount++;
+                            businessHasReturns = true;
                         }
                     }
                 }
             }
 
-            // Se houver retornos nesta empresa, envia 1 webhook com todos
-            if (returnClients.length > 0) {
-                const payload = {
-                    nomeEmpresa: businessData.nome,
-                    tokenInstancia: businessData.tokenInstancia,
-                    instancia: businessId,
-                    categoriaEmpresa: businessData.categoria,
-                    retornos: returnClients,
-                    totalRetornos: returnClients.length
-                };
-                
-                logger.info('Sending return batch', { 
-                    businessId,
-                    businessName: businessData.nome,
-                    count: returnClients.length
-                });
-                
-                await callWebhook(payload);
+            if (businessHasReturns) {
                 businessesProcessed++;
             }
         }
 
-        logger.success(`CRON Job (check-returns) finished. Found ${returnCount} returns in ${businessesProcessed} businesses.`);
+        console.log(`✅ CRON Job (check-returns) finished. Found ${returnCount} returns in ${businessesProcessed} businesses.`);
         return NextResponse.json({ 
             message: `Return checks completed. Found ${returnCount} returns in ${businessesProcessed} businesses.`,
             returnCount,
             businessesProcessed
         });
     } catch (error: any) {
-        logger.error('CRON Job (check-returns) failed', sanitizeForLog(error));
+        console.error('❌ CRON Job (check-returns) failed:', error);
         return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
     }
 }

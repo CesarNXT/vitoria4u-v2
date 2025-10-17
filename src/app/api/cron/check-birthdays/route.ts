@@ -1,9 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
-import { logger, sanitizeForLog } from '@/lib/logger';
+import { adminDb } from '@/lib/firebase-admin';
 
 const N8N_BIRTHDAY_WEBHOOK_URL = 'https://n8n.vitoria4u.site/webhook/d0b69658-05f6-4b6c-8cf1-ba0f604b6cb2';
 
@@ -15,10 +12,12 @@ async function callWebhook(payload: any) {
             body: JSON.stringify(payload),
         });
         if (!response.ok) {
-            logger.error('Birthday webhook call failed', { status: response.status });
+            console.error('Birthday webhook call failed', { status: response.status });
+        } else {
+            console.log('✅ Birthday webhook sent successfully');
         }
     } catch (error) {
-        logger.error('Error calling birthday webhook', sanitizeForLog(error));
+        console.error('Error calling birthday webhook', error);
     }
 }
 
@@ -30,10 +29,7 @@ export async function GET(request: Request) {
     }
     
     try {
-        const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-        const firestore = getFirestore(app);
-
-        const businessesSnapshot = await getDocs(collection(firestore, 'negocios'));
+        const businessesSnapshot = await adminDb.collection('negocios').get();
         const today = new Date();
         const todayMonth = today.getMonth() + 1; // getMonth() retorna 0-11
         const todayDay = today.getDate();
@@ -52,15 +48,12 @@ export async function GET(request: Request) {
             
             // Verificar se a funcionalidade de mensagem de aniversário está habilitada
             if (businessData.habilitarAniversario === false) {
-                logger.debug('Birthday messages disabled for business', { businessId, businessName: businessData.nome });
+                console.log(`Birthday messages disabled for business: ${businessId} (${businessData.nome})`);
                 continue;
             }
 
-            // Array para acumular aniversariantes desta empresa
-            const birthdayClients = [];
-
             // Buscar todos os clientes do negócio
-            const clientsSnapshot = await getDocs(collection(firestore, `negocios/${businessId}/clientes`));
+            const clientsSnapshot = await adminDb.collection(`negocios/${businessId}/clientes`).get();
             
             for (const clientDoc of clientsSnapshot.docs) {
                 const clientData = clientDoc.data();
@@ -73,46 +66,38 @@ export async function GET(request: Request) {
                     
                     // Verificar se é aniversário hoje
                     if (birthMonth === todayMonth && birthDay === todayDay) {
-                        birthdayClients.push({
-                            nome: clientData.name,
-                            telefone: clientData.phone,
+                        // Envia 1 webhook para cada aniversariante
+                        const payload = {
+                            nomeEmpresa: businessData.nome,
+                            tokenInstancia: businessData.tokenInstancia,
+                            instancia: businessId,
+                            categoriaEmpresa: businessData.categoria,
+                            nomeCliente: clientData.name,
+                            telefoneCliente: clientData.phone,
                             dataNascimento: clientData.birthDate
-                        });
+                        };
+                        
+                        console.log(`🎂 Sending birthday webhook for ${clientData.name} at ${businessData.nome}`);
+                        
+                        await callWebhook(payload);
                         birthdayCount++;
                     }
                 }
             }
 
-            // Se houver aniversariantes nesta empresa, envia 1 webhook com todos
-            if (birthdayClients.length > 0) {
-                const payload = {
-                    nomeEmpresa: businessData.nome,
-                    tokenInstancia: businessData.tokenInstancia,
-                    instancia: businessId,
-                    categoriaEmpresa: businessData.categoria,
-                    aniversariantes: birthdayClients,
-                    totalAniversariantes: birthdayClients.length
-                };
-                
-                logger.info('Sending birthday batch', { 
-                    businessId,
-                    businessName: businessData.nome,
-                    count: birthdayClients.length
-                });
-                
-                await callWebhook(payload);
+            if (birthdayCount > 0) {
                 businessesProcessed++;
             }
         }
 
-        logger.success(`CRON Job (check-birthdays) finished. Found ${birthdayCount} birthdays in ${businessesProcessed} businesses.`);
+        console.log(`✅ CRON Job (check-birthdays) finished. Found ${birthdayCount} birthdays in ${businessesProcessed} businesses.`);
         return NextResponse.json({ 
             message: `Birthday checks completed. Found ${birthdayCount} birthdays in ${businessesProcessed} businesses.`,
             birthdayCount,
             businessesProcessed
         });
     } catch (error) {
-        logger.error('CRON Job (check-birthdays) failed', sanitizeForLog(error));
+        console.error('❌ CRON Job (check-birthdays) failed:', error);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
