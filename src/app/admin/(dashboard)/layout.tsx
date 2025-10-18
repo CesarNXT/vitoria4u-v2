@@ -40,14 +40,6 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   useAdminSync();
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      if (!isAdminUser(user.email)) {
-        router.push('/dashboard');
-      }
-    }
-  }, [user, isUserLoading, router]);
-
-  useEffect(() => {
     setMounted(true);
   }, []);
 
@@ -55,18 +47,18 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const isAdmin = isAdminUser(typedUser?.email);
 
   useEffect(() => {
-    if (pathname === '/admin') return; // Do not apply auth logic to login page itself
-    if (!isUserLoading) {
-      if (!typedUser) {
-        router.push('/admin'); // Redirect to admin login if not authenticated
-      } else if (!isAdmin) {
-        router.push('/dashboard'); // Redirect to normal dashboard if not admin
-      } else {
-        // O usuário é um administrador logado.
-        // A lógica de criação de planos foi removida daqui.
-      }
+    if (isUserLoading) return;
+    
+    if (!typedUser) {
+      window.location.href = '/admin';
+      return;
     }
-  }, [isUserLoading, typedUser, isAdmin, router, pathname]);
+    
+    if (!isAdmin) {
+      window.location.href = '/dashboard';
+      return;
+    }
+  }, [isUserLoading, typedUser, isAdmin]);
 
   if (isUserLoading || !typedUser || !isAdmin) {
     return (
@@ -77,12 +69,21 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   }
 
   const handleLogout = async () => {
-    const auth = getAuth();
-    // 🔒 SEGURANÇA: Destruir session cookie
-    await destroyUserSession();
-    await signOut(auth);
-    // Usar window.location para forçar navegação completa e evitar redirect de volta
-    window.location.href = '/';
+    try {
+      const auth = getAuth();
+      await destroyUserSession();
+      
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('impersonatedBusinessId');
+        localStorage.clear();
+      }
+      
+      await signOut(auth);
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      window.location.href = '/';
+    }
   };
 
   const menuItems = [

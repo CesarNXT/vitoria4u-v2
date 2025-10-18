@@ -1,0 +1,341 @@
+'use server'
+
+/**
+ * 🔌 WHATSAPP ACTIONS - Substitui N8N
+ * 
+ * Funções que replicam EXATAMENTE o workflow N8N
+ */
+
+import { adminDb } from '@/lib/firebase-admin'
+import { WhatsAppAPI } from '@/lib/whatsapp-api-simple'
+
+const NOTIFICATION_TOKEN = 'b2e97825-2d28-4646-ae38-3357fcbf0e20'
+const API_BASE = 'https://vitoria4u.uazapi.com'
+
+// ==========================================
+// ENVIAR SMS VIA INSTÂNCIA DE NOTIFICAÇÃO
+// ==========================================
+
+async function sendNotificationSMS(phone: string, text: string) {
+  try {
+    await fetch(`${API_BASE}/send/text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': NOTIFICATION_TOKEN
+      },
+      body: JSON.stringify({ number: phone, text })
+    })
+    console.log('📱 SMS enviado:', text.substring(0, 50))
+  } catch (error) {
+    console.warn('⚠️ Erro ao enviar SMS:', error)
+  }
+}
+
+// ==========================================
+// AGUARDAR E VERIFICAR STATUS
+// ==========================================
+
+async function waitAndCheckConnection(
+  api: WhatsAppAPI,
+  businessId: string,
+  businessPhone: string,
+  timeoutSeconds: number = 60
+): Promise<boolean> {
+  console.log(`⏳ Aguardando ${timeoutSeconds}s para verificar conexão...`)
+  
+  // Aguardar tempo especificado
+  await new Promise(resolve => setTimeout(resolve, timeoutSeconds * 1000))
+  
+  try {
+    // Buscar status da instância
+    const status = await api.checkStatus()
+    
+    if (status.connected) {
+      console.log('✅ CONECTADO!')
+      
+      // Enviar SMS de sucesso
+      await sendNotificationSMS(businessPhone, '✅Whatsapp Conectado✅')
+      
+      // Atualizar Firestore
+      await adminDb.collection('negocios').doc(businessId).update({
+        whatsappConectado: true,
+        tokenInstancia: status.instanceToken || ''
+      })
+      
+      return true
+    } else {
+      console.log('❌ Não conectou no timeout')
+      
+      // Deletar instância
+      await api.deleteInstance()
+      
+      return false
+    }
+  } catch (error) {
+    console.error('❌ Erro ao verificar status:', error)
+    return false
+  }
+}
+
+// ==========================================
+// AÇÃO: CONECTAR WHATSAPP
+// ==========================================
+
+export async function connectWhatsAppAction(data: {
+  businessId: string
+  businessPhone: string
+}) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('🚀 CONECTAR WHATSAPP (Server Action)')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  
+  const { businessId, businessPhone } = data
+  
+  // Formatar telefone (remover caracteres não numéricos)
+  let cleanPhone = businessPhone.toString().replace(/\D/g, '')
+  
+  // Se tem 13 dígitos, remover o 9 extra
+  if (cleanPhone.length === 13) {
+    cleanPhone = cleanPhone.substring(0, 4) + cleanPhone.substring(5)
+  }
+  
+  // Garantir código do país
+  if (cleanPhone.length === 11 && !cleanPhone.startsWith('55')) {
+    cleanPhone = '55' + cleanPhone
+  }
+  
+  console.log('📞 Telefone formatado:', cleanPhone)
+  
+  try {
+    // 1. Criar API instance
+    const api = new WhatsAppAPI(businessId)
+    
+    // 2. Criar instância
+    console.log('🔧 Criando instância...')
+    const token = await api.createInstance('apilocal')
+    
+    // Salvar token temporariamente no Firestore
+    await adminDb.collection('negocios').doc(businessId).update({
+      tokenInstancia: token
+    })
+    
+    // 3. Aguardar inicialização
+    console.log('⏳ Aguardando 2s...')
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 4. Conectar com telefone
+    console.log('📱 Conectando com telefone...')
+    const result = await api.connectWithPhone(cleanPhone)
+    
+    // 5. Configurar webhook
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://vitoria4u.site'}/api/whatsapp/webhook`
+    console.log('🔔 Configurando webhook:', webhookUrl)
+    await api.setupWebhook(webhookUrl)
+    
+    // 6. Verificar se paircode foi gerado
+    if (!result.pairCode || result.pairCode === '') {
+      // FALHA: Paircode vazio
+      console.error('❌ PairCode vazio')
+      
+      // Enviar SMS de erro
+      await sendNotificationSMS(
+        cleanPhone, 
+        'Estamos com problemas de conexão aguarde alguns minutos e tente novamente.'
+      )
+      
+      // Deletar instância
+      await api.deleteInstance()
+      
+      return {
+        success: false,
+        error: 'Não foi possível gerar código de conexão'
+      }
+    }
+    
+    console.log('✅ PairCode gerado:', result.pairCode)
+    
+    // 7. Enviar paircode via SMS
+    await sendNotificationSMS(cleanPhone, '*Copie o codigo abaixo:*')
+    await sendNotificationSMS(cleanPhone, result.pairCode)
+    
+    // 8. Aguardar 60s e verificar conexão (em background)
+    // Não aguardar aqui para não travar a resposta
+    waitAndCheckConnection(api, businessId, cleanPhone, 60).catch(err => {
+      console.error('Erro no background check:', err)
+    })
+    
+    return {
+      success: true,
+      pairCode: result.pairCode,
+      message: 'Código enviado via SMS'
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Erro:', error.message)
+    
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+// ==========================================
+// AÇÃO: DESCONECTAR WHATSAPP (Manual)
+// ==========================================
+
+export async function disconnectWhatsAppAction(data: {
+  businessId: string
+  instanceToken: string
+  businessPhone: string
+}) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('🔌 DESCONECTAR WHATSAPP (Server Action)')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  
+  const { businessId, instanceToken, businessPhone } = data
+  
+  try {
+    // Formatar telefone
+    let cleanPhone = businessPhone.toString().replace(/\D/g, '')
+    if (cleanPhone.length === 13) {
+      cleanPhone = cleanPhone.substring(0, 4) + cleanPhone.substring(5)
+    }
+    if (cleanPhone.length === 11 && !cleanPhone.startsWith('55')) {
+      cleanPhone = '55' + cleanPhone
+    }
+    
+    // 1. Criar API instance
+    const api = new WhatsAppAPI(businessId, instanceToken)
+    
+    // 2. Deletar instância
+    console.log('🗑️ Deletando instância...')
+    await api.deleteInstance()
+    
+    // 3. Atualizar Firestore
+    await adminDb.collection('negocios').doc(businessId).update({
+      whatsappConectado: false,
+      tokenInstancia: ''
+    })
+    
+    // 4. Enviar SMS de desconexão
+    await sendNotificationSMS(cleanPhone, '❌Whatsapp Desconectado❌')
+    
+    console.log('✅ Desconectado com sucesso')
+    
+    return {
+      success: true,
+      message: 'WhatsApp desconectado'
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Erro:', error.message)
+    
+    // Se erro 401 ou 500, considerar como sucesso (instância já deletada)
+    if (error.message.includes('401') || error.message.includes('500')) {
+      await adminDb.collection('negocios').doc(businessId).update({
+        whatsappConectado: false,
+        tokenInstancia: ''
+      })
+      
+      return {
+        success: true,
+        message: 'WhatsApp desconectado (instância já estava removida)'
+      }
+    }
+    
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+// ==========================================
+// WEBHOOK HANDLER: Auto-desconexão
+// ==========================================
+
+export async function handleWebhookDisconnection(data: {
+  token: string
+  id: string
+  status: string
+}) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('🔔 WEBHOOK: Desconexão detectada')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('ID:', data.id)
+  console.log('Status:', data.status)
+  
+  if (data.status !== 'disconnected') {
+    console.log('⏭️ Status não é disconnected, ignorando')
+    return { success: false, message: 'Status não é disconnected' }
+  }
+  
+  try {
+    // 1. Buscar todas as instâncias
+    const response = await fetch(`${API_BASE}/instance/all`, {
+      headers: {
+        'Accept': 'application/json',
+        'admintoken': process.env.NEXT_PUBLIC_WHATSAPP_API_TOKEN || ''
+      }
+    })
+    
+    const instances = await response.json()
+    
+    // 2. Filtrar pela instância com mesmo nome
+    const instance = instances.find((inst: any) => inst.name === data.id)
+    
+    if (!instance) {
+      console.log('⚠️ Instância não encontrada')
+      return { success: false, message: 'Instância não encontrada' }
+    }
+    
+    // 3. Buscar dados do negócio
+    const businessDoc = await adminDb.collection('negocios').doc(data.id).get()
+    
+    if (!businessDoc.exists) {
+      console.log('⚠️ Negócio não encontrado')
+      return { success: false, message: 'Negócio não encontrado' }
+    }
+    
+    const businessData = businessDoc.data()
+    
+    // 4. Atualizar Firestore
+    await adminDb.collection('negocios').doc(data.id).update({
+      whatsappConectado: false,
+      tokenInstancia: ''
+    })
+    
+    // 5. Deletar instância
+    const api = new WhatsAppAPI(data.id, data.token)
+    await api.deleteInstance()
+    
+    // 6. Enviar SMS
+    if (businessData?.telefone) {
+      let cleanPhone = businessData.telefone.toString().replace(/\D/g, '')
+      if (cleanPhone.length === 13) {
+        cleanPhone = cleanPhone.substring(0, 4) + cleanPhone.substring(5)
+      }
+      if (cleanPhone.length === 11 && !cleanPhone.startsWith('55')) {
+        cleanPhone = '55' + cleanPhone
+      }
+      
+      await sendNotificationSMS(cleanPhone, '❌Whatsapp Desconectado❌')
+    }
+    
+    console.log('✅ Desconexão processada')
+    
+    return {
+      success: true,
+      message: 'Desconexão processada'
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Erro ao processar desconexão:', error.message)
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}

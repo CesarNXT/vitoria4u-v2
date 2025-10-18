@@ -1,27 +1,9 @@
-
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
+import { notifyReturn } from '@/lib/notifications';
 
-const N8N_RETURN_WEBHOOK_URL = 'https://n8n.vitoria4u.site/webhook/c01c14e1-beea-4ee4-b58d-ea8b433ff6df';
-
-async function callWebhook(payload: any) {
-    try {
-        const response = await fetch(N8N_RETURN_WEBHOOK_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        if (!response.ok) {
-            console.error('Return webhook call failed', { status: response.status });
-        } else {
-            console.log('✅ Return webhook sent successfully');
-        }
-    } catch (error) {
-        console.error('Error calling return webhook', error);
-    }
-}
-
+// ✅ Agora usa código nativo (notifyReturn)
 // Helper to convert Firestore Timestamp or string to Date
 function toDate(value: any): Date | null {
     if (!value) return null;
@@ -84,21 +66,17 @@ export async function GET(request: Request) {
                         if (isSameDay(today, returnDate)) {
                             const client = appointmentData.cliente;
                             
-                            // Envia 1 webhook para cada cliente de retorno
-                            const payload = {
-                                nomeEmpresa: businessData.nome,
+                            // Envia mensagem de retorno (código nativo)
+                            await notifyReturn({
                                 tokenInstancia: businessData.tokenInstancia,
-                                instancia: businessId,
-                                categoriaEmpresa: businessData.categoria,
-                                nomeCliente: client.name,
                                 telefoneCliente: client.phone,
+                                nomeCliente: client.name,
+                                nomeEmpresa: businessData.nome,
                                 nomeServico: service.name,
-                                diasRetorno: service.returnInDays
-                            };
+                                diasRetorno: service.returnInDays,
+                                categoriaEmpresa: businessData.categoria
+                            });
                             
-                            console.log(`🔄 Sending return webhook for ${client.name} at ${businessData.nome}`);
-                            
-                            await callWebhook(payload);
                             returnCount++;
                             businessHasReturns = true;
                         }

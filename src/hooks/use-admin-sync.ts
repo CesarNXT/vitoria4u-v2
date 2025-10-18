@@ -15,6 +15,7 @@ export function useAdminSync() {
 
             // Lista de emails que são admins (configure aqui)
             const ADMIN_EMAILS = [
+                'italocesar.hd@gmail.com', // Admin principal
                 'admin@vitoria4u.com',
                 'contato@vitoria4u.com',
                 // Adicione outros emails admin aqui

@@ -58,7 +58,15 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
       habilitarLembrete24h: true,
       habilitarLembrete2h: true,
       habilitarFeedback: false,
-      horariosFuncionamento: { /* ... estrutura padrão ... */ },
+      horariosFuncionamento: {
+        segunda: { abertura: '09:00', fechamento: '18:00', ativo: true },
+        terca: { abertura: '09:00', fechamento: '18:00', ativo: true },
+        quarta: { abertura: '09:00', fechamento: '18:00', ativo: true },
+        quinta: { abertura: '09:00', fechamento: '18:00', ativo: true },
+        sexta: { abertura: '09:00', fechamento: '18:00', ativo: true },
+        sabado: { abertura: '09:00', fechamento: '13:00', ativo: false },
+        domingo: { abertura: '09:00', fechamento: '13:00', ativo: false }
+      },
     });
 
     return { success: true };

@@ -20,6 +20,7 @@ async function getBusinessData(businessId: string) {
     const { firebaseConfig } = await import('@/firebase/config');
 
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    if (!app) throw new Error('Failed to initialize Firebase');
     const firestore = getFirestore(app);
 
     const settingsDocRef = doc(firestore, `negocios/${businessId}`);
@@ -52,7 +53,9 @@ export default async function PublicBookingPage({ params }: { params: Promise<{ 
     const { businessId } = await params;
 
     try {
+        console.log('🔍 Loading business data for:', businessId);
         const initialData = await getBusinessData(businessId);
+        console.log('✅ Business data loaded successfully');
 
         return (
             <BookingClient
@@ -67,6 +70,7 @@ export default async function PublicBookingPage({ params }: { params: Promise<{ 
         );
 
     } catch (error) {
+        console.error('❌ Error loading business data:', error);
         const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
         return (
              <div className="flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden relative">
@@ -82,7 +86,10 @@ export default async function PublicBookingPage({ params }: { params: Promise<{ 
                             <p className="text-muted-foreground max-w-sm">
                             Não foi possível carregar a página de agendamento. Verifique o link ou entre em contato com o estabelecimento.
                             </p>
-                            <p className="text-xs text-muted-foreground pt-4">Detalhes: {errorMessage}</p>
+                            <div className="text-xs text-muted-foreground pt-4 space-y-1">
+                                <p>Business ID: <code className="bg-muted px-2 py-1 rounded">{businessId}</code></p>
+                                <p>Erro: {errorMessage}</p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

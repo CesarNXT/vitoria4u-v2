@@ -1,18 +1,33 @@
 "use server";
 
-import { createSession, destroySession } from '@/lib/session';
+import { 
+  createSession, 
+  destroySession, 
+  setAdminFlag,
+  setImpersonationFlag,
+  clearImpersonationFlag 
+} from '@/lib/session';
 
-/**
- * 🔒 Cria uma sessão segura após login bem-sucedido
- * Deve ser chamada após signInWithEmailAndPassword ou signInWithPopup
- */
 export async function createUserSession(idToken: string) {
   return await createSession(idToken);
 }
 
-/**
- * 🔒 Destrói a sessão no logout
- */
+export async function createAdminSession(idToken: string) {
+  const result = await createSession(idToken);
+  if (result.success) {
+    await setAdminFlag();
+  }
+  return result;
+}
+
+export async function startImpersonation(businessId: string) {
+  await setImpersonationFlag(businessId);
+}
+
+export async function stopImpersonation() {
+  await clearImpersonationFlag();
+}
+
 export async function destroyUserSession() {
   await destroySession();
 }

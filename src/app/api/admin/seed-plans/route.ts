@@ -53,6 +53,10 @@ export async function GET(request: Request) {
     }
 
     const token = authHeader.split('Bearer ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    }
+
     let decodedToken;
     
     try {
@@ -74,7 +78,9 @@ export async function GET(request: Request) {
     const planIds = ['plano_basico', 'plano_profissional', 'plano_premium', 'plano_expirado'];
 
     plansToCreate.forEach((plan, index) => {
-      const docRef = plansRef.doc(planIds[index]);
+      const planId = planIds[index];
+      if (!planId) return;
+      const docRef = plansRef.doc(planId);
       batch.set(docRef, plan);
       console.log(`- Adicionando plano '${plan.name}' ao batch.`);
     });

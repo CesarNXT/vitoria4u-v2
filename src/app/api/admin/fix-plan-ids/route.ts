@@ -13,6 +13,10 @@ export async function POST(request: Request) {
     }
 
     const token = authHeader.split('Bearer ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    }
+
     let decodedToken;
     
     try {

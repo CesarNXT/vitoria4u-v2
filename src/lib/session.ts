@@ -4,12 +4,9 @@ import { cookies } from 'next/headers';
 import { adminAuth } from './firebase-admin';
 
 const SESSION_COOKIE_NAME = 'session';
-const SESSION_DURATION = 60 * 60 * 24 * 5 * 1000; // 5 dias
-
-/**
- * 🔒 Cria um session cookie seguro a partir de um ID token
- * Este cookie é httpOnly e não pode ser modificado pelo cliente
- */
+const ADMIN_FLAG_COOKIE = 'admin-session';
+const IMPERSONATION_COOKIE = 'impersonating';
+const SESSION_DURATION = 60 * 60 * 24 * 5 * 1000;
 export async function createSession(idToken: string) {
   try {
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {
@@ -19,9 +16,9 @@ export async function createSession(idToken: string) {
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, sessionCookie, {
       maxAge: SESSION_DURATION / 1000,
-      httpOnly: true, // Não acessível via JavaScript
-      secure: process.env.NODE_ENV === 'production', // HTTPS apenas em produção
-      sameSite: 'lax', // Proteção CSRF
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/'
     });
     
@@ -32,10 +29,6 @@ export async function createSession(idToken: string) {
   }
 }
 
-/**
- * 🔒 Verifica e decodifica o session cookie
- * Valida com Firebase Admin SDK - impossível de falsificar
- */
 export async function verifySession() {
   try {
     const cookieStore = await cookies();
@@ -45,26 +38,45 @@ export async function verifySession() {
       return null;
     }
     
-    // ✅ Validação server-side - segura
-    const decodedClaims = await adminAuth.verifySessionCookie(
-      sessionCookie,
-      true // checkRevoked - verifica se token foi revogado
-    );
-    
+    const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
     return decodedClaims;
   } catch (error) {
-    console.error('🚨 COOKIE INVÁLIDO DETECTADO! Removendo...', error);
-    // Se o cookie for inválido, removê-lo para forçar novo login
+    console.error('Cookie inválido detectado, removendo...', error);
     const cookieStore = await cookies();
     cookieStore.delete(SESSION_COOKIE_NAME);
     return null;
   }
 }
+export async function setAdminFlag() {
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_FLAG_COOKIE, 'true', {
+    maxAge: SESSION_DURATION / 1000,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
+}
 
-/**
- * 🔒 Destrói o session cookie (logout)
- */
+export async function setImpersonationFlag(businessId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(IMPERSONATION_COOKIE, businessId, {
+    maxAge: SESSION_DURATION / 1000,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
+}
+
+export async function clearImpersonationFlag() {
+  const cookieStore = await cookies();
+  cookieStore.delete(IMPERSONATION_COOKIE);
+}
+
 export async function destroySession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
+  cookieStore.delete(ADMIN_FLAG_COOKIE);
+  cookieStore.delete(IMPERSONATION_COOKIE);
 }

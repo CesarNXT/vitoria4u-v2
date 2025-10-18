@@ -13,6 +13,7 @@ import { DataTable } from '@/components/data-table'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { isFuture, differenceInDays } from 'date-fns'
+import { startImpersonation } from '@/app/(public)/login/session-actions'
 
 
 export default function AdminDashboardPage() {
@@ -44,9 +45,10 @@ export default function AdminDashboardPage() {
     return () => unsubscribe()
   }, [firestore, toast])
   
-  const handleAccessPanel = (business: ConfiguracoesNegocio) => {
+  const handleAccessPanel = async (business: ConfiguracoesNegocio) => {
+    await startImpersonation(business.id);
     localStorage.setItem('impersonatedBusinessId', business.id);
-    router.push('/dashboard');
+    window.location.href = '/dashboard';
   };
 
   const expiringSoonBusinesses = businesses.filter(b => {

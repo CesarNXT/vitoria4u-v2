@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirebase } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import type { ConfiguracoesNegocio, Plano } from '@/lib/types';
@@ -13,15 +13,22 @@ import { useRouter } from 'next/navigation';
 import { formatPhoneNumber } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { startImpersonation } from '@/app/(public)/login/session-actions';
 
 export default function AdminNegociosPage() {
-  const { firestore } = useFirebase();
+  const { firestore, user } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const [businesses, setBusinesses] = useState<ConfiguracoesNegocio[]>([]);
   const [plans, setPlans] = useState<Plano[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingBusiness, setEditingBusiness] = useState<ConfiguracoesNegocio | null>(null);
+  const [filterPlan, setFilterPlan] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     if (!firestore) return;
@@ -92,9 +99,63 @@ export default function AdminNegociosPage() {
     setEditingBusiness(business);
   };
 
-  const handleAccessPanel = (business: ConfiguracoesNegocio) => {
+  const handleAccessPanel = async (business: ConfiguracoesNegocio) => {
+    await startImpersonation(business.id);
     localStorage.setItem('impersonatedBusinessId', business.id);
-    router.push('/dashboard');
+    window.location.href = '/dashboard';
+  };
+
+  const handleDelete = async (business: ConfiguracoesNegocio) => {
+    const confirmMessage = `⚠️ ATENÇÃO! Esta ação é IRREVERSÍVEL!
+
+Você está prestes a EXCLUIR COMPLETAMENTE:
+• Negócio: ${business.nome}
+• Email: ${business.email}
+• Todos os agendamentos, clientes, serviços
+• Conta de autenticação
+
+Digite "DELETAR" para confirmar:`;
+    
+    const confirmation = prompt(confirmMessage);
+    
+    if (confirmation !== 'DELETAR') {
+      toast({
+        title: 'Exclusão Cancelada',
+        description: 'O negócio não foi excluído.',
+      });
+      return;
+    }
+
+    if (!user) return;
+
+    try {
+      const response = await fetch('/api/admin/delete-business', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: business.id,
+          adminUid: user.uid
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao deletar negócio');
+      }
+
+      toast({
+        title: '✅ Negócio Excluído',
+        description: `${business.nome} foi completamente removido do sistema.`,
+      });
+
+      // A lista será recarregada automaticamente via onSnapshot
+    } catch (error) {
+      console.error('Erro ao deletar:', error);
+      toast({
+        title: '❌ Erro ao Excluir',
+        description: 'Não foi possível excluir o negócio.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSave = async (businessId: string, updates: { planId?: string; access_expires_at?: Date }) => {
@@ -129,6 +190,35 @@ export default function AdminNegociosPage() {
     }
   };
 
+  // Filtrar negócios
+  const filteredBusinesses = useMemo(() => {
+    return businesses.filter(business => {
+      // Filtro de plano
+      if (filterPlan !== 'all' && business.planId !== filterPlan) {
+        return false;
+      }
+
+      // Filtro de status
+      const isActive = business.access_expires_at && new Date(business.access_expires_at) > new Date();
+      if (filterStatus === 'active' && !isActive) return false;
+      if (filterStatus === 'expired' && isActive) return false;
+
+      // Busca por nome, email ou telefone
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = business.nome?.toLowerCase().includes(query);
+        const matchesEmail = business.email?.toLowerCase().includes(query);
+        const matchesPhone = business.telefone?.toString().includes(query.replace(/\D/g, ''));
+        
+        if (!matchesName && !matchesEmail && !matchesPhone) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [businesses, filterPlan, filterStatus, searchQuery]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] w-full">
@@ -146,11 +236,59 @@ export default function AdminNegociosPage() {
         </p>
       </div>
 
+      {/* Filtros */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
+        <div className="space-y-2">
+          <Label htmlFor="search">Buscar</Label>
+          <Input
+            id="search"
+            placeholder="Nome, email ou telefone..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-plan">Filtrar por Plano</Label>
+          <Select value={filterPlan} onValueChange={setFilterPlan}>
+            <SelectTrigger id="filter-plan">
+              <SelectValue placeholder="Todos os planos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os planos</SelectItem>
+              {plans.map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  {plan.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-status">Filtrar por Status</Label>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger id="filter-status">
+              <SelectValue placeholder="Todos os status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="active">Ativos</SelectItem>
+              <SelectItem value="expired">Expirados</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Total Filtrado</Label>
+          <div className="h-10 px-3 flex items-center border rounded-md bg-muted">
+            <span className="text-sm font-medium">{filteredBusinesses.length} negócio(s)</span>
+          </div>
+        </div>
+      </div>
+
       {/* Versão Desktop - Tabela */}
       <div className="hidden md:block">
         <DataTable
-          columns={getBusinessesColumns({ onEdit: handleEdit, onAccessPanel: handleAccessPanel })}
-          data={businesses}
+          columns={getBusinessesColumns({ onEdit: handleEdit, onAccessPanel: handleAccessPanel, onDelete: handleDelete })}
+          data={filteredBusinesses}
           filterColumn={{
             id: "nome",
             placeholder: "Buscar por nome ou email...",
@@ -160,7 +298,7 @@ export default function AdminNegociosPage() {
 
       {/* Versão Mobile - Cards */}
       <div className="md:hidden space-y-4">
-        {businesses.map((business) => {
+        {filteredBusinesses.map((business) => {
           const isExpired = !business.access_expires_at || new Date(business.access_expires_at) < new Date();
           
           let expiresAt = null;

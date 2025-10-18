@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useEffect, useState, useMemo } from 'react';
@@ -27,7 +26,7 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useTheme } from 'next-themes';
 import { useToast } from '@/hooks/use-toast';
 import { BusinessUserProvider } from '@/contexts/BusinessUserContext';
-import { destroyUserSession } from '@/app/(public)/login/session-actions';
+import { destroyUserSession, stopImpersonation } from '@/app/(public)/login/session-actions';
 import { checkAndUpdateExpiration } from '@/lib/check-expiration';
 
 
@@ -42,7 +41,6 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   useEffect(() => setMounted(true), []);
 
-  // ✅ Verificar expiração do plano quando carregar o dashboard
   useEffect(() => {
     if (user && !isUserLoading) {
       checkAndUpdateExpiration().then((result) => {
@@ -53,7 +51,6 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
             variant: "default",
             duration: 8000,
           });
-          // Força refresh para atualizar os dados do Firestore
           router.refresh();
         }
       });
@@ -61,9 +58,6 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   }, [user, isUserLoading]);
 
   const searchParams = useSearchParams();
-  // ⚠️ SEGURANÇA: Impersonação via localStorage pode ser manipulada no DevTools
-  // TODO: Validar impersonação server-side usando /api/validate-impersonation
-  // ou migrar para session/cookie seguro
   const [impersonatedId, setImpersonatedId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('impersonatedBusinessId');
@@ -76,7 +70,6 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     if (urlImpersonatedId) {
       localStorage.setItem('impersonatedBusinessId', urlImpersonatedId);
       setImpersonatedId(urlImpersonatedId);
-      // Limpa a URL para não manter o parâmetro visível
       router.replace(pathname);
     } else {
       const storedId = localStorage.getItem('impersonatedBusinessId');
@@ -86,7 +79,6 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     }
   }, [searchParams, router, pathname]);
 
-  // 🔒 SEGURANÇA: Validar impersonação server-side
   useEffect(() => {
     const validateImpersonation = async () => {
       if (impersonatedId && user) {
@@ -104,7 +96,6 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
           const data = await response.json();
           
           if (!response.ok || !data.valid) {
-            console.error('🚨 Impersonação inválida detectada:', data.error);
             localStorage.removeItem('impersonatedBusinessId');
             setImpersonatedId(null);
             router.push('/admin/dashboard');
@@ -123,16 +114,16 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       }
     };
     
-    // Validar quando impersonatedId ou user mudar
     if (impersonatedId && user) {
       validateImpersonation();
     }
   }, [impersonatedId, user, router, toast]);
 
-  const clearImpersonation = () => {
+  const clearImpersonation = async () => {
+    await stopImpersonation();
     localStorage.removeItem('impersonatedBusinessId');
     setImpersonatedId(null);
-    router.push('/admin/dashboard');
+    window.location.href = '/admin/dashboard';
   };
 
   const businessUserId = impersonatedId || user?.uid;
@@ -147,67 +138,42 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const { data: settingsRaw, isLoading: isSettingsLoading } = useDoc<ConfiguracoesNegocio>(businessSettingsRef);
   
-  // Normaliza setupCompleted para garantir que undefined seja tratado como false
   const settings = settingsRaw ? {
     ...settingsRaw,
     setupCompleted: settingsRaw.setupCompleted === true ? true : false
   } : null;
   
-  // O useEffect antigo foi removido, pois a lógica foi unificada no useEffect abaixo.
-  
   useEffect(() => {
-    // Protege o acesso e força a configuração inicial
-    if (isUserLoading || isSettingsLoading) return; // Aguarda o carregamento de tudo
-
-    const isBusinessUser = typedUser && !isAdmin;
+    if (isUserLoading || isSettingsLoading) return;
 
     if (!typedUser) {
-      router.push('/login');
+      window.location.href = '/login';
       return;
     }
 
+    // Admin SEM impersonation → não deixa acessar /dashboard
     if (isAdmin && !impersonatedId) {
       router.push('/admin/dashboard');
       return;
     }
 
-    // ⚠️ SEGURANÇA DESABILITADA TEMPORARIAMENTE - estava bloqueando todos os usuários
-    // Esta validação deve ser REATIVADA assim que garantir que createUserBusinessProfile
-    // sempre cria o documento no signup (verificar /login/actions.ts)
-    // 
-    // ANTES DE REATIVAR: Testar fluxo completo de signup e garantir que:
-    // 1. Google Sign-In cria documento
-    // 2. Email/Password signup cria documento
-    // 3. Documento tem todos os campos obrigatórios
-    //
-    // if (isBusinessUser && !impersonatedId && !isSettingsLoading && !settings && pathname !== '/configuracoes') {
-    //   console.warn('SEGURANÇA: Usuário autenticado mas sem documento no banco. Forçando logout.');
-    //   const auth = getAuth();
-    //   signOut(auth).then(() => {
-    //     window.location.href = '/login';
-    //   });
-    //   return;
-    // }
-
-    // BLOQUEIO CRÍTICO: Força configuração obrigatória para usuários de negócio
-    // Contas novas e antigas sem setupCompleted são bloqueadas até completar a configuração
-    if (isBusinessUser && !impersonatedId && settings) {
+    // Admin COM impersonation OU usuário normal → verifica setup
+    if (settings) {
       const needsSetup = settings.setupCompleted !== true;
       
       if (needsSetup && pathname !== '/configuracoes') {
         router.push('/configuracoes');
+        return;
       }
     }
   }, [isUserLoading, isSettingsLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
-  // Verifica loading - inclui se está carregando settings para usuário de negócio
-  const isBusinessUser = typedUser && !isAdmin && !impersonatedId;
+  // Admin impersonando = é tratado como business user
+  // Usuário normal = business user
+  const isBusinessUser = typedUser && (!isAdmin || impersonatedId);
   const isLoading = isUserLoading || (isBusinessUser && isSettingsLoading);
-
-  // Verifica se precisa completar setup
   const needsSetup = isBusinessUser && settings && settings.setupCompleted !== true;
 
-  // SEGURANÇA CRÍTICA: Mostra loading até ter certeza do estado
   if (isLoading || !typedUser) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -216,7 +182,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     )
   }
   
-  // BLOQUEIO CRÍTICO: Se é usuário de negócio mas ainda não carregou settings, aguarda
+  // Admin impersonando também passa pelas mesmas validações que business user
   if (isBusinessUser && !settings) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -225,36 +191,34 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Admin redirect
-  if (isAdmin && !impersonatedId && pathname !== '/admin/dashboard') {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-    )
-  }
-
-  // BLOQUEIO TOTAL: Se precisa setup, mostra apenas loading até estar em /configuracoes
-  // Isso previne QUALQUER flashback do dashboard
   if (needsSetup && pathname !== '/configuracoes') {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
-            <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Preparando configuração...</p>
-            </div>
-        </div>
-    )
+              <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Preparando configuração...</p>
+              </div>
+          </div>
+      )
   }
 
 
   const handleLogout = async () => {
-    const auth = getAuth();
-    // 🔒 SEGURANÇA: Destruir session cookie
-    await destroyUserSession();
-    await signOut(auth);
-    // Usar window.location para forçar navegação completa e evitar redirect
-    window.location.href = '/';
+    try {
+      const auth = getAuth();
+      await destroyUserSession();
+      
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('impersonatedBusinessId');
+        localStorage.clear();
+      }
+      
+      await signOut(auth);
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      window.location.href = '/';
+    }
   };
 
   const menuItems = [
@@ -413,7 +377,7 @@ function LayoutWrapper({ children }: { children: React.ReactNode }) {
                 <LayoutWithFirebase>{children}</LayoutWithFirebase>
             </Suspense>
         </FirebaseClientProvider>
-    )
+    );
 }
 
 export default function DashboardLayout({

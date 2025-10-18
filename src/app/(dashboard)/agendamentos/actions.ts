@@ -1,21 +1,42 @@
 "use server";
 
+/**
+ * 📅 AGENDAMENTOS - AUTOMAÇÕES E NOTIFICAÇÕES
+ * 
+ * ⚠️ IMPORTANTE - 2 TIPOS DE MENSAGENS:
+ * 
+ * 1️⃣ NOTIFICAÇÕES DO SISTEMA (Token Fixo):
+ *    - Usa token: b2e97825-2d28-4646-ae38-3357fcbf0e20
+ *    - SEMPRE funciona (instância do sistema sempre conectada)
+ *    - NÃO precisa que usuário esteja conectado
+ *    - Exemplos: novo agendamento, cancelamento
+ * 
+ * 2️⃣ MENSAGENS DO USUÁRIO (Token Dinâmico):
+ *    - Usa: businessSettings.tokenInstancia
+ *    - SÓ funciona se whatsappConectado === true
+ *    - PRECISA que usuário esteja conectado
+ *    - Exemplos: lembretes 24h/2h, feedback, notificação profissional
+ */
+
 import type { Agendamento, ConfiguracoesNegocio, Plano, PlanFeature } from "@/lib/types";
 import { add, format, parse, isDate } from 'date-fns';
 import { adminDb } from "@/lib/firebase-admin";
 import { checkFeatureAccess } from "@/lib/server-utils";
 import { logger, sanitizeForLog } from "@/lib/logger";
+import { 
+    notifyNewAppointment, 
+    notifyCancelledAppointment,
+    notifyProfessionalNewAppointment,
+    notifyProfessionalCancellation,
+    notifyFeedbackRequest
+} from "@/lib/notifications";
 
 const N8N_BASE_URL = "https://n8n.vitoria4u.site/webhook/";
 
 const WEBHOOK_URLS = {
     lembrete24h: `${N8N_BASE_URL}28f9ba3d-7330-403e-a0dd-c98e2966602b`,
     lembrete2h: `${N8N_BASE_URL}99790d07-a69b-4fa3-9e91-4120d024222d`,
-    novoAgendamento: `${N8N_BASE_URL}b05b9505-7564-44cc-94d1-7fc59c9e7b24`,
-    solicitacaoFeedback: `${N8N_BASE_URL}7fa69444-a19a-4a08-8936-5e828e6c12c7`,
-    agendamentoCancelado: `${N8N_BASE_URL}29baa24f-e9cf-4472-8ac6-11a6d16d11d5`,
-    notificacaoProfissionalNovo: `${N8N_BASE_URL}1e24d894-12bd-4fac-86bf-4e59c658ae16`,
-    notificacaoProfissionalCancelado: `${N8N_BASE_URL}fc9ff356-9ad3-4dd0-9fa2-b7175c9de037`,
+    // ✅ Feedback e notificações profissional agora usam código nativo
 };
 
 async function callWebhook(url: string, payload: any) {
@@ -76,6 +97,12 @@ function getAppointmentDateTime(dateValue: any, startTime: string): Date {
     return resultDate;
 }
 
+/**
+ * Envia notificação para o profissional
+ * 
+ * ⚠️ USA TOKEN DO USUÁRIO (businessSettings.tokenInstancia)
+ * SÓ funciona se whatsappConectado === true
+ */
 async function sendProfessionalNotification(
     businessSettings: ConfiguracoesNegocio,
     appointment: Agendamento,
@@ -87,6 +114,7 @@ async function sendProfessionalNotification(
         professionalPhone: appointment.profissional?.phone 
     });
 
+    // ⚠️ CRÍTICO: Verifica se usuário está conectado (usa token do usuário)
     if (!businessSettings.whatsappConectado) {
         logger.debug('❌ WhatsApp não conectado - notificação profissional cancelada');
         return;
@@ -118,23 +146,34 @@ async function sendProfessionalNotification(
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
     const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
 
-    const payload = {
+    // 👔 NOTIFICAÇÃO DO PROFISSIONAL (Token do Usuário - verifica se conectado)
+    // Avisa o profissional sobre novo agendamento ou cancelamento
+    
+    if (!businessSettings.tokenInstancia) {
+        logger.debug('❌ Token da instância não encontrado - não é possível notificar profissional');
+        return;
+    }
+
+    const notificationData = {
         tokenInstancia: businessSettings.tokenInstancia,
-        instancia: businessSettings.id,
-        nomeEmpresa: businessSettings.nome,
         telefoneProfissional: appointment.profissional.phone,
+        nomeProfissional: appointment.profissional.name,
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
-        statusAgendamento: status,
     };
     
-    const webhookUrl = status === 'Novo Agendamento'
-        ? WEBHOOK_URLS.notificacaoProfissionalNovo
-        : WEBHOOK_URLS.notificacaoProfissionalCancelado;
-
-    logger.debug('✅ Enviando webhook para profissional', { webhookUrl, professionalPhone: appointment.profissional.phone });
-    await callWebhook(webhookUrl, payload);
+    if (status === 'Novo Agendamento') {
+        logger.debug('🔔 Notificando profissional (novo agendamento)', { 
+            professionalPhone: appointment.profissional.phone 
+        });
+        await notifyProfessionalNewAppointment(notificationData);
+    } else {
+        logger.debug('🔔 Notificando profissional (cancelamento)', { 
+            professionalPhone: appointment.profissional.phone 
+        });
+        await notifyProfessionalCancellation(notificationData);
+    }
 }
 
 export async function sendCreationHooks(
@@ -145,19 +184,22 @@ export async function sendCreationHooks(
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
     const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
     
-    // Notificação de novo agendamento (para o gestor) - SEMPRE ENVIA
-    await callWebhook(WEBHOOK_URLS.novoAgendamento, {
-        nomeEmpresa: businessSettings.nome,
-        telefoneEmpresa: businessSettings.telefone,
+    // 🔧 NOTIFICAÇÃO DO SISTEMA (Token Fixo - SEMPRE funciona)
+    // Avisa o gestor que um novo agendamento foi criado
+    await notifyNewAppointment({
+        telefoneEmpresa: businessSettings.telefone?.toString() || '',
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
     });
 
+    // 👤 MENSAGENS DO USUÁRIO (Token Dinâmico - SÓ se conectado)
+    
     // Lembretes e notificação ao profissional (automações pagas)
     await sendProfessionalNotification(businessSettings, appointment, 'Novo Agendamento');
     
-    // Lembrete 24h - envia 24 horas ANTES do agendamento
+    // ⏰ Lembrete 24h - envia 24 horas ANTES do agendamento
+    // ⚠️ Usa token do USUÁRIO - verifica se está conectado
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'lembrete_24h')) {
         if (appointmentDateTime > add(new Date(), { hours: 21 })) {
             const horarioEnvio24h = add(appointmentDateTime, { hours: -24 });
@@ -264,17 +306,15 @@ export async function sendCompletionHooks(
     businessSettings: ConfiguracoesNegocio,
     appointment: Agendamento
 ): Promise<void> {
+    // 💬 Solicitar feedback pós-atendimento (Token do Usuário)
     if (businessSettings.whatsappConectado && await checkFeatureAccess(businessSettings, 'feedback_pos_atendimento')) {
-        if (businessSettings.habilitarFeedback && businessSettings.feedbackLink) {
-            await callWebhook(WEBHOOK_URLS.solicitacaoFeedback, {
+        if (businessSettings.habilitarFeedback && businessSettings.feedbackLink && businessSettings.tokenInstancia) {
+            await notifyFeedbackRequest({
                 tokenInstancia: businessSettings.tokenInstancia,
-                nomeEmpresa: businessSettings.nome,
+                telefoneCliente: appointment.cliente.phone,
                 nomeCliente: appointment.cliente.name,
                 nomeServico: appointment.servico.name,
-                instancia: businessSettings.id,
-                telefoneCliente: appointment.cliente.phone,
-                idCliente: appointment.cliente.id,
-                feedbackPlatform: businessSettings.feedbackPlatform || 'google', 
+                feedbackPlatform: (businessSettings.feedbackPlatform as 'google' | 'instagram' | 'facebook') || 'google',
                 feedbackLink: businessSettings.feedbackLink
             });
         }
@@ -289,10 +329,9 @@ export async function sendCancellationHooks(
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
     const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
 
-    // Notificação de cancelamento (para o gestor) - SEMPRE ENVIA
-    await callWebhook(WEBHOOK_URLS.agendamentoCancelado, {
-        nomeEmpresa: businessSettings.nome,
-        telefoneEmpresa: businessSettings.telefone,
+    // Notificação de cancelamento (para o gestor) - SEMPRE ENVIA (DIRETO, SEM N8N)
+    await notifyCancelledAppointment({
+        telefoneEmpresa: businessSettings.telefone?.toString() || '',
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,

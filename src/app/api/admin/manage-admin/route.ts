@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { logger, sanitizeForLog } from '@/lib/logger';
+import { isAdmin } from '@/lib/admin-middleware';
 
 /**
  * POST /api/admin/manage-admin
@@ -10,6 +11,37 @@ import { logger, sanitizeForLog } from '@/lib/logger';
  */
 export async function POST(request: NextRequest) {
     try {
+        // Validar autenticação via session cookie
+        const sessionCookie = request.cookies.get('session')?.value;
+        
+        if (!sessionCookie) {
+            return NextResponse.json(
+                { error: 'Não autenticado' },
+                { status: 401 }
+            );
+        }
+
+        // Validar token e verificar se é admin
+        let decodedToken;
+        try {
+            decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+        } catch (error) {
+            return NextResponse.json(
+                { error: 'Sessão inválida ou expirada' },
+                { status: 401 }
+            );
+        }
+
+        // Verificar se o usuário autenticado é admin
+        const userIsAdmin = await isAdmin(decodedToken.uid);
+        if (!userIsAdmin) {
+            logger.warn('Tentativa de acesso não autorizado à API admin', { uid: decodedToken.uid });
+            return NextResponse.json(
+                { error: 'Acesso negado. Apenas administradores podem realizar esta ação.' },
+                { status: 403 }
+            );
+        }
+
         const body = await request.json();
         const { email, uid, action } = body;
 

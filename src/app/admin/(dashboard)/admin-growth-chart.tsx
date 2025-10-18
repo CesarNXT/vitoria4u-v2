@@ -138,8 +138,8 @@ export function AdminSalesChart({ businesses }: AdminChartsProps) {
     return (
         <Card className="w-full">
             <CardHeader>
-                <CardTitle className="text-lg md:text-xl">Vendas do Mês (Planos Ativos)</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Distribuição dos planos ativos atualmente.</CardDescription>
+                <CardTitle className="text-lg md:text-xl">Distribuição de Planos Ativos</CardTitle>
+                <CardDescription className="text-xs md:text-sm">Visualização dos planos atualmente em uso pelos negócios.</CardDescription>
             </CardHeader>
             <CardContent className="px-2 md:px-6">
                 <ChartContainer config={salesChartConfig} className="min-h-[200px] md:min-h-[250px] w-full">

@@ -2,10 +2,10 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, UserPlus, UserCheck, UserX } from "lucide-react"
+import { Users, UserPlus, UserCheck, UserX, AlertCircle } from "lucide-react"
 import type { ConfiguracoesNegocio } from "@/lib/types"
 import { useMemo } from "react"
-import { isFuture, subDays } from "date-fns"
+import { isFuture, subDays, differenceInDays } from "date-fns"
 
 interface AdminStatsCardsProps {
   businesses: ConfiguracoesNegocio[];
@@ -25,11 +25,18 @@ export function AdminStatsCards({ businesses }: AdminStatsCardsProps) {
       }).length,
       activePlans: businesses.filter(b => b.access_expires_at && isFuture(new Date(b.access_expires_at))).length,
       expiredPlans: businesses.filter(b => !b.access_expires_at || !isFuture(new Date(b.access_expires_at))).length,
+      expiringSoon: businesses.filter(b => {
+        if (!b.access_expires_at) return false;
+        const expirationDate = b.access_expires_at.toDate ? b.access_expires_at.toDate() : new Date(b.access_expires_at);
+        if (!isFuture(expirationDate)) return false;
+        const daysUntilExpiration = differenceInDays(expirationDate, today);
+        return daysUntilExpiration > 0 && daysUntilExpiration <= 15;
+      }).length,
     }
   }, [businesses]);
 
   return (
-    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Negócios Totais</CardTitle>
@@ -68,6 +75,16 @@ export function AdminStatsCards({ businesses }: AdminStatsCardsProps) {
         <CardContent>
           <div className="text-2xl font-bold">{stats.expiredPlans}</div>
           <p className="text-xs text-muted-foreground">Contas que precisam de renovação.</p>
+        </CardContent>
+      </Card>
+      <Card className="w-full border-amber-200 dark:border-amber-800">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Expirando em 15 dias</CardTitle>
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.expiringSoon}</div>
+          <p className="text-xs text-muted-foreground">Contas que precisam atenção.</p>
         </CardContent>
       </Card>
     </div>

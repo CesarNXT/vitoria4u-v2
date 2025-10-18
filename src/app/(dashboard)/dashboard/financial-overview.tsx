@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingDown, TrendingUp, Wallet } from "lucide-react"
+import { DollarSign, TrendingDown, TrendingUp, Wallet, Check, Package, Percent, Calendar } from "lucide-react"
 import type { Agendamento } from "@/lib/types"
 import { useMemo } from "react"
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
@@ -74,7 +74,7 @@ export function FinancialOverview({ appointments }: FinancialOverviewProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-bold flex items-center gap-2">
           <Wallet className="h-5 w-5 text-primary" />
-          💰 Visão Financeira do Mês
+          Visão Financeira do Mês
         </CardTitle>
         <p className="text-xs text-muted-foreground">Receitas, custos e lucro dos serviços finalizados</p>
       </CardHeader>
@@ -91,7 +91,10 @@ export function FinancialOverview({ appointments }: FinancialOverviewProps) {
               <p className="text-2xl font-bold text-green-700 dark:text-green-400">
                 R$ {formatCurrency(stats.revenueRealized)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">✓ Finalizados</p>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Check className="h-3 w-3" />
+                Finalizados
+              </p>
             </div>
           </div>
 
@@ -105,7 +108,10 @@ export function FinancialOverview({ appointments }: FinancialOverviewProps) {
               <p className="text-2xl font-bold text-red-700 dark:text-red-400">
                 R$ {formatCurrency(stats.costsTotal)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">📦 Materiais</p>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Package className="h-3 w-3" />
+                Materiais
+              </p>
             </div>
           </div>
 
@@ -119,8 +125,9 @@ export function FinancialOverview({ appointments }: FinancialOverviewProps) {
               <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                 R$ {formatCurrency(stats.netProfit)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                💚 Margem: {stats.profitMargin}%
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Percent className="h-3 w-3" />
+                Margem: {stats.profitMargin}%
               </p>
             </div>
           </div>
@@ -135,7 +142,10 @@ export function FinancialOverview({ appointments }: FinancialOverviewProps) {
               <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">
                 R$ {formatCurrency(stats.revenuePending)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">📅 Agendados</p>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Agendados
+              </p>
             </div>
           </div>
 

@@ -10,9 +10,36 @@ import { WhatsappStatus } from './whatsapp-status';
 import { DailyPhrase } from './daily-phrase';
 import { FinancialOverview } from './financial-overview';
 import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, query, orderBy, Timestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+
+// Utility function to serialize Firestore Timestamps to plain objects
+function serializeTimestamps<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (obj instanceof Timestamp) {
+    return obj.toDate() as unknown as T;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeTimestamps(item)) as unknown as T;
+  }
+  
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        serialized[key] = serializeTimestamps((obj as any)[key]);
+      }
+    }
+    return serialized;
+  }
+  
+  return obj;
+}
 
 
 interface DashboardClientWrapperProps {
@@ -41,15 +68,16 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
     )
   }
 
-  // Ensure we have non-null arrays for the components
-  const validAppointments = appointments || [];
-  const validClients = clients || [];
+  // Serialize Firestore Timestamps to plain objects
+  const serializedSettings = serializeTimestamps(settings);
+  const serializedAppointments = serializeTimestamps(appointments || []);
+  const serializedClients = serializeTimestamps(clients || []);
 
   return (
     <>
        <div className="flex items-center justify-between space-y-2">
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate max-w-[90%] sm:max-w-full">
-          {settings?.nome || 'Dashboard'}
+          {serializedSettings?.nome || 'Dashboard'}
         </h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -60,27 +88,27 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
 
         {/* Linha 1: WhatsApp + 3 cards gerais */}
         <div className="col-span-full sm:col-span-1 lg:col-span-1">
-            <WhatsappStatus settings={settings} />
+            <WhatsappStatus settings={serializedSettings} />
         </div>
 
-        <StatsCards appointments={validAppointments} clients={validClients} />
+        <StatsCards appointments={serializedAppointments} clients={serializedClients} />
         
         {/* Seção Financeira - Full Width com destaque */}
         <div className="col-span-full">
-            <FinancialOverview appointments={validAppointments} />
+            <FinancialOverview appointments={serializedAppointments} />
         </div>
         
         {/* Linha 2: Próximos Agendamentos e Clientes Recentes */}
         <div className="col-span-full lg:col-span-2">
-            <UpcomingAppointments appointments={validAppointments} />
+            <UpcomingAppointments appointments={serializedAppointments} />
         </div>
         <div className="col-span-full lg:col-span-2">
-            <RecentClients clients={validClients} />
+            <RecentClients clients={serializedClients} />
         </div>
         
         {/* Linha 3: Gráfico de Visão Geral - Full Width */}
         <div className="col-span-full">
-            <AppointmentsChart appointments={validAppointments} />
+            <AppointmentsChart appointments={serializedAppointments} />
         </div>
       </div>
     </>

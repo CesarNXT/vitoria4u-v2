@@ -23,6 +23,7 @@ body {
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 326 91% 60%; /* Vibrant Pink */
     --primary-foreground: 210 20% 98%;
+    --primary-glow: 326 91% 70%; /* Versão mais clara para o brilho */
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -37,6 +38,11 @@ body {
     --radius: 1rem;
     --chart-1: 326 91% 60%;
     --chart-2: 262 80% 60%;
+    
+    /* Gradiente e efeito glow para sidebar */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
+    
     --sidebar-background: 222.2 84% 4.9%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-border: 217.2 32.6% 17.5%;
@@ -54,6 +60,7 @@ body {
     --popover-foreground: 210 20% 98%;
     --primary: 326 91% 60%; /* Vibrant Pink */
     --primary-foreground: 210 20% 98%;
+    --primary-glow: 326 91% 70%; /* Versão mais clara para o brilho */
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 20% 98%;
     --muted: 217.2 32.6% 17.5%;
@@ -68,6 +75,11 @@ body {
     --radius: 1rem;
     --chart-1: 326 91% 60%;
     --chart-2: 262 80% 60%;
+    
+    /* Gradiente e efeito glow para sidebar */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
+    
     --sidebar-background: 224 71.4% 4.1%;
     --sidebar-foreground: 210 20% 98%;
     --sidebar-border: 217.2 32.6% 17.5%;
@@ -164,5 +176,21 @@ body {
   .rdp-nav_button:hover:not([disabled]) {
     transform: scale(1.1);
     background-color: hsl(var(--accent) / 0.1);
+  }
+
+  /* Botões ATIVOS da sidebar com gradiente e glow */
+  [data-sidebar="menu-button"][data-active="true"],
+  [data-sidebar="menu-button"][data-state="open"] {
+    background: var(--gradient-primary) !important;
+    border: 2px solid hsl(var(--primary)) !important;
+    box-shadow: var(--shadow-glow);
+    position: relative;
+    overflow: visible;
+  }
+
+  /* Hover nos itens do menu (não ativos) */
+  [data-sidebar="menu-button"]:hover:not([data-active="true"]) {
+    background: linear-gradient(90deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.15)) !important;
+    border: 1px solid hsl(var(--primary) / 0.3);
   }
 }

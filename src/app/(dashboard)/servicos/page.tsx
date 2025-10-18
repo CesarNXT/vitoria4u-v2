@@ -32,6 +32,34 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { ServiceCard } from './service-card';
 import Link from 'next/link';
+import { Timestamp } from 'firebase/firestore';
+
+// Utility function to serialize Firestore Timestamps to plain objects
+function serializeTimestamps<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (obj instanceof Timestamp) {
+    return obj.toDate() as unknown as T;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeTimestamps(item)) as unknown as T;
+  }
+  
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        serialized[key] = serializeTimestamps((obj as any)[key]);
+      }
+    }
+    return serialized;
+  }
+  
+  return obj;
+}
 
 
 export default function ServicesPage() {
@@ -68,7 +96,7 @@ export default function ServicesPage() {
     });
     
     getBusinessConfig(finalUserId).then(settings => {
-      setBusinessSettings(settings);
+      setBusinessSettings(serializeTimestamps(settings));
     });
 
     return () => {

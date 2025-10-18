@@ -32,6 +32,34 @@ import { useToast } from "@/hooks/use-toast"
 import { Input } from '@/components/ui/input'
 import { ProfessionalCard } from './professional-card'
 import { normalizePhoneNumber } from '@/lib/utils'
+import { Timestamp } from 'firebase/firestore'
+
+// Utility function to serialize Firestore Timestamps to plain objects
+function serializeTimestamps<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (obj instanceof Timestamp) {
+    return obj.toDate() as unknown as T;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeTimestamps(item)) as unknown as T;
+  }
+  
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        serialized[key] = serializeTimestamps((obj as any)[key]);
+      }
+    }
+    return serialized;
+  }
+  
+  return obj;
+}
 
 
 export default function ProfessionalsPage() {
@@ -63,7 +91,11 @@ export default function ProfessionalsPage() {
     });
 
     const configPromise = getBusinessConfig(finalUserId).then(settings => {
-      setBusinessSettings(settings);
+      setBusinessSettings(serializeTimestamps(settings));
+    }).catch(err => {
+      console.error('Erro ao carregar configurações:', err);
+      // Setar settings padrão para não ficar em loading infinito
+      setBusinessSettings({} as ConfiguracoesNegocio);
     });
 
     Promise.all([configPromise]).finally(() => {
@@ -177,7 +209,7 @@ export default function ProfessionalsPage() {
       return profName.includes(searchTerm) || profPhone.includes(searchTerm);
     }), [professionals, filter]);
 
-  if (isLoading || !businessSettings) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-8 w-8 animate-spin" />

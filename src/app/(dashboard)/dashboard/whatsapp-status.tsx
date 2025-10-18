@@ -3,13 +3,16 @@
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Loader2, Gem } from "lucide-react"
+import { Gem, Loader2 } from "lucide-react"
 import type { ConfiguracoesNegocio } from "@/lib/types"
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
 import { isFuture } from "date-fns";
 import Link from "next/link";
 import { WhatsAppTutorial } from "@/app/(dashboard)/configuracoes/whatsapp-tutorial";
+import { WhatsAppConnectButton } from "@/components/whatsapp-connect-button";
+import { doc, updateDoc } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
 
 function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
@@ -30,130 +33,53 @@ function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
     )
 }
 
-const INSTANCE_CONNECTION_WEBHOOK_URL = "https://n8n.vitoria4u.site/webhook/7e403c23-f6bc-43bc-98d0-3376dbae6eba";
-const COOLDOWN_SECONDS = 90;
-
 interface WhatsappStatusProps {
     settings: ConfiguracoesNegocio | null;
 }
 
 export function WhatsappStatus({ settings }: WhatsappStatusProps) {
-    const { user } = useFirebase();
-    const isConnected = settings?.whatsappConectado ?? false;
+    const { user, firestore } = useFirebase();
+    const { toast } = useToast();
+    
+    // Se não tem settings, não renderizar o botão ainda
+    if (!settings) {
+        return (
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Status do WhatsApp</CardTitle>
+                    <CardDescription className="text-xs">
+                        Carregando configurações...
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    const safeSettings = settings;
+    
+    const isConnected = safeSettings.whatsappConectado ?? false;
     
     // Correctly handle both Timestamp and Date objects
-    const dateToCompare = settings?.access_expires_at?.toDate 
-        ? settings.access_expires_at.toDate() 
-        : (settings?.access_expires_at ? new Date(settings.access_expires_at) : null);
+    const dateToCompare = safeSettings?.access_expires_at?.toDate 
+        ? safeSettings.access_expires_at.toDate() 
+        : (safeSettings?.access_expires_at ? new Date(safeSettings.access_expires_at) : null);
         
     const hasActiveAccess = dateToCompare ? isFuture(dateToCompare) : false;
     
-    const [isLoading, setIsLoading] = useState(false);
-    const [cooldownTime, setCooldownTime] = useState(0);
     const [showTutorial, setShowTutorial] = useState(false);
+    const [localSettings, setLocalSettings] = useState<ConfiguracoesNegocio>(safeSettings);
 
+    // Atualizar local settings quando props mudar
     useEffect(() => {
-        if (!user) return; // Wait for user to be available
-
-        const cooldownEnd = localStorage.getItem(`whatsappConnectCooldown_${user.uid}`);
-        let interval: NodeJS.Timeout | undefined;
-
-        if (cooldownEnd) {
-            const remaining = Math.ceil((parseInt(cooldownEnd) - Date.now()) / 1000);
-            if (remaining > 0) {
-                setCooldownTime(remaining);
-            } else {
-                localStorage.removeItem(`whatsappConnectCooldown_${user.uid}`);
-            }
+        if (settings) {
+            setLocalSettings(settings);
         }
-        
-        if (cooldownTime > 0) {
-            interval = setInterval(() => {
-                setCooldownTime(prevTime => {
-                    const newTime = prevTime - 1;
-                    if (newTime <= 0) {
-                        clearInterval(interval);
-                        localStorage.removeItem(`whatsappConnectCooldown_${user.uid}`);
-                        return 0;
-                    }
-                    return newTime;
-                });
-            }, 1000);
-        }
-
-        return () => {
-            if (interval) {
-                clearInterval(interval);
-            }
-        };
-    }, [user, cooldownTime]);
-
-
-    const handleConnectClick = () => {
-        // Abre o tutorial antes de conectar
-        setShowTutorial(true);
-    }
-
-    const handleTutorialComplete = async () => {
-        setShowTutorial(false);
-        // Usuário assistiu o tutorial e quer conectar
-        await sendConnectionWebhook();
-    }
-
-    const handleTutorialSkip = async () => {
-        setShowTutorial(false);
-        // Usuário pulou tutorial mas QUER CONECTAR
-        await sendConnectionWebhook();
-    }
-
-    const handleTutorialCancel = () => {
-        setShowTutorial(false);
-        // Usuário NÃO quer conectar agora - apenas fecha sem enviar webhook
-    }
-
-    const sendConnectionWebhook = async () => {
-        if (!user || !settings || cooldownTime > 0 || isLoading) {
-            if(cooldownTime > 0) alert("Aguarde o tempo de espera para solicitar novamente.")
-            return;
-        }
-
-        setIsLoading(true);
-
-        // Remover o 5º dígito do telefone (índice 4)
-        let phoneNumber = String(settings.telefone);
-        if (phoneNumber.length >= 5) {
-            phoneNumber = phoneNumber.slice(0, 4) + phoneNumber.slice(5);
-        }
-
-        const payload = {
-            businessId: user.uid,
-            instanciaWhatsapp: settings.id, 
-            businessPhone: phoneNumber,
-            whatsappConectado: false
-        };
-
-        try {
-            const response = await fetch(INSTANCE_CONNECTION_WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                alert("Vá para o seu celular, pois lá vamos enviar instruções de como conectar ao WhatsApp.");
-                const cooldownEnd = Date.now() + COOLDOWN_SECONDS * 1000;
-                localStorage.setItem(`whatsappConnectCooldown_${user.uid}`, cooldownEnd.toString());
-                setCooldownTime(COOLDOWN_SECONDS);
-            } else {
-                throw new Error("Falha ao iniciar conexão com o WhatsApp.");
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Ocorreu um erro ao tentar conectar com o WhatsApp.");
-        } finally {
-            setIsLoading(false);
-        }
-    }
+    }, [settings]);
     
     return (
          <Card>
@@ -164,55 +90,82 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col items-center justify-center space-y-2 rounded-lg border-2 border-dashed p-3 text-center">
-                    {!hasActiveAccess ? (
-                         <>
-                            <div className="p-2 rounded-full bg-amber-500/20">
-                                <Gem className="h-5 w-5 text-amber-500" />
+                {!hasActiveAccess ? (
+                    <div className="flex flex-col items-center justify-center space-y-2 rounded-lg border-2 border-dashed p-3 text-center">
+                        <div className="p-2 rounded-full bg-amber-500/20">
+                            <Gem className="h-5 w-5 text-amber-500" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold">Plano Necessário</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Requer plano ativo.</p>
+                        </div>
+                        <Button asChild size="sm" className="w-full">
+                            <Link href="/planos">Ver Planos</Link>
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center space-y-3 rounded-lg border-2 border-dashed p-4 text-center">
+                        <div className="w-full">
+                            <WhatsAppConnectButton
+                                instanceId={localSettings.id || user?.uid || ''}
+                                isConnected={localSettings.whatsappConectado || false}
+                                businessName={localSettings.nome || 'Negócio'}
+                                businessPhone={localSettings.telefone?.toString() || ''}
+                                instanceToken={localSettings.tokenInstancia || ''}
+                                onStatusChange={async (connected, instanceToken) => {
+                                        try {
+                                            if (!user || !firestore) return;
+                                            
+                                            const settingsRef = doc(firestore, 'negocios', user.uid);
+                                            const updateData: any = {
+                                                updatedAt: new Date()
+                                            };
+                                            
+                                            // Se passou instanceToken, está apenas salvando o token (não altera status)
+                                            if (instanceToken) {
+                                                updateData.tokenInstancia = instanceToken;
+                                                // NÃO atualiza whatsappConectado aqui!
+                                            } else {
+                                                // Se não tem instanceToken, é uma mudança de status real
+                                                updateData.whatsappConectado = connected;
+                                            }
+                                            
+                                            await updateDoc(settingsRef, updateData);
+                                            
+                                            // Atualizar estado local
+                                            if (instanceToken) {
+                                                setLocalSettings(prev => ({...prev, tokenInstancia: instanceToken}));
+                                            } else {
+                                                setLocalSettings(prev => ({...prev, whatsappConectado: connected}));
+                                            }
+                                            
+                                            if (instanceToken) {
+                                                toast({
+                                                    title: '🔧 Instância Criada',
+                                                    description: 'Aguardando conexão...',
+                                                });
+                                            } else {
+                                                toast({
+                                                    title: connected ? '✅ WhatsApp Conectado!' : '❌ WhatsApp Desconectado',
+                                                    description: connected 
+                                                        ? 'Suas automações foram ativadas.' 
+                                                        : 'Suas automações foram pausadas.',
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('Erro ao atualizar status:', error);
+                                            toast({
+                                                title: 'Erro',
+                                                description: 'Não foi possível atualizar o status.',
+                                                variant: 'destructive'
+                                            });
+                                        }
+                                    }}
+                                />
                             </div>
-                            <div>
-                                <p className="text-sm font-semibold">Plano Necessário</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">Requer plano ativo.</p>
-                            </div>
-                            <Button asChild size="sm" className="w-full">
-                                <Link href="/planos">Ver Planos</Link>
-                            </Button>
-                        </>
-                    ) : isConnected ? (
-                        <>
-                            <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/50">
-                                <WhatsappIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-semibold">Conectado</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">Automação ativa.</p>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                             <div className="p-2 rounded-full bg-destructive/10">
-                                <WhatsappIcon className="h-5 w-5 text-destructive" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-semibold">Desconectado</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">Conecte para ativar.</p>
-                            </div>
-                             <Button onClick={handleConnectClick} size="sm" disabled={isLoading || cooldownTime > 0} className="w-full">
-                                 {(isLoading || cooldownTime > 0) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                 {isLoading ? 'Solicitando...' : cooldownTime > 0 ? `${cooldownTime}s` : 'Conectar'}
-                             </Button>
-                        </>
-                    )}
-                </div>
+                    </div>
+                )}
             </CardContent>
-            
-            {/* Tutorial Modal */}
-            <WhatsAppTutorial
-                open={showTutorial}
-                onComplete={handleTutorialComplete}
-                onSkip={handleTutorialSkip}
-                onCancel={handleTutorialCancel}
-            />
         </Card>
     )
 }

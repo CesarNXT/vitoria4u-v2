@@ -4,6 +4,7 @@ import { adminDb } from './firebase-admin';
 import { verifySession } from './session';
 import type { ConfiguracoesNegocio } from './types';
 import { isPast } from 'date-fns';
+import { WhatsAppAPIClient } from './whatsapp-api';
 
 // Helper para converter Firestore Timestamp ou string para Date
 function toDate(value: any): Date | null {
@@ -46,35 +47,26 @@ export async function checkAndUpdateExpiration() {
         const expirationDate = toDate(businessData.access_expires_at);
 
         if (expirationDate && isPast(expirationDate)) {
-            console.log(`Plano expirado detectado para: ${businessId}`);
-
-            // Enviar webhook para desconectar WhatsApp
-            if (businessData.whatsappConectado) {
+            // Deletar instância WhatsApp diretamente
+            if (businessData.whatsappConectado && businessData.tokenInstancia) {
                 try {
-                    await fetch('https://n8n.vitoria4u.site/webhook/d4a54dda-982c-4046-9dbc-c77a405c8474', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            token: businessData.tokenInstancia, 
-                            id: businessId,
-                            status: "disconnected"
-                        }),
-                    });
+                    const client = new WhatsAppAPIClient(businessId, businessData.tokenInstancia);
+                    await client.deleteInstance();
                 } catch (error) {
-                    console.error(`Falha ao enviar webhook:`, error);
+                    // Silencioso - pode já estar deletada
                 }
             }
 
             // Atualizar para plano expirado
-            // Nota: O N8N é quem vai desconectar o WhatsApp e atualizar o status
             await businessDocRef.update({
                 planId: 'plano_expirado',
+                whatsappConectado: false,
+                tokenInstancia: null,
                 habilitarLembrete24h: false,
                 habilitarLembrete2h: false,
                 habilitarFeedback: false,
             });
 
-            console.log(`Negócio ${businessId} movido para plano expirado.`);
             return { expired: true };
         }
 

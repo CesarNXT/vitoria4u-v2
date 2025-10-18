@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     'e43f53e58e61.ngrok-free.app',
     '600d92ed5e38.ngrok-free.app',
     '172.21.235.15',
+    '192.168.243.171',
+    '172.24.230.131',
+    '172.24.239.170',
   ],
   // ✅ SEGURANÇA: Flags de ignore removidas para garantir qualidade do código
   // Se houver erros TypeScript/ESLint, eles DEVEM ser corrigidos antes do deploy
@@ -14,6 +17,19 @@ const nextConfig: NextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: false,
+  },
+  // Resolver polyfills para Node.js modules no browser
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        buffer: false,
+        crypto: false,
+        stream: false,
+        util: false,
+      };
+    }
+    return config;
   },
   images: {
     remotePatterns: [

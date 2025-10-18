@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { AppointmentForm } from './appointment-form'
+import { createReminders, updateReminders, deleteReminders } from '@/lib/scheduled-reminders'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +40,34 @@ import { sendCreationHooks, sendCompletionHooks, sendCancellationHooks, sendRemi
 import { getAppointmentsOnSnapshot, getClientsOnSnapshot, getProfessionalsOnSnapshot, getServicesOnSnapshot, saveOrUpdateDocument, deleteDocument, getBlockedDatesOnSnapshot, getBusinessConfig } from '@/lib/firestore'
 import { convertTimestamps, normalizePhoneNumber } from '@/lib/utils'
 import { AppointmentsFilter, type AppointmentFilters } from './appointments-filter'
+import { Timestamp } from 'firebase/firestore'
 
+// Utility function to serialize Firestore Timestamps to plain objects
+function serializeTimestamps<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (obj instanceof Timestamp) {
+    return obj.toDate() as unknown as T;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeTimestamps(item)) as unknown as T;
+  }
+  
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        serialized[key] = serializeTimestamps((obj as any)[key]);
+      }
+    }
+    return serialized;
+  }
+  
+  return obj;
+}
 
 export default function AgendamentosPage() {
   const { businessUserId } = useBusinessUser();
@@ -80,14 +108,20 @@ export default function AgendamentosPage() {
     
     setIsLoading(true);
 
-    const unsubAppointments = getAppointmentsOnSnapshot(finalUserId, setAppointments);
-    const unsubClients = getClientsOnSnapshot(finalUserId, setClients);
+    const unsubAppointments = getAppointmentsOnSnapshot(finalUserId, (data) => {
+      setAppointments(serializeTimestamps(data));
+    });
+    const unsubClients = getClientsOnSnapshot(finalUserId, (data) => {
+      setClients(serializeTimestamps(data));
+    });
     const unsubServices = getServicesOnSnapshot(finalUserId, setServices);
     const unsubProfessionals = getProfessionalsOnSnapshot(finalUserId, setProfessionals);
-    const unsubBlockedDates = getBlockedDatesOnSnapshot(finalUserId, setBlockedDates);
+    const unsubBlockedDates = getBlockedDatesOnSnapshot(finalUserId, (data) => {
+      setBlockedDates(serializeTimestamps(data));
+    });
 
     getBusinessConfig(finalUserId).then(settings => {
-      setBusinessSettings(settings);
+      setBusinessSettings(serializeTimestamps(settings));
       setIsLoading(false); // Mover para cá: só desliga loading após carregar settings
     });
 
@@ -184,6 +218,29 @@ export default function AgendamentosPage() {
         // Salvar o novo agendamento
         await saveOrUpdateDocument('agendamentos', newId, serializableAppointment, finalUserId);
         
+        // Criar ou atualizar reminders
+        if (data.status === 'Agendado') {
+          try {
+            // Serializar dados para passar para server function
+            const serializedAppointment = {
+              ...appointmentData,
+              date: appointmentData.date.toISOString(),
+              cliente: {
+                ...appointmentData.cliente,
+                birthDate: appointmentData.cliente.birthDate ? new Date(appointmentData.cliente.birthDate).toISOString() : null
+              }
+            };
+            
+            if (!isEditing) {
+              await createReminders(finalUserId, newId, serializedAppointment as any, serializableSettings);
+            } else {
+              await updateReminders(finalUserId, newId, serializedAppointment as any, serializableSettings);
+            }
+          } catch (error) {
+            // Silencioso
+          }
+        }
+        
         const wasCompleted = selectedAppointment?.status !== 'Finalizado' && data.status === 'Finalizado';
         const isNewAndFinalized = !isEditing && data.status === 'Finalizado';
 
@@ -220,6 +277,14 @@ export default function AgendamentosPage() {
         // Send cancellation hooks if the status changes to 'Cancelado'
         if (selectedAppointment?.status !== 'Cancelado' && data.status === 'Cancelado') {
             const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
+            
+            // Deletar reminders quando cancelar
+            try {
+              await deleteReminders(newId);
+            } catch (error) {
+              // Silencioso
+            }
+            
             try {
                 await sendCancellationHooks(serializableSettings, finalData as any);
             } catch (error) {
@@ -339,6 +404,13 @@ export default function AgendamentosPage() {
         };
 
         const serializableSettings = JSON.parse(JSON.stringify(convertTimestamps(businessSettings)));
+        
+        // Deletar reminders antes de deletar o agendamento
+        try {
+          await deleteReminders(appointmentToDelete.id);
+        } catch (error) {
+          // Silencioso
+        }
         
         await sendCancellationHooks(serializableSettings, serializableAppointment as any);
 

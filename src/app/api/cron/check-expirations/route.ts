@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import type { ConfiguracoesNegocio } from '@/lib/types';
 import { isPast } from 'date-fns';
+import { WhatsAppAPIClient } from '@/lib/whatsapp-api';
 
 // Helper para converter Firestore Timestamp ou string para Date
 function toDate(value: any): Date | null {
@@ -40,44 +41,27 @@ export async function GET(request: Request) {
 
         // Se a data de expiração existe e já passou
         if (expirationDate && isPast(expirationDate)) {
-            console.log(`Plano expirado detectado para o negócio: ${businessId}`);
-
-            // 1. Enviar webhook para remover instância do WhatsApp
-            if (business.whatsappConectado) {
+            // 1. Deletar instância WhatsApp diretamente
+            if (business.whatsappConectado && business.tokenInstancia) {
                 try {
-                    const webhookPayload = { 
-                        token: business.tokenInstancia, 
-                        id: businessId,
-                        status: "disconnected"
-                    };
-                    
-                    console.log('📤 Enviando webhook:', webhookPayload);
-                    
-                    const response = await fetch('https://n8n.vitoria4u.site/webhook/d4a54dda-982c-4046-9dbc-c77a405c8474', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(webhookPayload),
-                    });
-                    
-                    console.log('✅ Webhook enviado com sucesso. Status:', response.status);
+                    const client = new WhatsAppAPIClient(businessId, business.tokenInstancia);
+                    await client.deleteInstance();
                 } catch (error) {
-                    console.error(`Falha ao enviar webhook para ${businessId}:`, error);
+                    // Silencioso - pode já estar deletada
                 }
             }
 
-            // 2. Atualizar o documento do negócio no Firestore para o plano expirado
-            // Remove acesso a todas as funcionalidades pagas
-            // Nota: O N8N é quem vai desconectar o WhatsApp e atualizar o status
+            // 2. Atualizar o documento do negócio no Firestore
             const businessDocRef = adminDb.collection('negocios').doc(businessId);
             await businessDocRef.update({
                 planId: 'plano_expirado',
-                // Desabilita todas as automações
+                whatsappConectado: false,
+                tokenInstancia: null,
                 habilitarLembrete24h: false,
                 habilitarLembrete2h: false,
                 habilitarFeedback: false,
             });
             updatedCount++;
-            console.log(`Negócio ${businessId} movido para plano expirado.`);
         }
     }
 

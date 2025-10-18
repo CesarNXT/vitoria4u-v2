@@ -1,29 +1,27 @@
 import { type ClassValue, clsx } from "clsx"
-// A importação do adminDb foi removida daqui para o arquivo server-utils.ts para corrigir o erro de compilação.
 import { twMerge } from "tailwind-merge"
 import type { ConfiguracoesNegocio, PlanFeature, Plano, HorarioSlot, Profissional, Servico, Agendamento, DataBloqueada, HorarioTrabalho } from "./types"
 import { isFuture, differenceInDays, getDay, isWithinInterval as isWithinFnsInterval } from 'date-fns';
 
-/**
- * ⚠️ WARNING: Esta função é CLIENT-SIDE e expõe a lista de admins no bundle JS
- * 
- * ✅ USO CORRETO: Apenas para UI (mostrar/esconder botões, menus)
- * ❌ NÃO USAR: Para validação de segurança (pode ser burlado)
- * 
- * 🔒 Para operações críticas, SEMPRE validar server-side usando:
- * - isServerAdmin() em Server Actions
- * - adminAuth.verifyIdToken() + isServerAdmin() em API Routes
- * 
- * 📝 Esta função existe apenas para melhorar UX (esconder opções que o usuário não pode usar)
- * A segurança real está nas validações server-side!
- * 
- * TODO: Migrar para Firebase Custom Claims em versão futura
- */
 export function isAdminUser(email: string | null | undefined): boolean {
   if (!email) return false;
-  // ⚠️ NEXT_PUBLIC_ expõe no cliente - OK apenas para UI
-  const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());
-  return adminEmails.includes(email);
+  
+  // Pegar lista de emails admin da variável de ambiente
+  const adminEmailsEnv = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
+  
+  // Se não tem nenhum email configurado, retorna false (não é admin)
+  if (!adminEmailsEnv || adminEmailsEnv.trim() === '') {
+    return false;
+  }
+  
+  const adminEmails = adminEmailsEnv.split(',').map(e => e.trim()).filter(e => e.length > 0);
+  
+  // Se a lista está vazia, retorna false
+  if (adminEmails.length === 0) {
+    return false;
+  }
+  
+  return adminEmails.includes(email.toLowerCase());
 }
 
 export function cn(...inputs: ClassValue[]) {
@@ -191,9 +189,10 @@ export const capitalizeWords = (str: string) => {
   return str.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
 };
 
-// Helper para converter string 'HH:mm' para minutos totais
 const timeToMinutes = (time: string): number => {
-    const [hours, minutes] = time.split(':').map(Number);
+    const parts = time.split(':').map(Number);
+    const hours = parts[0] || 0;
+    const minutes = parts[1] || 0;
     return hours * 60 + minutes;
 };
 
@@ -234,7 +233,7 @@ export const calculateAvailableTimesForDate = (
 ): string[] => {
   const dayOfWeek = getDay(date);
   const dayNames: (keyof HorarioTrabalho)[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
-  const dayKey = dayNames[dayOfWeek];
+  const dayKey = dayNames[dayOfWeek] as keyof HorarioTrabalho;
 
   const businessSchedule = businessSettings.horariosFuncionamento[dayKey];
   const professionalSchedule = professional.workHours ? professional.workHours[dayKey] : null;
@@ -247,14 +246,11 @@ export const calculateAvailableTimesForDate = (
   // Determina os slots de trabalho efetivos do profissional.
   let effectiveWorkSlots: HorarioSlot[];
 
-  // Se o profissional tem horário customizado e está habilitado para o dia...
   if (professionalSchedule && professionalSchedule.enabled) {
-      // Calcula a interseção entre o horário do negócio e o do profissional.
-      effectiveWorkSlots = businessSchedule.slots.flatMap(businessSlot => 
-          professionalSchedule.slots.map(profSlot => getIntersection(businessSlot, profSlot))
-      ).filter((slot): slot is HorarioSlot => slot !== null);
+      effectiveWorkSlots = businessSchedule.slots.flatMap((businessSlot: HorarioSlot) => 
+          professionalSchedule.slots.map((profSlot: HorarioSlot) => getIntersection(businessSlot, profSlot))
+      ).filter((slot: HorarioSlot | null): slot is HorarioSlot => slot !== null);
   } else {
-      // Caso contrário, usa o horário do negócio como padrão.
       effectiveWorkSlots = businessSchedule.slots;
   }
 
@@ -313,13 +309,14 @@ export const calculateAvailableTimesForDate = (
     // NOVO: Verificar se o horário já passou (para o dia atual)
     const now = new Date();
     if (date.toDateString() === now.toDateString()) {
-      // Se é hoje, verificar se o horário já passou
-      const [hours, minutes] = time.split(':').map(Number);
+      const timeParts = time.split(':').map(Number);
+      const hours = timeParts[0] || 0;
+      const minutes = timeParts[1] || 0;
       const timeDate = new Date(date);
       timeDate.setHours(hours, minutes, 0, 0);
       
       if (timeDate <= now) {
-        return false; // Horário já passou
+        return false;
       }
     }
     

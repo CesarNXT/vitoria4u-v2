@@ -1,25 +1,8 @@
-
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { notifyBirthday } from '@/lib/notifications';
 
-const N8N_BIRTHDAY_WEBHOOK_URL = 'https://n8n.vitoria4u.site/webhook/d0b69658-05f6-4b6c-8cf1-ba0f604b6cb2';
-
-async function callWebhook(payload: any) {
-    try {
-        const response = await fetch(N8N_BIRTHDAY_WEBHOOK_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        if (!response.ok) {
-            console.error('Birthday webhook call failed', { status: response.status });
-        } else {
-            console.log('✅ Birthday webhook sent successfully');
-        }
-    } catch (error) {
-        console.error('Error calling birthday webhook', error);
-    }
-}
+// ✅ Agora usa código nativo (notifyBirthday)
 
 export async function GET(request: Request) {
     const authToken = (request.headers.get('authorization') || '').split('Bearer ')[1];
@@ -66,20 +49,15 @@ export async function GET(request: Request) {
                     
                     // Verificar se é aniversário hoje
                     if (birthMonth === todayMonth && birthDay === todayDay) {
-                        // Envia 1 webhook para cada aniversariante
-                        const payload = {
-                            nomeEmpresa: businessData.nome,
+                        // Envia mensagem de aniversário (código nativo)
+                        await notifyBirthday({
                             tokenInstancia: businessData.tokenInstancia,
-                            instancia: businessId,
-                            categoriaEmpresa: businessData.categoria,
-                            nomeCliente: clientData.name,
                             telefoneCliente: clientData.phone,
-                            dataNascimento: clientData.birthDate
-                        };
+                            nomeCliente: clientData.name,
+                            nomeEmpresa: businessData.nome,
+                            categoriaEmpresa: businessData.categoria
+                        });
                         
-                        console.log(`🎂 Sending birthday webhook for ${clientData.name} at ${businessData.nome}`);
-                        
-                        await callWebhook(payload);
                         birthdayCount++;
                     }
                 }

@@ -22,6 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Loader2, Gem, Eye, EyeOff } from "lucide-react"
 import { FirebaseClientProvider } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
+import { createAdminSession } from '@/app/(public)/login/session-actions'
 
 const handleFirebaseAuthError = (firebaseError: any, setError: (message: string) => void) => {
     switch (firebaseError.code) {
@@ -58,26 +59,31 @@ function AdminLoginContent() {
         const { auth } = initializeFirebase();
 
         try {
-            // 1. Fazer login primeiro
-            await signInWithEmailAndPassword(auth, email, password);
-            
-            // 2. Depois verificar se é admin
             const { isAdmin } = await verifyAdmin(email);
             if (!isAdmin) {
-                // Se não for admin, fazer logout
-                await auth.signOut();
                 setError("Acesso negado. Este e-mail não é de um administrador. Use /login para usuários comuns.");
                 setIsLoading(false);
                 return;
             }
 
-            // 3. Se for admin, redirecionar
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const idToken = await userCredential.user.getIdToken();
+            const sessionResult = await createAdminSession(idToken);
+            
+            if (!sessionResult.success) {
+                throw new Error('Falha ao criar sessão admin');
+            }
+
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('impersonatedBusinessId');
+            }
+
             toast({
                 title: "Login Admin realizado!",
                 description: "Redirecionando para o painel administrativo...",
             });
-            router.push('/admin/dashboard');
-            // Mantém loading até a navegação ser concluída
+            
+            window.location.href = '/admin/dashboard';
             return;
         } catch (firebaseError: any) {
             handleFirebaseAuthError(firebaseError, setError);

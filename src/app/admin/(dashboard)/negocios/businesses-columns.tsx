@@ -5,17 +5,17 @@ import type { ConfiguracoesNegocio } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, ArrowUpDown, AlertTriangle, LogIn, Edit, ExternalLink } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, AlertTriangle, LogIn, Edit, Trash2 } from 'lucide-react';
 import { format, differenceInDays, isFuture } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getAccessStatus, formatPhoneNumber } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 
 type BusinessesColumnsProps = {
   onEdit: (business: ConfiguracoesNegocio) => void;
   onAccessPanel: (business: ConfiguracoesNegocio) => void;
+  onDelete: (business: ConfiguracoesNegocio) => void;
 };
 
 // Função helper para copiar texto com fallback
@@ -108,7 +108,7 @@ const copyToClipboard = async (text: string, toast: any) => {
   }
 };
 
-export const getBusinessesColumns = ({ onEdit, onAccessPanel }: BusinessesColumnsProps): ColumnDef<ConfiguracoesNegocio>[] => [
+export const getBusinessesColumns = ({ onEdit, onAccessPanel, onDelete }: BusinessesColumnsProps): ColumnDef<ConfiguracoesNegocio>[] => [
   {
     accessorKey: "nome",
     header: ({ column }) => (
@@ -245,7 +245,7 @@ export const getBusinessesColumns = ({ onEdit, onAccessPanel }: BusinessesColumn
     id: "actions",
     cell: ({ row }) => {
       const business = row.original;
-      return <BusinessActionsCell business={business} onEdit={onEdit} onAccessPanel={onAccessPanel} />;
+      return <BusinessActionsCell business={business} onEdit={onEdit} onAccessPanel={onAccessPanel} onDelete={onDelete} />;
     },
   },
 ];
@@ -254,11 +254,13 @@ export const getBusinessesColumns = ({ onEdit, onAccessPanel }: BusinessesColumn
 function BusinessActionsCell({ 
   business, 
   onEdit, 
-  onAccessPanel 
+  onAccessPanel,
+  onDelete
 }: { 
   business: ConfiguracoesNegocio; 
-  onEdit: (business: ConfiguracoesNegocio) => void;
+  onEdit: (business: ConfiguracoesNegocio) => void; 
   onAccessPanel: (business: ConfiguracoesNegocio) => void;
+  onDelete: (business: ConfiguracoesNegocio) => void;
 }) {
   const { toast } = useToast();
 
@@ -287,11 +289,13 @@ function BusinessActionsCell({
         >
           Copiar ID do Negócio
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/agendar/${business.id}`} target="_blank" className="cursor-pointer">
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Ver Página Pública
-          </Link>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          onClick={() => onDelete(business)} 
+          className="cursor-pointer text-destructive focus:text-destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Excluir Negócio
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

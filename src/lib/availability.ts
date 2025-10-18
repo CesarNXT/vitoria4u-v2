@@ -19,9 +19,10 @@ interface GetAvailableTimesParams {
   blockedDates: DataBloqueada[];
 }
 
-// Helper para converter string 'HH:mm' para minutos totais
 const timeToMinutes = (time: string): number => {
-    const [hours, minutes] = time.split(':').map(Number);
+    const parts = time.split(':').map(Number);
+    const hours = parts[0] || 0;
+    const minutes = parts[1] || 0;
     return hours * 60 + minutes;
 };
 
@@ -67,9 +68,9 @@ export async function getAvailableTimes({
     throw new Error('Business configuration not found.');
   }
 
-  const dayOfWeek = date.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const dayOfWeek = date.getDay();
   const dayNames: (keyof HorarioTrabalho)[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
-  const dayKey = dayNames[dayOfWeek];
+  const dayKey = dayNames[dayOfWeek] as keyof HorarioTrabalho;
 
   const businessSchedule = businessConfig.horariosFuncionamento[dayKey];
   const professionalSchedule = professional.workHours ? professional.workHours[dayKey] : null;
@@ -81,9 +82,9 @@ export async function getAvailableTimes({
   let effectiveWorkSlots: HorarioSlot[];
 
   if (professionalSchedule && professionalSchedule.enabled) {
-      effectiveWorkSlots = businessSchedule.slots.flatMap(businessSlot => 
-          professionalSchedule.slots.map(profSlot => getIntersection(businessSlot, profSlot))
-      ).filter((slot): slot is HorarioSlot => slot !== null);
+      effectiveWorkSlots = businessSchedule.slots.flatMap((businessSlot: HorarioSlot) => 
+          professionalSchedule.slots.map((profSlot: HorarioSlot) => getIntersection(businessSlot, profSlot))
+      ).filter((slot: HorarioSlot | null): slot is HorarioSlot => slot !== null);
   } else {
       // If professional has no specific schedule for the day, but business is open,
       // we assume the professional follows the business hours.
@@ -105,11 +106,15 @@ export async function getAvailableTimes({
 
   for (const slot of effectiveWorkSlots) {
     let current = startOfDay(date);
-    const [startHour, startMinute] = slot.start.split(':').map(Number);
+    const startParts = slot.start.split(':').map(Number);
+    const startHour = startParts[0] || 0;
+    const startMinute = startParts[1] || 0;
     current.setHours(startHour, startMinute);
 
     let endSlotTime = startOfDay(date);
-    const [endHour, endMinute] = slot.end.split(':').map(Number);
+    const endParts = slot.end.split(':').map(Number);
+    const endHour = endParts[0] || 0;
+    const endMinute = endParts[1] || 0;
     endSlotTime.setHours(endHour, endMinute);
 
     while (current < endSlotTime) {

@@ -234,6 +234,7 @@ export default function SettingsPage() {
     <div className={cn("flex-1 space-y-4", !isSetupMode && "p-4 md:p-8")}>
         {/* This wrapper is only for the non-setup mode */}
         {!isSetupMode && (
+            <>
              <Card>
                 <CardHeader>
                     <CardTitle>Configurações do Negócio</CardTitle>
@@ -252,6 +253,7 @@ export default function SettingsPage() {
                      {user && <BusinessSettingsForm settings={settings} userId={impersonatedId || user.uid} onSave={handleSave} />}
                 </CardContent>
             </Card>
+            </>
         )}
 
         {/* This is shown only in setup mode, taking the full page */}

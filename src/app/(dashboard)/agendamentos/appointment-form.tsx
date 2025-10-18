@@ -228,12 +228,6 @@ export function AppointmentForm({
 
   useEffect(() => {
     const fetchAvailableTimes = () => {
-      console.log('Fetching times:', { 
-        hasDate: !!selectedDate, 
-        hasService: !!selectedService, 
-        hasProfessional: !!selectedProfessionalId 
-      });
-      
       if (selectedDate && selectedService && selectedProfessionalId) {
         setIsLoadingTimes(true);
         
@@ -251,7 +245,6 @@ export function AppointmentForm({
               times.sort();
           }
 
-          console.log('Generated times:', times.length);
           setAvailableTimes(times);
           
           // Reset startTime se não estiver na nova lista de horários disponíveis
@@ -264,13 +257,11 @@ export function AppointmentForm({
             }
           }
         } catch (error) {
-          console.error('Error generating times:', error);
           setAvailableTimes([]);
         } finally {
           setIsLoadingTimes(false);
         }
       } else {
-        console.log('Missing required fields for time generation');
         setAvailableTimes([]);
         setIsLoadingTimes(false);
       }
