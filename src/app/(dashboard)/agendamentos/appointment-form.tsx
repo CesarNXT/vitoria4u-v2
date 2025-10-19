@@ -236,9 +236,9 @@ export function AppointmentForm({
         setIsLoadingTimes(true);
         
         try {
-          // Gera horários das 08:00 às 20:00 de 30 em 30 minutos
+          // Gera horários 24h disponíveis de 30 em 30 minutos
           const times: string[] = [];
-          for (let hour = 8; hour < 20; hour++) {
+          for (let hour = 0; hour < 24; hour++) {
             times.push(`${String(hour).padStart(2, '0')}:00`);
             times.push(`${String(hour).padStart(2, '0')}:30`);
           }
