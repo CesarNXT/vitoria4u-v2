@@ -2,8 +2,8 @@
   "crons": [
     {
       "path": "/api/cron/check-expirations",
-      "schedule": "0 */6 * * *",
-      "description": "Verifica planos expirados a cada 6 horas"
+      "schedule": "0 0 * * *",
+      "description": "Verifica planos expirados à meia-noite (diário)"
     },
     {
       "path": "/api/cron/check-birthdays",
@@ -17,8 +17,8 @@
     },
     {
       "path": "/api/cron/send-reminders",
-      "schedule": "*/15 * * * *",
-      "description": "Processa lembretes agendados (24h e 2h) a cada 15 minutos"
+      "schedule": "0 8 * * *",
+      "description": "Processa lembretes agendados (24h e 2h) às 8h (diário)"
     }
   ]
 }
