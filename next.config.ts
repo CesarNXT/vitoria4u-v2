@@ -11,6 +11,15 @@ const nextConfig: NextConfig = {
     '172.24.239.170',
     '172.28.124.126', // IP atual da rede
   ],
+  // Suprimir warnings desnecessários durante build e desenvolvimento
+  logging: {
+    fetches: {
+      fullUrl: false,
+    },
+  },
+  // Otimizações de produção
+  productionBrowserSourceMaps: false,
+  reactStrictMode: false, // Desabilitar warnings duplicados do React
   // ⚠️ TEMPORÁRIO: Ignorar erros de lint para deploy inicial
   // TODO: Corrigir erros de ESLint/TypeScript antes de produção
   typescript: {
@@ -20,18 +29,21 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   // Resolver polyfills para Node.js modules no browser
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        buffer: false,
-        crypto: false,
-        stream: false,
-        util: false,
-      };
-    }
-    return config;
-  },
+  // OBS: Configuração para Webpack (quando não usar --turbopack)
+  ...(process.env.TURBOPACK === undefined && {
+    webpack: (config: any, { isServer }: any) => {
+      if (!isServer) {
+        config.resolve.fallback = {
+          ...config.resolve.fallback,
+          buffer: false,
+          crypto: false,
+          stream: false,
+          util: false,
+        };
+      }
+      return config;
+    },
+  }),
   images: {
     remotePatterns: [
       {
@@ -65,6 +77,11 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       }
     ],
+    // Aumentar timeout para imagens externas grandes
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 };
 

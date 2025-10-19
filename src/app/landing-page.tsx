@@ -66,9 +66,9 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative w-full py-12 md:py-20">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-4 max-w-6xl mx-auto">
-              <div className="flex flex-col justify-center space-y-4 lg:max-w-xl">
+          <div className="container px-4 md:px-6 max-w-7xl mx-auto">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
+              <div className="flex flex-col justify-center space-y-4 lg:flex-1">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
                     <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Automatize</span> seu atendimento com uma IA que trabalha por você.
@@ -85,14 +85,16 @@ export default function LandingPage() {
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center justify-center shrink-0">
+              <div className="flex items-center justify-center lg:flex-1">
                 <Image 
                   src="https://files.catbox.moe/cnltor.png"
                   alt="Demonstração IA"
-                  width={300}
-                  height={600}
+                  width={400}
+                  height={800}
                   className="rounded-xl shadow-2xl"
+                  style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '80vh' }}
                   priority
+                  unoptimized
                 />
               </div>
             </div>
@@ -101,8 +103,8 @@ export default function LandingPage() {
 
         {/* Seção ChatGPT */}
         <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/30">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center text-center space-y-4 max-w-3xl mx-auto">
+          <div className="container px-4 md:px-6 max-w-7xl mx-auto">
+            <div className="flex flex-col items-center text-center space-y-4 max-w-5xl mx-auto">
               <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
                 E se o <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">ChatGPT</span> fosse o Atendente Inteligente da sua empresa?
               </h2>
@@ -118,7 +120,7 @@ export default function LandingPage() {
 
         {/* Diferenciais */}
         <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container px-4 md:px-6">
+          <div className="container px-4 md:px-6 max-w-7xl mx-auto">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
@@ -129,7 +131,7 @@ export default function LandingPage() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl items-start gap-6 py-12 lg:grid-cols-4">
+            <div className="mx-auto grid max-w-7xl items-start gap-8 py-12 lg:grid-cols-4">
               <div className="grid gap-3 text-center">
                 <MessageCircle className="mx-auto h-12 w-12 text-primary" />
                 <h3 className="text-xl font-bold">Atendimento Humanizado</h3>
@@ -164,7 +166,7 @@ export default function LandingPage() {
 
         {/* Planos */}
         <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/30">
-          <div className="container px-4 md:px-6">
+          <div className="container px-4 md:px-6 max-w-7xl mx-auto">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
@@ -175,7 +177,7 @@ export default function LandingPage() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl items-start gap-6 py-12 lg:grid-cols-3">
+            <div className="mx-auto grid max-w-7xl items-start gap-8 py-12 lg:grid-cols-3">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, index) => (
                   <div key={index} className="flex flex-col rounded-lg border bg-card p-6 space-y-4 animate-pulse">
@@ -236,7 +238,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t">
-        <div className="container flex flex-col items-center justify-between gap-4 py-10 md:py-6">
+        <div className="container flex flex-col items-center justify-between gap-4 py-10 md:py-6 max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between w-full gap-4">
             <div className="flex flex-col items-center gap-4 md:flex-row md:gap-2">
               <Logo />

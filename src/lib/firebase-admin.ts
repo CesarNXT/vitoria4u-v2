@@ -12,22 +12,28 @@ if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
+      // Log apenas em dev
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Firebase Admin SDK inicializado com Service Account');
+      }
     } else {
-      // Tenta ADC (por exemplo, no Firebase App Hosting / GCP)
+      // Tenta ADC (Firebase App Hosting / GCP)
       admin.initializeApp();
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Firebase Admin SDK inicializado via ADC');
+      }
     }
-    console.log('Firebase Admin SDK inicializado.');
   } catch (error) {
-    console.error('Erro ao inicializar Firebase Admin SDK (tentativa 1):', error);
-    // Fallback final: tenta inicializar sem credenciais explícitas
+    // Fallback silencioso (normal durante build estático)
     try {
       if (!admin.apps.length) {
         admin.initializeApp();
-        console.warn('Firebase Admin SDK inicializado via ADC (fallback).');
       }
     } catch (fallbackError) {
-      console.error('Falha ao inicializar Firebase Admin SDK (fallback):', fallbackError);
-      console.error('Verifique FIREBASE_SERVICE_ACCOUNT_KEY (JSON stringified) ou ADC no ambiente.');
+      // Só loga erro se não for build
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('❌ Falha ao inicializar Firebase Admin SDK:', fallbackError);
+      }
     }
   }
 }
