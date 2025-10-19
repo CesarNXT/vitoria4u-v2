@@ -119,8 +119,23 @@ function LoginPageContent() {
                 setIsLoading(false);
             }
         } else {
+            // Validação de senha antes de enviar
+            if (password.length < 6) {
+                setError("A senha deve ter no mínimo 6 caracteres.");
+                setIsLoading(false);
+                return;
+            }
+            
             if (password !== confirmPassword) {
                 setError("As senhas não coincidem.");
+                setIsLoading(false);
+                return;
+            }
+            
+            // Validação de email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                setError("Por favor, insira um e-mail válido.");
                 setIsLoading(false);
                 return;
             }
@@ -302,6 +317,11 @@ function LoginPageContent() {
                                     {showPassword ? <EyeOff /> : <Eye />}
                                 </Button>
                             </div>
+                            {!isLoginView && (
+                                <p className="text-xs text-muted-foreground">
+                                    A senha deve ter no mínimo 6 caracteres.
+                                </p>
+                            )}
                         </div>
                         {!isLoginView && (
                             <div className="grid gap-2">

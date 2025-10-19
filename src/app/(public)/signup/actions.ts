@@ -48,6 +48,11 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
 
     // 3. Criar o documento do negócio
     const businessRef = adminDb.collection('negocios').doc(userId);
+    
+    // ✅ Automações habilitadas APENAS se tiver teste ativo
+    // Cliente no plano grátis = automações desabilitadas (não tem WhatsApp)
+    const automationsEnabled = trialConfig.enabled;
+    
     await businessRef.set({
       ownerId: userId,
       email: userEmail,
@@ -58,9 +63,11 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
       setupCompleted: false, // Marca que a configuração inicial ainda não foi concluída
       // Adicione aqui outros campos padrão que um novo negócio deve ter
       whatsappConectado: false,
-      habilitarLembrete24h: true,
-      habilitarLembrete2h: true,
+      habilitarLembrete24h: automationsEnabled,
+      habilitarLembrete2h: automationsEnabled,
       habilitarFeedback: false,
+      habilitarAniversario: false,
+      iaAtiva: false,
       horariosFuncionamento: {
         segunda: { abertura: '09:00', fechamento: '18:00', ativo: true },
         terca: { abertura: '09:00', fechamento: '18:00', ativo: true },

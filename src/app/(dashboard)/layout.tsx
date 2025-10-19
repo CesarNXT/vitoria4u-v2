@@ -39,6 +39,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   
   // ⚡ IMPERSONAÇÃO PRIMEIRO (antes de tudo)
   const [impersonatedId, setImpersonatedId] = useState<string | null>(null);
@@ -107,27 +108,53 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     // Aguardar carregamentos
     if (isUserLoading || isSettingsLoading) return;
     if (!typedUser) {
+      setIsRedirecting(true);
       window.location.href = '/login';
       return;
     }
 
-    // ADMIN IMPERSONANDO = sem redirects (suporte total)
-    if (isAdmin && impersonatedId) {
-      return; // Admin tem acesso total, vai onde quiser
+    // ✅ APENAS admin IMPERSONANDO tem privilégios especiais
+    // Admin usando seu próprio negócio = mesma experiência de usuário comum
+    const isImpersonating = isAdmin && impersonatedId;
+    
+    if (isImpersonating) {
+      setIsRedirecting(false); // Resetar flag
+      return; // Admin impersonando tem acesso total
     }
 
-    // USUÁRIO NORMAL = só redireciona se REALMENTE não completou setup
-    // Considera completo se tem nome E telefone
-    const hasData = settings?.nome && settings?.telefone;
-    if (!settings || (settings.setupCompleted !== true && !hasData)) {
-      if (pathname !== '/configuracoes') {
-        router.push('/configuracoes');
-      }
+    // TODOS (incluindo admin usando como usuário normal) = mesma regra
+    // Considera completo se tem setupCompleted=true OU (nome E telefone preenchidos)
+    const hasBasicInfo = settings?.nome && settings?.telefone;
+    const isSetupComplete = settings?.setupCompleted === true;
+    const needsSetupRedirect = !settings || (!isSetupComplete && !hasBasicInfo);
+    
+    if (needsSetupRedirect && pathname !== '/configuracoes') {
+      // ⚡ CRÍTICO: Bloquear renderização imediatamente e redirecionar
+      setIsRedirecting(true);
+      router.replace('/configuracoes'); // replace ao invés de push
+    } else if (pathname === '/configuracoes' || !needsSetupRedirect) {
+      // ✅ RESETAR flag quando chegar em configurações OU não precisar mais de setup
+      setIsRedirecting(false);
     }
   }, [isUserLoading, isSettingsLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
-  // ⏳ Loading: Aguardar tudo estar pronto
-  if (isUserLoading || !typedUser || !impersonationChecked || isSettingsLoading) {
+  // ⏳ Loading: Aguardar tudo estar pronto OU se está redirecionando
+  if (isUserLoading || !typedUser || !impersonationChecked || isSettingsLoading || isRedirecting) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
+  }
+  
+  // 🚫 BLOQUEIO ADICIONAL: Se precisa setup e NÃO está em configurações, mostrar apenas loading
+  // Isso evita qualquer flash do conteúdo do painel
+  // EXCEÇÃO: Admin impersonando não precisa desse bloqueio
+  const isImpersonating = isAdmin && impersonatedId;
+  const hasBasicInfo = settings?.nome && settings?.telefone;
+  const isSetupComplete = settings?.setupCompleted === true;
+  const requiresSetup = !settings || (!isSetupComplete && !hasBasicInfo);
+  if (requiresSetup && pathname !== '/configuracoes' && !isImpersonating) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -135,10 +162,10 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Admin impersonando NUNCA está em setup
-  // Considera completo se tem nome E telefone (contas antigas)
-  const hasBasicData = settings?.nome && settings?.telefone;
-  const needsSetup = (isAdmin && impersonatedId) ? false : (!settings || (settings.setupCompleted !== true && !hasBasicData));
+  // ✅ APENAS admin IMPERSONANDO não precisa de setup
+  // Admin usando seu próprio negócio = mesma regra que usuário comum
+  // Considera completo se tem setupCompleted=true OU (nome E telefone preenchidos)
+  const needsSetup = isImpersonating ? false : requiresSetup;
 
   const handleLogout = async () => {
     try {

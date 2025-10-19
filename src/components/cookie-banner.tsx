@@ -5,11 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Cookie, X, Shield } from 'lucide-react';
 import Link from 'next/link';
 
+// Helper para gerenciar cookie de consentimento
+const getCookieConsent = () => {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/cookie_consent=([^;]+)/);
+  return match ? match[1] : null;
+};
+
+const setCookieConsent = (value: string) => {
+  if (typeof document === 'undefined') return;
+  // Cookie válido por 1 ano
+  const expires = new Date();
+  expires.setFullYear(expires.getFullYear() + 1);
+  document.cookie = `cookie_consent=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+};
+
 export function CookieBanner() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookie-consent');
+    const consent = getCookieConsent();
     if (!consent) {
       // Delay para não aparecer imediatamente
       const timer = setTimeout(() => setShowBanner(true), 1000);
@@ -18,14 +33,12 @@ export function CookieBanner() {
   }, []);
 
   const acceptCookies = () => {
-    localStorage.setItem('cookie-consent', 'accepted');
-    localStorage.setItem('cookie-consent-date', new Date().toISOString());
+    setCookieConsent('accepted');
     setShowBanner(false);
   };
 
   const rejectCookies = () => {
-    localStorage.setItem('cookie-consent', 'rejected');
-    localStorage.setItem('cookie-consent-date', new Date().toISOString());
+    setCookieConsent('rejected');
     setShowBanner(false);
   };
 

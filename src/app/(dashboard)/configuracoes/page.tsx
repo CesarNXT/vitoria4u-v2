@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFirebase } from "@/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ConfiguracoesNegocio, User, DiasDaSemana } from '@/lib/types';
 import BusinessSettingsForm from "@/app/(dashboard)/configuracoes/business-settings-form";
@@ -113,7 +113,10 @@ export default function SettingsPage() {
                     linkAgendamento: bookingLink,
                 } as ConfiguracoesNegocio;
                 
-                setSettings(updatedSettings);
+                // Filtrar campos undefined antes de salvar
+                const filteredSettings = Object.fromEntries(Object.entries(updatedSettings).filter(([key, value]) => value !== undefined));
+                
+                setSettings(filteredSettings as ConfiguracoesNegocio);
             } else {
                 // ✅ CRIAR documento no Firestore se não existir (evita loop de redirecionamento)
                 const initialSettings = {
@@ -122,6 +125,9 @@ export default function SettingsPage() {
                     createdAt: new Date(),
                     nome: '',
                     email: user?.email || '',
+                    planId: 'plano_gratis', // Plano gratuito por padrão
+                    access_expires_at: null, // Plano grátis nunca expira
+                    whatsappConectado: false,
                 };
                 
                 // Criar documento no Firestore
@@ -165,8 +171,17 @@ export default function SettingsPage() {
     
     const wasInSetup = !settings?.setupCompleted;
     
+    // 🔥 CRÍTICO: Filtrar campos undefined (Firestore não aceita)
+    const cleanedSettings: Partial<ConfiguracoesNegocio> = {};
+    Object.keys(updatedSettings).forEach(key => {
+      const value = (updatedSettings as any)[key];
+      if (value !== undefined) {
+        (cleanedSettings as any)[key] = value;
+      }
+    });
+    
     const finalSettings: Partial<ConfiguracoesNegocio> = { 
-      ...updatedSettings,
+      ...cleanedSettings,
     };
     
     // Se estava em setup mode e está salvando, marca como concluído
@@ -189,27 +204,42 @@ export default function SettingsPage() {
         finalSettings.resumoHorarios = generateScheduleSummary(updatedSettings.horariosFuncionamento);
     }
 
-    // Use the non-blocking write function which handles contextual error emitting
-    // CRITICAL: Always use merge:true to avoid accidental data deletion.
-    setDocumentNonBlocking(settingsRef, finalSettings, { merge: true });
-    
-    // Optimistically update UI
-    setSettings(prev => ({...prev, ...finalSettings} as ConfiguracoesNegocio)); 
-    
-    // ✅ NOVO: Redireciona TODOS após setup (admin e usuário comum)
-    // EXCETO admin impersonando (que está dando suporte)
-    if (wasInSetup && !impersonatedId) {
+    // 🔥 CRÍTICO: Para setup inicial, AGUARDAR save antes de redirecionar
+    if (wasInSetup) {
+      try {
+        // Aguardar save completar
+        await setDoc(settingsRef, finalSettings, { merge: true });
+        
+        // Atualizar UI local
+        setSettings(prev => ({...prev, ...finalSettings} as ConfiguracoesNegocio));
+        
+        if (!impersonatedId) {
+          toast({
+            title: '🎉 Configuração Concluída!',
+            description: "Redirecionando para o dashboard...",
+          });
+          
+          // ⚡ Redirecionar APÓS salvar (garantido)
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 1000);
+        }
+      } catch (error) {
         toast({
-          title: 'Configuração Concluída!',
-          description: "Bem-vindo ao painel completo! Redirecionando...",
+          variant: 'destructive',
+          title: 'Erro ao salvar',
+          description: 'Não foi possível salvar. Tente novamente.',
         });
-        router.push('/dashboard');
-        router.refresh(); 
+      }
     } else {
-       toast({
-          title: 'Sucesso!',
-          description: "Configurações salvas com sucesso!",
-        });
+      // Para edições normais, usar non-blocking
+      setDocumentNonBlocking(settingsRef, finalSettings, { merge: true });
+      setSettings(prev => ({...prev, ...finalSettings} as ConfiguracoesNegocio));
+      
+      toast({
+        title: 'Sucesso!',
+        description: "Configurações salvas com sucesso!",
+      });
     }
   };
 

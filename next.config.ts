@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   allowedDevOrigins: [
     '172.28.124.126',
-    '172.22.26.77', // IP atual da rede
+    '172.22.26.77',
+    '172.22.28.97', // ✅ IP adicionado para evitar erro de WebSocket
   ],
   // Suprimir warnings desnecessários durante build e desenvolvimento
   logging: {
@@ -34,6 +35,13 @@ const nextConfig: NextConfig = {
           crypto: false,
           stream: false,
           util: false,
+        };
+        
+        // ✅ Configurar watchOptions para evitar erros de WebSocket HMR
+        config.watchOptions = {
+          poll: 1000, // Check for changes every second
+          aggregateTimeout: 300, // Delay before rebuilding
+          ignored: ['**/node_modules', '**/.git', '**/.next'],
         };
       }
       return config;
