@@ -609,7 +609,7 @@ export default function AgendamentosPage() {
         if (!open) setSelectedAppointment(null);
         setIsFormModalOpen(open);
       }}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{selectedAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
             <DialogDescription>
@@ -673,7 +673,7 @@ export default function AgendamentosPage() {
 
         {/* Dialog for Managing Blocked Dates */}
         <Dialog open={isBlockDateDialogOpen} onOpenChange={setIsBlockDateDialogOpen}>
-            <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Gerenciar Bloqueios de Agenda</DialogTitle>
                     <DialogDescription>
@@ -734,7 +734,7 @@ export default function AgendamentosPage() {
             if (!open) setSelectedBlock(null);
             setIsNewBlockEntryDialogOpen(open);
           }}>
-            <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
                 <DialogHeader>
                 <DialogTitle>{selectedBlock ? 'Editar Bloqueio' : 'Criar Novo Bloqueio'}</DialogTitle>
                 <DialogDescription>

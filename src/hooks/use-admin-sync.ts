@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase';
+import { isAdminUser } from '@/lib/utils';
 
 /**
  * Hook para sincronizar documento admin automaticamente
@@ -11,18 +12,13 @@ export function useAdminSync() {
 
     useEffect(() => {
         async function syncAdmin() {
-            if (!user || !firestore) return;
+            if (!user || !firestore || !user.email) return;
 
-            // Lista de emails que são admins (configure aqui)
-            const ADMIN_EMAILS = [
-                'italocesar.hd@gmail.com', // Admin principal
-                'admin@vitoria4u.com',
-                'contato@vitoria4u.com',
-                // Adicione outros emails admin aqui
-            ];
+            // Usa a mesma função de verificação do sistema
+            const isAdmin = isAdminUser(user.email);
 
-            // Verificar se o email do usuário está na lista
-            if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+            // Verificar se o email do usuário é admin
+            if (isAdmin) {
                 try {
                     const adminRef = doc(firestore, 'admin', user.uid);
                     const adminDoc = await getDoc(adminRef);

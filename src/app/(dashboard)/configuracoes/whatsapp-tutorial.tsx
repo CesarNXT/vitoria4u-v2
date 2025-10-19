@@ -81,7 +81,6 @@ export function WhatsAppTutorial({ open, onComplete, onSkip, onCancel }: WhatsAp
     }}>
       <DialogContent 
         className="sm:max-w-2xl max-h-[95vh] overflow-y-auto p-4 sm:p-6"
-        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Etapa 1: Perguntar se quer ver o tutorial */}
         {step === 'ask' && (

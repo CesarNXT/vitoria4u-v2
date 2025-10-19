@@ -293,7 +293,7 @@ export default function ServicesPage() {
           }
           setIsFormModalOpen(open);
       }}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
            <DialogHeader>
             <DialogTitle>{selectedService ? 'Editar Serviço' : 'Adicionar Novo Serviço'}</DialogTitle>
             <DialogDescription>

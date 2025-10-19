@@ -46,7 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn, formatPhoneNumber } from '@/lib/utils';
 import { isCategoriaClinica } from '@/lib/categoria-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 
 const timeSlotSchema = z.object({
@@ -460,9 +460,12 @@ export default function BusinessSettingsForm({
                       </FormItem>
 
                       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-                        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
+                        <DialogContent className="sm:max-w-md">
                           <DialogHeader>
                             <DialogTitle>Selecione a Categoria</DialogTitle>
+                            <DialogDescription>
+                              Escolha a categoria que melhor representa seu negócio
+                            </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4">
                             <div className="relative">

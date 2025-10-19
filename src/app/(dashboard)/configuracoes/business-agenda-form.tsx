@@ -22,7 +22,7 @@ import { Trash2, PlusCircle, ChevronRight, Clock } from 'lucide-react';
 import type { DiasDaSemana, HorarioTrabalho } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const diasDaSemana: { key: DiasDaSemana, label: string }[] = [
@@ -306,9 +306,12 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
             {/* Mobile: Modal */}
             {isMobile && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogContent className="max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <DialogContent className="max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Horários de {label}</DialogTitle>
+                            <DialogDescription>
+                              Configure os horários de funcionamento para este dia
+                            </DialogDescription>
                         </DialogHeader>
                         <div className="py-4">
                             {renderTimeSlots()}

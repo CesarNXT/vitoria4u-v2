@@ -276,7 +276,7 @@ export default function ProfessionalsPage() {
           }
           setIsFormModalOpen(open);
       }}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{selectedProfessional ? 'Editar Profissional' : 'Novo Profissional'}</DialogTitle>
             <DialogDescription>

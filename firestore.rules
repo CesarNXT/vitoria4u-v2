@@ -2,17 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 🔧 Função helper para verificar se é admin
-    function isAdmin() {
+    // 🔐 RBAC - Sistema Enterprise de Permissões
+    function hasRole(role) {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/admin/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/admin/$(request.auth.uid)).data.isAdmin == true;
+             exists(/databases/$(database)/documents/user_roles/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.roles.hasAny([role]) &&
+             get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.active == true;
     }
     
-    // 👑 ADMIN TEM ACESSO TOTAL A TUDO
-    // Firestore bloqueia tudo por padrão, não precisa de regra de bloqueio explícita
+    function hasPermission(permission) {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/user_roles/$(request.auth.uid)) &&
+             (get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.permissions.hasAny([permission, '*'])) &&
+             get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.active == true;
+    }
+    
+    function isAdmin() {
+      return hasRole('super_admin') || hasRole('admin');
+    }
+    
+    // 👑 SUPER ADMIN/ADMIN TEM ACESSO TOTAL
     match /{document=**} {
       allow read, write: if isAdmin();
+    }
+    
+    // 🔐 User Roles - Gerenciamento de permissões
+    match /user_roles/{userId} {
+      allow read: if request.auth.uid == userId || hasPermission('manage_users');
+      allow write: if hasPermission('manage_users');
     }
     
     // ✅ Negócios - Leitura pública (página de agendamento) / Escrita para dono ou admin

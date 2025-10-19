@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast'
 import { isCategoriaClinica } from '@/lib/categoria-utils'
 import { getAuth } from 'firebase/auth'
 import Image from 'next/image'
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { VisuallyHidden } from '@/components/ui/visually-hidden'
 import { cn } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
@@ -527,9 +527,10 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                 </FormControl>
                 
                 <Dialog open={professionalsDialogOpen} onOpenChange={setProfessionalsDialogOpen}>
-                  <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  <DialogContent className="sm:max-w-[425px]">
                     <VisuallyHidden>
                       <DialogTitle>Selecione os profissionais</DialogTitle>
+                      <DialogDescription>Escolha os profissionais que executarão este serviço</DialogDescription>
                     </VisuallyHidden>
                     <div className="space-y-4">
                       <Input
@@ -713,9 +714,10 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                 </FormControl>
                 
                 <Dialog open={planosDialogOpen} onOpenChange={setPlanosDialogOpen}>
-                  <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  <DialogContent className="sm:max-w-[425px]">
                     <VisuallyHidden>
                       <DialogTitle>Selecione os planos de saúde</DialogTitle>
+                      <DialogDescription>Escolha os planos de saúde aceitos para este serviço</DialogDescription>
                     </VisuallyHidden>
                     <div className="space-y-4">
                       <Input

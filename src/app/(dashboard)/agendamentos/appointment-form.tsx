@@ -26,7 +26,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { StandardDatePicker } from '@/components/ui/standard-date-picker';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import {
@@ -322,9 +322,10 @@ export function AppointmentForm({
                   </FormControl>
                   
                   <Dialog open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-                    <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <DialogContent className="sm:max-w-[425px]">
                       <VisuallyHidden>
                         <DialogTitle>Selecione um cliente</DialogTitle>
+                        <DialogDescription>Escolha o cliente para este agendamento</DialogDescription>
                       </VisuallyHidden>
                       <div className="space-y-4">
                         <Input
@@ -392,9 +393,10 @@ export function AppointmentForm({
                   </FormControl>
                   
                   <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-                    <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <DialogContent className="sm:max-w-[425px]">
                       <VisuallyHidden>
                         <DialogTitle>Selecione um serviço</DialogTitle>
+                        <DialogDescription>Escolha o serviço para este agendamento</DialogDescription>
                       </VisuallyHidden>
                       <div className="space-y-4">
                         <Input
@@ -465,9 +467,10 @@ export function AppointmentForm({
                   </FormControl>
                   
                   <Dialog open={professionalDialogOpen} onOpenChange={setProfessionalDialogOpen}>
-                    <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <DialogContent className="sm:max-w-[425px]">
                       <VisuallyHidden>
                         <DialogTitle>Selecione um profissional</DialogTitle>
+                        <DialogDescription>Escolha o profissional para este agendamento</DialogDescription>
                       </VisuallyHidden>
                       <div className="space-y-4">
                         <Input
