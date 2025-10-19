@@ -36,7 +36,7 @@ import { format, isSameDay, isDate, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { AppointmentCard } from './appointment-card'
 import { AppointmentBlockForm } from '../configuracoes/appointment-block-form'
-import { sendCreationHooks, sendCompletionHooks, sendCancellationHooks, sendReminderHooksOnly } from './actions'
+import { sendCreationHooks, sendCompletionHooks, sendCancellationHooks, sendDeletionHooks, sendReminderHooksOnly } from './actions'
 import { getAppointmentsOnSnapshot, getClientsOnSnapshot, getProfessionalsOnSnapshot, getServicesOnSnapshot, saveOrUpdateDocument, deleteDocument, getBlockedDatesOnSnapshot, getBusinessConfig } from '@/lib/firestore'
 import { convertTimestamps, normalizePhoneNumber } from '@/lib/utils'
 import { AppointmentsFilter, type AppointmentFilters } from './appointments-filter'
@@ -259,7 +259,7 @@ export default function AgendamentosPage() {
         // Send creation hooks only if it's a NEW appointment (not editing)
         if (!isEditing && data.status === 'Agendado') {
             try {
-                await sendCreationHooks(serializableSettings, serializableAppointment as any);
+                await sendCreationHooks(serializableSettings, serializableAppointment as any, 'Gestor (Painel)');
             } catch (error) {
                 // Erro silencioso - logar apenas no servidor
             }
@@ -286,7 +286,7 @@ export default function AgendamentosPage() {
             }
             
             try {
-                await sendCancellationHooks(serializableSettings, finalData as any);
+                await sendCancellationHooks(serializableSettings, finalData as any, 'Gestor (Painel)');
             } catch (error) {
                 // Erro silencioso - logar apenas no servidor
             }
@@ -412,7 +412,7 @@ export default function AgendamentosPage() {
           // Silencioso
         }
         
-        await sendCancellationHooks(serializableSettings, serializableAppointment as any);
+        await sendDeletionHooks(serializableSettings, serializableAppointment as any);
 
         await deleteDocument('agendamentos', appointmentToDelete.id, finalUserId);
         

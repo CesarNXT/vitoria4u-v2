@@ -73,14 +73,16 @@ export async function notifyNewAppointment(data: {
   nomeCliente: string
   nomeServico: string
   dataHoraAtendimento: string
+  criadoPor?: string
+  telefoneCliente?: string
 }): Promise<void> {
   
-  const message = `*📢Novo Agendamento Recebido📢*
+  const message = `*📢 Novo Agendamento Recebido 📢*
 
 *📅 Data e hora:* ${data.dataHoraAtendimento}
 
-*👤 Cliente:* ${data.nomeCliente}
-*💼 Procedimento:* ${data.nomeServico}`
+*👤 Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n*📱 Telefone:* ${data.telefoneCliente}` : ''}
+*💼 Procedimento:* ${data.nomeServico}${data.criadoPor ? `\n\n*📝 Agendado por:* ${data.criadoPor}` : ''}`
 
   await sendSMS(data.telefoneEmpresa, message)
 }
@@ -90,7 +92,7 @@ export async function notifyNewAppointment(data: {
 // ==========================================
 
 /**
- * Envia notificação para o gestor quando um agendamento é CANCELADO
+ * Envia notificação para o gestor quando um agendamento é CANCELADO pelo cliente
  * 
  * SUBSTITUI: Webhook N8N 29baa24f-e9cf-4472-8ac6-11a6d16d11d5
  */
@@ -99,14 +101,43 @@ export async function notifyCancelledAppointment(data: {
   nomeCliente: string
   nomeServico: string
   dataHoraAtendimento: string
+  canceladoPor?: string
 }): Promise<void> {
   
-  const message = `*❌Agendamento Cancelado❌*
+  const message = `*❌ Agendamento Cancelado ❌*
 
 *📅 Data e hora:* ${data.dataHoraAtendimento}
 
 *👤 Cliente:* ${data.nomeCliente}
-*💼 Procedimento:* ${data.nomeServico}`
+*💼 Procedimento:* ${data.nomeServico}
+
+*🔔 Cancelado por:* ${data.canceladoPor || 'Cliente'}`
+
+  await sendSMS(data.telefoneEmpresa, message)
+}
+
+// ==========================================
+// NOTIFICAR: EXCLUSÃO
+// ==========================================
+
+/**
+ * Envia notificação para o gestor quando um agendamento é EXCLUÍDO do sistema
+ */
+export async function notifyDeletedAppointment(data: {
+  telefoneEmpresa: string
+  nomeCliente: string
+  nomeServico: string
+  dataHoraAtendimento: string
+}): Promise<void> {
+  
+  const message = `*🗑️ Agendamento Excluído do Sistema 🗑️*
+
+*📅 Data e hora:* ${data.dataHoraAtendimento}
+
+*👤 Cliente:* ${data.nomeCliente}
+*💼 Procedimento:* ${data.nomeServico}
+
+*⚠️ Este registro foi removido permanentemente da agenda.*`
 
   await sendSMS(data.telefoneEmpresa, message)
 }
@@ -130,6 +161,8 @@ export async function notifyProfessionalNewAppointment(data: {
   nomeCliente: string
   nomeServico: string
   dataHoraAtendimento: string
+  criadoPor?: string
+  telefoneCliente?: string
 }): Promise<void> {
   
   try {
@@ -144,10 +177,10 @@ export async function notifyProfessionalNewAppointment(data: {
 ${data.dataHoraAtendimento}
 
 👤 *Cliente*
-${data.nomeCliente}
+${data.nomeCliente}${data.telefoneCliente ? `\n📱 ${data.telefoneCliente}` : ''}
 
 💼 *Procedimento*
-${data.nomeServico}
+${data.nomeServico}${data.criadoPor ? `\n\n📝 *Agendado por:* ${data.criadoPor}` : ''}
 
 Nos vemos em breve! 😊`
 

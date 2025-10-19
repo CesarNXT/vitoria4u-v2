@@ -80,8 +80,9 @@ function getAppointmentDateTime(dateValue: any, startTime: string): Date {
 async function sendProfessionalNotification(
     businessSettings: ConfiguracoesNegocio,
     appointment: Agendamento,
-    status: 'Novo Agendamento' | 'Agendamento Cancelado'
-) {
+    status: 'Novo Agendamento' | 'Agendamento Cancelado' | 'Agendamento Excluído',
+    criadoPor?: string
+): Promise<void> {
     logger.debug('🔔 Iniciando notificação profissional', { 
         status, 
         professionalName: appointment.profissional?.name,
@@ -135,6 +136,8 @@ async function sendProfessionalNotification(
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
+        criadoPor: criadoPor,
+        telefoneCliente: appointment.cliente.phone?.toString(),
     };
     
     if (status === 'Novo Agendamento') {
@@ -152,7 +155,8 @@ async function sendProfessionalNotification(
 
 export async function sendCreationHooks(
     businessSettings: ConfiguracoesNegocio,
-    appointment: Agendamento
+    appointment: Agendamento,
+    criadoPor?: string
 ): Promise<void> {
     
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
@@ -165,12 +169,14 @@ export async function sendCreationHooks(
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
+        criadoPor: criadoPor,
+        telefoneCliente: appointment.cliente.phone?.toString(),
     });
 
     // 👤 MENSAGENS DO USUÁRIO (Token Dinâmico - SÓ se conectado)
     
     // Lembretes e notificação ao profissional (automações pagas)
-    await sendProfessionalNotification(businessSettings, appointment, 'Novo Agendamento');
+    await sendProfessionalNotification(businessSettings, appointment, 'Novo Agendamento', criadoPor);
     
     // ✅ Lembretes 24h e 2h agora são gerenciados via createReminders()
     // Os reminders são criados no Firestore (collection: scheduled_reminders)
@@ -218,7 +224,8 @@ export async function sendCompletionHooks(
 
 export async function sendCancellationHooks(
     businessSettings: ConfiguracoesNegocio,
-    appointment: Agendamento
+    appointment: Agendamento,
+    canceladoPor?: string
 ): Promise<void> {
 
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
@@ -230,8 +237,30 @@ export async function sendCancellationHooks(
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
+        canceladoPor: canceladoPor || 'Cliente',
     });
     
     // Notificação para o profissional (automação paga)
     await sendProfessionalNotification(businessSettings, appointment, 'Agendamento Cancelado');
+}
+
+export async function sendDeletionHooks(
+    businessSettings: ConfiguracoesNegocio,
+    appointment: Agendamento
+): Promise<void> {
+    const { notifyDeletedAppointment } = await import('@/lib/notifications');
+    
+    const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
+    const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
+
+    // Notificação de exclusão (para o gestor) - SEMPRE ENVIA (DIRETO, SEM N8N)
+    await notifyDeletedAppointment({
+        telefoneEmpresa: businessSettings.telefone?.toString() || '',
+        nomeCliente: appointment.cliente.name,
+        nomeServico: appointment.servico.name,
+        dataHoraAtendimento: dataHoraAtendimento,
+    });
+    
+    // Notificação para o profissional (automação paga)
+    await sendProfessionalNotification(businessSettings, appointment, 'Agendamento Excluído');
 }

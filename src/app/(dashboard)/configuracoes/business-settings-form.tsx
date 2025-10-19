@@ -445,6 +445,7 @@ export default function BusinessSettingsForm({
   const habilitarFeedback = watch('habilitarFeedback');
   const habilitarEscalonamento = watch('habilitarEscalonamento');
   const feedbackPlatform = watch('feedbackPlatform');
+  const feedbackLinkValue = watch('feedbackLink');
 
 
   const renderStepContent = (stepIndex: number) => {
@@ -846,25 +847,35 @@ export default function BusinessSettingsForm({
                          <FormField
                             control={control}
                             name="feedbackLink"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>
-                                  {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
-                                </FormLabel>
-                                <FormControl>
-                                <Input
-                                    placeholder={
-                                      feedbackPlatform === 'google'
-                                      ? 'https://maps.app.goo.gl/seu-link'
-                                      : '@seu_negocio'
-                                    }
-                                    {...field}
-                                    value={field.value || ""}
-                                />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
+                            render={({ field }) => {
+                              const showError = habilitarFeedback && (!feedbackLinkValue || feedbackLinkValue.trim() === '');
+                              return (
+                                <FormItem>
+                                    <FormLabel>
+                                      {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
+                                    </FormLabel>
+                                    <FormControl>
+                                    <Input
+                                        placeholder={
+                                          feedbackPlatform === 'google'
+                                          ? 'https://maps.app.goo.gl/seu-link'
+                                          : '@seu_negocio'
+                                        }
+                                        {...field}
+                                        value={field.value || ""}
+                                    />
+                                    </FormControl>
+                                    {showError && (
+                                      <p className="text-sm text-red-500">
+                                        {feedbackPlatform === 'instagram' 
+                                          ? 'O usuário do Instagram é obrigatório (ex: @seu_negocio).' 
+                                          : 'O link de avaliação do Google é obrigatório.'}
+                                      </p>
+                                    )}
+                                    <FormMessage />
+                                </FormItem>
+                              );
+                            }}
                         />
                       </div>
                   )}
@@ -1031,25 +1042,35 @@ export default function BusinessSettingsForm({
                     <FormField
                       control={control}
                       name="feedbackLink"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={
-                                feedbackPlatform === 'google'
-                                  ? 'https://maps.app.goo.gl/seu-link'
-                                  : '@seu_negocio'
-                              }
-                              {...field}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      render={({ field }) => {
+                        const showError = habilitarFeedback && (!feedbackLinkValue || feedbackLinkValue.trim() === '');
+                        return (
+                          <FormItem>
+                            <FormLabel>
+                              {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder={
+                                  feedbackPlatform === 'google'
+                                    ? 'https://maps.app.goo.gl/seu-link'
+                                    : '@seu_negocio'
+                                }
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            {showError && (
+                              <p className="text-sm text-red-500">
+                                {feedbackPlatform === 'instagram' 
+                                  ? 'O usuário do Instagram é obrigatório (ex: @seu_negocio).' 
+                                  : 'O link de avaliação do Google é obrigatório.'}
+                              </p>
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                   </div>
                 )}
