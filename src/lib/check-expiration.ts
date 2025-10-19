@@ -39,15 +39,15 @@ export async function checkAndUpdateExpiration() {
 
         const businessData = businessDoc.data() as ConfiguracoesNegocio;
 
-        // Pular se já está expirado ou é gratuito
-        if (businessData.planId === 'plano_expirado' || businessData.planId === 'plano_gratis') {
-            return { expired: businessData.planId === 'plano_expirado' };
+        // Pular se já é gratuito (não expira)
+        if (businessData.planId === 'plano_gratis') {
+            return { expired: false };
         }
 
         const expirationDate = toDate(businessData.access_expires_at);
 
         if (expirationDate && isPast(expirationDate)) {
-            // Deletar instância WhatsApp diretamente
+            // Deletar instância WhatsApp (automações são pagas)
             if (businessData.whatsappConectado && businessData.tokenInstancia) {
                 try {
                     const client = new WhatsAppAPIClient(businessId, businessData.tokenInstancia);
@@ -57,14 +57,17 @@ export async function checkAndUpdateExpiration() {
                 }
             }
 
-            // Atualizar para plano expirado
+            // ✅ VOLTAR PARA PLANO GRÁTIS (sistema continua funcionando)
+            // Apenas automações são desabilitadas (WhatsApp, lembretes, IA)
             await businessDocRef.update({
-                planId: 'plano_expirado',
+                planId: 'plano_gratis',
                 whatsappConectado: false,
                 tokenInstancia: null,
                 habilitarLembrete24h: false,
                 habilitarLembrete2h: false,
                 habilitarFeedback: false,
+                habilitarAniversario: false,
+                iaAtiva: false,
             });
 
             return { expired: true };

@@ -29,7 +29,6 @@ export default function AdminPlanosPage() {
       setPlans(plansData);
       setIsLoading(false);
     }, (error) => {
-      console.error("Error fetching plans:", error);
       toast({ variant: "destructive", title: "Erro ao buscar planos" });
       setIsLoading(false);
     });
@@ -64,7 +63,6 @@ export default function AdminPlanosPage() {
         description: `O plano ${updatedPlanData.name || editingPlan.name} foi salvo com sucesso.`,
       });
     } catch (error) {
-      console.error('Error updating plan:', error);
       toast({
         title: 'Erro ao Salvar',
         description: 'Não foi possível atualizar o plano. Tente novamente.',

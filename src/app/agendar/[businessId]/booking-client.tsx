@@ -45,7 +45,10 @@ import {
 type Step = 'IDENTIFICACAO' | 'NEW_CLIENT_FORM' | 'LIMIT_REACHED' | 'MODIFY_EXISTING' | 'TIPO_ATENDIMENTO' | 'SERVICE' | 'PROFESSIONAL' | 'DATETIME' | 'CONFIRMATION' | 'COMPLETED';
 
 const newClientFormSchema = z.object({
-  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
+  name: z.string()
+    .min(2, "O nome deve ter pelo menos 2 caracteres.")
+    .max(120, "O nome não pode ter mais de 120 caracteres.")
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "O nome não pode conter números ou caracteres especiais."),
   birthDate: z.date({
     required_error: "A data de nascimento é obrigatória.",
   }),

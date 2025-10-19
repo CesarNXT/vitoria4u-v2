@@ -123,7 +123,12 @@ export default function PlanosPage() {
                     id: doc.id,
                     ...doc.data(),
                 }) as Plano)
-                .filter(plan => plan.id !== 'plano_gratis' && plan.id !== 'plano_expirado') // Não mostrar planos internos
+                .filter(plan => 
+                    // ✅ Não mostrar planos internos (grátis é automático, não venda)
+                    plan.id !== 'plano_gratis' && 
+                    plan.status === 'Ativo' && 
+                    plan.price > 0 // Só planos pagos
+                )
                 .sort((a, b) => a.price - b.price); // Ordena por preço
             setPlans(plansData);
         }, (error) => {

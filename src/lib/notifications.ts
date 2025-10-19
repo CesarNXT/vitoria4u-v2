@@ -414,6 +414,8 @@ export async function notifyBirthday(data: {
     // Sorteia um template aleatório  
     const message = categoryTemplates![Math.floor(Math.random() * categoryTemplates!.length)]
 
+    console.log(`📤 Sending birthday message to ${firstName} (${cleanPhone})`);
+
     const response = await fetch(`${API_BASE}/send/text`, {
       method: 'POST',
       headers: {
@@ -428,10 +430,14 @@ export async function notifyBirthday(data: {
     })
 
     if (!response.ok) {
-      throw new Error(`Erro ao enviar mensagem de aniversário`)
+      const errorText = await response.text();
+      throw new Error(`WhatsApp API error (${response.status}): ${errorText}`)
     }
+
+    console.log(`✅ Birthday message sent to ${firstName}`);
   } catch (error: any) {
-    // Não lançar erro para não quebrar o fluxo
+    console.error(`❌ Failed to send birthday to ${data.nomeCliente}:`, error.message);
+    throw error; // Re-throw para o cron saber que falhou
   }
 }
 
@@ -494,6 +500,8 @@ export async function notifyReturn(data: {
     // Sorteia um template aleatório  
     const message = categoryTemplates![Math.floor(Math.random() * categoryTemplates!.length)]
 
+    console.log(`📤 Sending return reminder to ${firstName} (${cleanPhone})`);
+
     const response = await fetch(`${API_BASE}/send/text`, {
       method: 'POST',
       headers: {
@@ -508,10 +516,14 @@ export async function notifyReturn(data: {
     })
 
     if (!response.ok) {
-      throw new Error(`Erro ao enviar lembrete de retorno`)
+      const errorText = await response.text();
+      throw new Error(`WhatsApp API error (${response.status}): ${errorText}`)
     }
+
+    console.log(`✅ Return reminder sent to ${firstName}`);
   } catch (error: any) {
-    // Não lançar erro para não quebrar o fluxo
+    console.error(`❌ Failed to send return reminder to ${data.nomeCliente}:`, error.message);
+    throw error; // Re-throw para o cron saber que falhou
   }
 }
 

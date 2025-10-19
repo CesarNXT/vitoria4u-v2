@@ -45,30 +45,44 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // Verifica se está impersonando (admin dando suporte)
   const [impersonatedId, setImpersonatedId] = useState<string | null>(null);
   
+  // ✅ Verificar admin via custom claims do token JWT
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setImpersonatedId(localStorage.getItem('impersonatedBusinessId'));
+    async function checkAdmin() {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      
+      const adminStatus = await isAdminUser(user);
+      setIsAdmin(adminStatus);
     }
+    
+    checkAdmin();
+  }, [user]);
+  
+  // ✅ SEGURANÇA: Ler impersonação de cookie HTTP-only (não localStorage)
+  useEffect(() => {
+    async function loadImpersonation() {
+      const { getCurrentImpersonation } = await import('@/app/(public)/login/session-actions');
+      const cookieId = await getCurrentImpersonation();
+      setImpersonatedId(cookieId);
+    }
+    
+    loadImpersonation();
   }, []);
 
 
  useEffect(() => {
     async function loadData() {
         if (!user || !firestore) return;
-
-        const isAdmin = isAdminUser(user?.email);
         
-        // Se for admin e NÃO está impersonando, não carrega configurações
-        if (isAdmin && !impersonatedId) {
-            setIsLoading(false);
-            return;
-        }
-        
-        // Define qual ID usar: impersonatedId (admin dando suporte) ou user.uid (dono)
+        // Define qual ID usar: impersonatedId (admin dando suporte) ou user.uid (dono/admin)
+        // Admin SEM impersonar = gerencia SEU PRÓPRIO negócio (como Google/AWS fazem)
         const businessId = impersonatedId || user.uid;
 
         setIsLoading(true);
@@ -90,26 +104,33 @@ export default function SettingsPage() {
                     setDocumentNonBlocking(settingsDocRef, { linkAgendamento: bookingLink }, { merge: true });
                 }
                 
-                const loadedSettings = {
-                    id: settingsDoc.id,
+                const updatedSettings = {
                     ...data,
-                    // Ensure timestamps are converted to Date objects if they exist
                     access_expires_at: data.access_expires_at?.toDate ? data.access_expires_at.toDate() : data.access_expires_at,
                     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-                    // CRÍTICO: Normaliza setupCompleted - se for undefined, trata como false
                     setupCompleted: data.setupCompleted === true ? true : false,
                     // Inclui o link de agendamento (gerado ou existente)
                     linkAgendamento: bookingLink,
                 } as ConfiguracoesNegocio;
                 
-                setSettings(loadedSettings);
+                setSettings(updatedSettings);
             } else {
-                // Pre-fill settings for setup mode if they don't exist
-                setSettings({ id: businessId, setupCompleted: false } as ConfiguracoesNegocio);
+                // ✅ CRIAR documento no Firestore se não existir (evita loop de redirecionamento)
+                const initialSettings = {
+                    id: businessId,
+                    setupCompleted: false,
+                    createdAt: new Date(),
+                    nome: '',
+                    email: user?.email || '',
+                };
+                
+                // Criar documento no Firestore
+                await setDocumentNonBlocking(settingsDocRef, initialSettings, { merge: true });
+                
+                setSettings(initialSettings as ConfiguracoesNegocio);
             }
 
         } catch(e) {
-            console.error(e);
             toast({
               variant: 'destructive',
               title: 'Erro ao carregar dados',
@@ -125,7 +146,7 @@ export default function SettingsPage() {
         // If there's no user or firestore after initial check, stop loading.
         setIsLoading(false);
     }
-}, [user, firestore, toast, impersonatedId]);
+}, [user, firestore, toast, impersonatedId, isAdmin]);
 
 
  const handleSave = async (updatedSettings: Partial<ConfiguracoesNegocio>) => {
@@ -175,10 +196,9 @@ export default function SettingsPage() {
     // Optimistically update UI
     setSettings(prev => ({...prev, ...finalSettings} as ConfiguracoesNegocio)); 
     
-    const isAdmin = isAdminUser(user?.email);
-    
-    if (wasInSetup && !isAdmin) {
-        // Apenas redireciona usuários normais (não admin impersonando)
+    // ✅ NOVO: Redireciona TODOS após setup (admin e usuário comum)
+    // EXCETO admin impersonando (que está dando suporte)
+    if (wasInSetup && !impersonatedId) {
         toast({
           title: 'Configuração Concluída!',
           description: "Bem-vindo ao painel completo! Redirecionando...",
@@ -210,68 +230,55 @@ export default function SettingsPage() {
     );
   }
 
-  const isAdmin = isAdminUser(user?.email);
-
-  // Bloqueia APENAS se for admin E NÃO está impersonando
-  if (isAdmin && !impersonatedId) {
-     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Acesso de Administrador</CardTitle>
-                    <CardDescription>A página de configurações não se aplica ao perfil de administrador. Use a impersonação para dar suporte a um negócio.</CardDescription>
-                </CardHeader>
-            </Card>
-        </div>
-    );
-  }
-
+  // ✅ NOVO: Admin pode ter seu próprio negócio!
   // Determine if it's setup mode based on setupCompleted flag
-  // Contas antigas sem o campo também entrarão em setup mode (undefined = false)
   const isSetupMode = !settings?.setupCompleted;
 
   return (
-    <div className={cn("flex-1 space-y-4", !isSetupMode && "p-4 md:p-8")}>
-        {/* This wrapper is only for the non-setup mode */}
-        {!isSetupMode && (
-            <>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Configurações do Negócio</CardTitle>
-                    <CardDescription>
-                        {impersonatedId && isAdmin ? (
-                            <span className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
-                                <Shield className="h-4 w-4" />
-                                Modo Suporte: Editando configurações do cliente
-                            </span>
-                        ) : (
-                            'Gerencie as informações essenciais que alimentam a IA, o sistema de agendamento e outras funcionalidades.'
-                        )}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     {user && <BusinessSettingsForm settings={settings} userId={impersonatedId || user.uid} onSave={handleSave} />}
-                </CardContent>
-            </Card>
-            </>
-        )}
-
-        {/* This is shown only in setup mode, taking the full page */}
-        {isSetupMode && (
-             <div className="flex flex-1 items-center justify-center p-4 md:p-8 lg:p-12 bg-muted/40 min-h-screen">
-                <Card className="w-full max-w-7xl">
-                    <CardHeader>
-                    <CardTitle className="text-2xl md:text-3xl">Bem-vindo! Vamos configurar seu negócio.</CardTitle>
-                    <CardDescription className="text-base">
-                        Precisamos de algumas informações básicas para começar. Preencha os campos abaixo para habilitar as funcionalidades da plataforma.
-                    </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {user && <BusinessSettingsForm settings={settings} userId={user.uid} onSave={handleSave} onLogout={handleLogout} isSetupMode={true} />}
-                    </CardContent>
-                </Card>
-            </div>
-        )}
+    <div className={cn(
+      isSetupMode 
+        ? "" 
+        : "w-full flex-1 space-y-4 p-4 md:p-8"
+    )}>
+      <Card className={cn(
+        "shadow-xl border-2",
+        isSetupMode 
+          ? "w-full max-w-6xl mx-auto" 
+          : "w-full max-w-5xl mx-auto"
+      )}>
+        <CardHeader className="space-y-3 px-6 md:px-8 pt-6 pb-4">
+          <CardTitle className={cn(
+            "text-2xl md:text-3xl font-bold",
+            isSetupMode && "text-center"
+          )}>
+            {isSetupMode ? '🎯 Configuração Inicial' : 'Configurações do Negócio'}
+          </CardTitle>
+          <CardDescription className={cn(
+            "text-sm md:text-base",
+            isSetupMode && "text-center"
+          )}>
+            {isSetupMode ? (
+              'Preencha as informações básicas do seu negócio para começar.'
+            ) : impersonatedId ? (
+              <span className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
+                <Shield className="h-4 w-4" />
+                Modo Suporte: Editando configurações do cliente
+              </span>
+            ) : (
+              'Gerencie as informações essenciais que alimentam a IA, o sistema de agendamento e outras funcionalidades.'
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-6 md:px-8 pb-8">
+          {user && <BusinessSettingsForm 
+            settings={settings} 
+            userId={impersonatedId || user.uid} 
+            onSave={handleSave} 
+            onLogout={isSetupMode ? handleLogout : undefined}
+            isSetupMode={isSetupMode} 
+          />}
+        </CardContent>
+      </Card>
     </div>
   );
 }

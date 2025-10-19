@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { useFirebase } from '@/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { SystemConfig, Plano } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Settings, Shield, Trash2, UserPlus } from 'lucide-react';
@@ -12,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, getDocs } from 'firebase/firestore';
 
 interface AdminUser {
   uid: string;
@@ -21,7 +18,6 @@ interface AdminUser {
 }
 
 export default function ConfiguracoesPage() {
-  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,61 +35,50 @@ export default function ConfiguracoesPage() {
   });
 
   useEffect(() => {
-    if (!firestore) return;
-
     const fetchData = async () => {
       try {
-        // Buscar configurações
-        const configRef = doc(firestore, 'configuracoes_sistema', 'global');
-        const configSnap = await getDoc(configRef);
+        // ✅ USAR API SERVER-SIDE (sem problemas de permissão)
+        const response = await fetch('/api/admin/config');
         
-        if (configSnap.exists()) {
-          setConfig(configSnap.data() as SystemConfig);
-        } else {
-          // Criar config padrão se não existir
-          await setDoc(configRef, config);
+        if (!response.ok) {
+          throw new Error('Erro ao buscar configurações');
         }
 
-        // Buscar planos (exceto gratuito)
-        const plansSnapshot = await getDocs(collection(firestore, 'planos'));
-        const plansData = plansSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as Plano))
-          .filter(plan => plan.id !== 'plano_gratis' && plan.id !== 'plano_expirado' && plan.price > 0)
-          .sort((a, b) => a.price - b.price);
-        setPlans(plansData);
-
-        // Buscar admins
-        const adminsSnapshot = await getDocs(collection(firestore, 'admin'));
-        const adminsData = adminsSnapshot.docs
-          .map(doc => ({ uid: doc.id, ...doc.data() } as AdminUser))
-          .filter(admin => admin.isAdmin);
-        setAdmins(adminsData);
+        const data = await response.json();
+        
+        setConfig(data.config);
+        setPlans(data.plans);
+        setAdmins(data.admins);
 
         setIsLoading(false);
       } catch (error) {
-        console.error('Erro ao buscar configurações:', error);
         toast({ variant: 'destructive', title: 'Erro ao carregar configurações' });
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [firestore]);
+  }, []);
 
   const handleSave = async () => {
-    if (!firestore) return;
-
     setIsSaving(true);
     try {
-      const configRef = doc(firestore, 'configuracoes_sistema', 'global');
-      await setDoc(configRef, config);
+      // ✅ USAR API SERVER-SIDE
+      const response = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao salvar configurações');
+      }
       
       toast({
         title: 'Configurações Salvas!',
         description: 'As configurações foram atualizadas com sucesso.',
       });
     } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao Salvar',
@@ -129,7 +114,8 @@ export default function ConfiguracoesPage() {
       
       toast({
         title: 'Admin Adicionado!',
-        description: `${result.email} agora é administrador.`,
+        description: `${result.email} agora é administrador. Ele precisa fazer LOGOUT e LOGIN novamente para ter acesso ao painel admin.`,
+        duration: 8000, // 8 segundos para ter tempo de ler
       });
     } catch (error: any) {
       toast({
@@ -371,9 +357,16 @@ export default function ConfiguracoesPage() {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground">
-            <strong>Nota:</strong> O usuário deve já ter feito login no sistema ao menos uma vez para ser adicionado como admin.
-          </p>
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <p>
+              <strong>⚠️ Importante:</strong>
+            </p>
+            <ul className="list-disc list-inside ml-2 space-y-1">
+              <li>O usuário deve já ter cadastro no sistema (feito login ao menos uma vez)</li>
+              <li>Após ser adicionado, ele precisa fazer <strong>LOGOUT e LOGIN</strong> novamente</li>
+              <li>Só depois disso ele terá acesso ao painel admin em <code className="bg-muted px-1 py-0.5 rounded">/admin</code></li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </div>

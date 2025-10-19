@@ -1,8 +1,9 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { logger } from '@/lib/logger';
+import { isUserAdmin } from '@/lib/admin-firestore';
 
 /**
- * Valida se o usuário é administrador
+ * ✅ Valida se o usuário é administrador (ATUALIZADO para usar system_admins)
  * @param uid - UID do usuário Firebase
  * @returns true se for admin, false caso contrário
  */
@@ -10,8 +11,8 @@ export async function isAdmin(uid: string): Promise<boolean> {
     if (!uid) return false;
 
     try {
-        const adminDoc = await adminDb.collection('admin').doc(uid).get();
-        return adminDoc.exists && adminDoc.data()?.isAdmin === true;
+        // Usar função do admin-firestore (sistema correto)
+        return await isUserAdmin(uid);
     } catch (error) {
         logger.error('Erro ao verificar admin', { uid, error });
         return false;
@@ -19,7 +20,7 @@ export async function isAdmin(uid: string): Promise<boolean> {
 }
 
 /**
- * Valida se o email é de um administrador
+ * ✅ Valida se o email é de um administrador (ATUALIZADO para usar system_admins)
  * @param email - Email do usuário
  * @returns true se for admin, false caso contrário
  */
@@ -27,9 +28,9 @@ export async function isAdminByEmail(email: string): Promise<boolean> {
     if (!email) return false;
 
     try {
-        const snapshot = await adminDb.collection('admin')
+        const snapshot = await adminDb.collection('system_admins')
             .where('email', '==', email.toLowerCase())
-            .where('isAdmin', '==', true)
+            .where('active', '==', true)
             .limit(1)
             .get();
         

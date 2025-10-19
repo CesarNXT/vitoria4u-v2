@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useFirebase, FirebaseClientProvider } from "@/firebase"
-import { checkIsAdmin } from './actions'
 import { createUserSession } from './session-actions'
 import { Button } from "@/components/ui/button"
 import {
@@ -92,12 +91,10 @@ function LoginPageContent() {
 
         if (isLoginView) {
             try {
-                const { isAdmin } = await checkIsAdmin(email);
-                if (isAdmin) {
-                    setError("Este é um e-mail de administrador. Por favor, acesse /admin para fazer login.");
-                    setIsLoading(false);
-                    return;
-                }
+                // ✅ PERMITIR ADMINS TEREM NEGÓCIOS (como Google, AWS fazem)
+                // Admin pode acessar /login para gerenciar seu negócio
+                // Admin pode acessar /admin para gerenciar o sistema
+                // Mesmo email, dois papéis diferentes!
 
                 // ✅ Login com Firebase
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -277,6 +274,7 @@ function LoginPageContent() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading || isGoogleLoading}
+                                autoComplete="email"
                                 required
                             />
                         </div>
@@ -297,6 +295,7 @@ function LoginPageContent() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     disabled={isLoading || isGoogleLoading}
+                                    autoComplete={isLoginView ? "current-password" : "new-password"}
                                     required
                                 />
                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(!showPassword)}>
@@ -315,6 +314,7 @@ function LoginPageContent() {
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         disabled={isLoading || isGoogleLoading}
+                                        autoComplete="new-password"
                                         required
                                     />
                                     <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>

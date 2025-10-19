@@ -3,25 +3,34 @@ import { twMerge } from "tailwind-merge"
 import type { ConfiguracoesNegocio, PlanFeature, Plano, HorarioSlot, Profissional, Servico, Agendamento, DataBloqueada, HorarioTrabalho } from "./types"
 import { isFuture, differenceInDays, getDay, isWithinInterval as isWithinFnsInterval } from 'date-fns';
 
-export function isAdminUser(email: string | null | undefined): boolean {
-  if (!email) return false;
+/**
+ * ✅ FUNÇÃO SEGURA: Verifica se usuário tem custom claim de admin
+ * Esta função APENAS verifica o token JWT local - servidor ainda valida
+ * Use esta para UI (mostrar/esconder elementos admin)
+ * 
+ * @param user - Firebase User object
+ * @returns Promise<boolean> se é admin baseado em custom claims
+ */
+export async function isAdminUser(user: any): Promise<boolean> {
+  if (!user) return false;
   
-  // Pegar lista de emails admin da variável de ambiente
-  const adminEmailsEnv = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
-  
-  // Se não tem nenhum email configurado, retorna false (não é admin)
-  if (!adminEmailsEnv || adminEmailsEnv.trim() === '') {
+  try {
+    // Verificar custom claim do token JWT
+    const idTokenResult = await user.getIdTokenResult();
+    return idTokenResult.claims.admin === true;
+  } catch {
     return false;
   }
-  
-  const adminEmails = adminEmailsEnv.split(',').map(e => e.trim()).filter(e => e.length > 0);
-  
-  // Se a lista está vazia, retorna false
-  if (adminEmails.length === 0) {
-    return false;
-  }
-  
-  return adminEmails.includes(email.toLowerCase());
+}
+
+/**
+ * ⚠️ DEPRECADO: Verificação por email (INSEGURO)
+ * Mantido apenas para compatibilidade com código legado
+ * Use isAdminUser() com o objeto user do Firebase
+ */
+export function isAdminUserByEmail(email: string | null | undefined): boolean {
+  // Sempre retorna false - use isAdminUser() com token JWT
+  return false;
 }
 
 export function cn(...inputs: ClassValue[]) {

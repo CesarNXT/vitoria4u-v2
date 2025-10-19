@@ -36,7 +36,8 @@ import { getAuth } from 'firebase/auth'
 const clientFormSchema = z.object({
   name: z.string()
     .min(3, 'O nome deve ter no mínimo 3 caracteres.')
-    .regex(/^[A-Za-zÀ-ÿ\s]+$/, 'O nome deve conter apenas letras e espaços.'),
+    .max(120, 'O nome não pode ter mais de 120 caracteres.')
+    .regex(/^[A-Za-zÀ-ÿ\s'-]+$/, 'O nome não pode conter números ou caracteres especiais.'),
   phone: z.string().refine(v => {
     const digits = String(v).replace(/\D/g, "").length;
     return digits === 11;

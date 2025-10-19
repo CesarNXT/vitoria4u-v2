@@ -26,7 +26,8 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useTheme } from 'next-themes';
 import { useToast } from '@/hooks/use-toast';
 import { BusinessUserProvider } from '@/contexts/BusinessUserContext';
-import { destroyUserSession, stopImpersonation } from '@/app/(public)/login/session-actions';
+import { PlanProvider } from '@/contexts/PlanContext';
+import { destroyUserSession, stopImpersonation, getCurrentImpersonation } from '@/app/(public)/login/session-actions';
 import { checkAndUpdateExpiration } from '@/lib/check-expiration';
 
 
@@ -38,11 +39,22 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  
+  // ⚡ IMPERSONAÇÃO PRIMEIRO (antes de tudo)
+  const [impersonatedId, setImpersonatedId] = useState<string | null>(null);
+  const [impersonationChecked, setImpersonationChecked] = useState(false);
+  
+  useEffect(() => {
+    getCurrentImpersonation().then(id => {
+      setImpersonatedId(id);
+      setImpersonationChecked(true);
+    });
+  }, []);
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (user && !isUserLoading) {
+    if (user && !isUserLoading && !impersonatedId) {
       checkAndUpdateExpiration().then((result) => {
         if (result.expired) {
           toast({
@@ -55,81 +67,32 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
         }
       });
     }
-  }, [user, isUserLoading]);
-
-  const searchParams = useSearchParams();
-  const [impersonatedId, setImpersonatedId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('impersonatedBusinessId');
-    }
-    return null;
-  });
-  
-  useEffect(() => {
-    const urlImpersonatedId = searchParams.get('impersonate');
-    if (urlImpersonatedId) {
-      localStorage.setItem('impersonatedBusinessId', urlImpersonatedId);
-      setImpersonatedId(urlImpersonatedId);
-      router.replace(pathname);
-    } else {
-      const storedId = localStorage.getItem('impersonatedBusinessId');
-      if (storedId) {
-        setImpersonatedId(storedId);
-      }
-    }
-  }, [searchParams, router, pathname]);
-
-  useEffect(() => {
-    const validateImpersonation = async () => {
-      if (impersonatedId && user) {
-        try {
-          const token = await user.getIdToken();
-          const response = await fetch('/api/validate-impersonation', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ businessId: impersonatedId })
-          });
-          
-          const data = await response.json();
-          
-          if (!response.ok || !data.valid) {
-            localStorage.removeItem('impersonatedBusinessId');
-            setImpersonatedId(null);
-            router.push('/admin/dashboard');
-            toast({
-              variant: 'destructive',
-              title: 'Acesso Negado',
-              description: data.error || 'Impersonação inválida.'
-            });
-          }
-        } catch (error) {
-          console.error('Erro ao validar impersonação:', error);
-          localStorage.removeItem('impersonatedBusinessId');
-          setImpersonatedId(null);
-          router.push('/admin/dashboard');
-        }
-      }
-    };
-    
-    if (impersonatedId && user) {
-      validateImpersonation();
-    }
-  }, [impersonatedId, user, router, toast]);
+  }, [user, isUserLoading, impersonatedId]);
 
   const clearImpersonation = async () => {
     await stopImpersonation();
-    localStorage.removeItem('impersonatedBusinessId');
-    setImpersonatedId(null);
     window.location.href = '/admin/dashboard';
   };
-
-  const businessUserId = impersonatedId || user?.uid;
   
+  // ID que será usado para carregar dados
+  const businessUserId = impersonatedId || user?.uid || null;
   const typedUser = user as User | null;
-  const isAdmin = isAdminUser(typedUser?.email);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // ✅ Verificar admin via custom claims do token JWT
+  useEffect(() => {
+    async function checkAdmin() {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      
+      const adminStatus = await isAdminUser(user);
+      setIsAdmin(adminStatus);
+    }
+    
+    checkAdmin();
+  }, [user]);
   
   const businessSettingsRef = useMemoFirebase(
     () => (businessUserId && firestore ? doc(firestore, `negocios/${businessUserId}`) : null),
@@ -138,52 +101,31 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const { data: settingsRaw, isLoading: isSettingsLoading } = useDoc<ConfiguracoesNegocio>(businessSettingsRef);
   
-  const settings = settingsRaw ? {
-    ...settingsRaw,
-    setupCompleted: settingsRaw.setupCompleted === true ? true : false
-  } : null;
+  const settings = settingsRaw;
   
   useEffect(() => {
+    // Aguardar carregamentos
     if (isUserLoading || isSettingsLoading) return;
-
     if (!typedUser) {
       window.location.href = '/login';
       return;
     }
 
-    // Admin SEM impersonation → não deixa acessar /dashboard
-    if (isAdmin && !impersonatedId) {
-      router.push('/admin/dashboard');
-      return;
+    // ADMIN IMPERSONANDO = sem redirects (suporte total)
+    if (isAdmin && impersonatedId) {
+      return; // Admin tem acesso total, vai onde quiser
     }
 
-    // Admin COM impersonation OU usuário normal → verifica setup
-    if (settings) {
-      const needsSetup = settings.setupCompleted !== true;
-      
-      if (needsSetup && pathname !== '/configuracoes') {
+    // USUÁRIO NORMAL = só redireciona se REALMENTE não completou setup
+    if (!settings || settings.setupCompleted !== true) {
+      if (pathname !== '/configuracoes') {
         router.push('/configuracoes');
-        return;
       }
     }
   }, [isUserLoading, isSettingsLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
-  // Admin impersonando = é tratado como business user
-  // Usuário normal = business user
-  const isBusinessUser = typedUser && (!isAdmin || impersonatedId);
-  const isLoading = isUserLoading || (isBusinessUser && isSettingsLoading);
-  const needsSetup = isBusinessUser && settings && settings.setupCompleted !== true;
-
-  if (isLoading || !typedUser) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-    )
-  }
-  
-  // Admin impersonando também passa pelas mesmas validações que business user
-  if (isBusinessUser && !settings) {
+  // ⏳ Loading: Aguardar tudo estar pronto
+  if (isUserLoading || !typedUser || !impersonationChecked || isSettingsLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -191,32 +133,22 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (needsSetup && pathname !== '/configuracoes') {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-              <div className="flex flex-col items-center gap-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-sm text-muted-foreground">Preparando configuração...</p>
-              </div>
-          </div>
-      )
-  }
-
+  // Admin impersonando NUNCA está em setup
+  const needsSetup = (isAdmin && impersonatedId) ? false : (!settings || settings.setupCompleted !== true);
 
   const handleLogout = async () => {
     try {
       const auth = getAuth();
+      // ✅ destroyUserSession já limpa todos os cookies incluindo impersonation
       await destroyUserSession();
       
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('impersonatedBusinessId');
         localStorage.clear();
       }
       
       await signOut(auth);
       window.location.href = '/';
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
       window.location.href = '/';
     }
   };
@@ -248,6 +180,15 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
+  
+  // ✅ SE ESTÁ EM SETUP, NÃO MOSTRAR SIDEBAR/HEADER - APENAS CONTEÚDO
+  if (needsSetup && pathname === '/configuracoes') {
+    return (
+      <div className="min-h-screen w-full bg-background flex justify-center items-start px-4 py-8">
+        {children}
+      </div>
+    );
+  }
   
   return (
     <>
@@ -362,7 +303,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
         </header>
         <main className={cn("flex flex-1 flex-col pt-14 md:pt-0", impersonatedId && "lg:pt-[52px]")}>
           <BusinessUserProvider businessUserId={businessUserId || null}>
-            {children}
+            <PlanProvider businessUserId={businessUserId || undefined} firestore={firestore}>
+              {children}
+            </PlanProvider>
           </BusinessUserProvider>
         </main>
       </SidebarInset>

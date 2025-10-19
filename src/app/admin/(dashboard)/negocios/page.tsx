@@ -71,7 +71,6 @@ export default function AdminNegociosPage() {
       setBusinesses(businessesData);
       setIsLoading(false);
     }, (error) => {
-      console.error("Erro ao buscar negócios:", error);
       toast({ variant: "destructive", title: "Erro ao buscar negócios" });
       setIsLoading(false);
     });
@@ -85,7 +84,6 @@ export default function AdminNegociosPage() {
       } as Plano)).sort((a, b) => a.price - b.price);
       setPlans(plansData);
     }, (error) => {
-      console.error("Erro ao buscar planos:", error);
       toast({ variant: "destructive", title: "Erro ao buscar planos" });
     });
 
@@ -100,8 +98,8 @@ export default function AdminNegociosPage() {
   };
 
   const handleAccessPanel = async (business: ConfiguracoesNegocio) => {
+    // ✅ SEGURANÇA: Usar cookie HTTP-only em vez de localStorage
     await startImpersonation(business.id);
-    localStorage.setItem('impersonatedBusinessId', business.id);
     window.location.href = '/dashboard';
   };
 
@@ -149,7 +147,6 @@ Digite "DELETAR" para confirmar:`;
 
       // A lista será recarregada automaticamente via onSnapshot
     } catch (error) {
-      console.error('Erro ao deletar:', error);
       toast({
         title: '❌ Erro ao Excluir',
         description: 'Não foi possível excluir o negócio.',
@@ -181,7 +178,6 @@ Digite "DELETAR" para confirmar:`;
       });
       setEditingBusiness(null);
     } catch (error) {
-      console.error('Erro ao atualizar negócio:', error);
       toast({
         title: 'Erro ao Salvar',
         description: 'Não foi possível atualizar o negócio. Tente novamente.',

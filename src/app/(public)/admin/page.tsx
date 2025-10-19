@@ -36,7 +36,6 @@ const handleFirebaseAuthError = (firebaseError: any, setError: (message: string)
             setError("Muitas tentativas de login falharam. Por favor, tente novamente mais tarde.");
             break;
         default:
-            console.error("Firebase Auth Error:", firebaseError);
             setError("Ocorreu um erro desconhecido durante a autenticação.");
             break;
     }
@@ -67,15 +66,18 @@ function AdminLoginContent() {
             }
 
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            
+            // ✅ FORÇA REFRESH do token para pegar custom claims atualizados
+            await userCredential.user.getIdToken(true); // force refresh = true
+            
+            // Verificar se custom claim está presente
+            const tokenResult = await userCredential.user.getIdTokenResult();
+            
             const idToken = await userCredential.user.getIdToken();
             const sessionResult = await createAdminSession(idToken);
             
             if (!sessionResult.success) {
                 throw new Error('Falha ao criar sessão admin');
-            }
-
-            if (typeof window !== 'undefined') {
-                localStorage.removeItem('impersonatedBusinessId');
             }
 
             toast({

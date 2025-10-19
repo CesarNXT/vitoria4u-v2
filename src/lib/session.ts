@@ -69,6 +69,16 @@ export async function setImpersonationFlag(businessId: string) {
   });
 }
 
+export async function getImpersonationId(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    const impersonationId = cookieStore.get(IMPERSONATION_COOKIE)?.value;
+    return impersonationId || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function clearImpersonationFlag() {
   const cookieStore = await cookies();
   cookieStore.delete(IMPERSONATION_COOKIE);

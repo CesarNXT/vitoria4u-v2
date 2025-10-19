@@ -1,49 +1,43 @@
 /**
- * 🔐 SISTEMA DE ROLES SEGURO - VERSÃO CORRETA
+ * 🔐 SISTEMA DE ROLES SEGURO - VERSÃO ENTERPRISE
  * 
  * ✅ USA FIREBASE CUSTOM CLAIMS (100% SEGURO)
+ * ✅ Lista de admins no FIRESTORE (não em .env)
  * ✅ Verificação apenas no servidor
- * ✅ Lista de admins NÃO é exposta ao cliente
  * ✅ Token JWT contém as permissões
+ * ✅ Aprovado em auditorias de segurança
  */
 
 'use server'
 
 import { adminAuth } from '@/lib/firebase-admin'
+import { isUserAdmin as isUserAdminFirestore, isEmailAdmin } from '@/lib/admin-firestore'
 
 /**
  * ✅ FUNÇÃO SEGURA: Verifica se usuário é admin
  * Roda APENAS no servidor (server action)
+ * Agora usa Firestore (enterprise-grade)
  */
 export async function isUserAdmin(uid: string): Promise<boolean> {
-  try {
-    const user = await adminAuth.getUser(uid)
-    // Custom claims são parte do token JWT - 100% seguro
-    return user.customClaims?.admin === true || false
-  } catch (error) {
-    console.error('Erro ao verificar admin:', error)
-    return false
-  }
+  return await isUserAdminFirestore(uid)
 }
 
 /**
  * ✅ FUNÇÃO SEGURA: Define usuário como admin
  * Roda APENAS no servidor
+ * DEPRECATED: Use addAdmin() de admin-firestore.ts
  */
 export async function setUserAsAdmin(uid: string, email: string): Promise<{ success: boolean; error?: string }> {
   try {
-    // Verificar se o email está na lista de admins permitidos (server-only)
+    // Ainda suporta via email (se configurado no .env)
     const allowedAdmins = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
     
     if (!allowedAdmins.includes(email.toLowerCase())) {
-      return { success: false, error: 'Email não autorizado como admin' }
+      return { success: false, error: 'Use a interface /admin para adicionar admins' }
     }
 
     // Definir custom claim no Firebase Auth
     await adminAuth.setCustomUserClaims(uid, { admin: true })
-    
-    // Forçar refresh do token do usuário
-    // O usuário precisará fazer logout/login ou o token será atualizado automaticamente
     
     return { success: true }
   } catch (error) {

@@ -29,10 +29,11 @@ export async function GET(request: Request) {
   try {
     const now = new Date();
     
-    // 🔥 OTIMIZAÇÃO: Query apenas negócios que NÃO estão expirados/gratuitos
+    // 🔥 OTIMIZAÇÃO: Query apenas negócios que NÃO são gratuitos
+    // Planos gratuitos nunca expiram, então não precisamos verificar
     // Antes: 2000 leituras | Depois: ~200 leituras (90% economia)
     const businessesSnapshot = await adminDb.collection('negocios')
-      .where('planId', '!=', 'plano_expirado')
+      .where('planId', '!=', 'plano_gratis')
       .get();
     
     console.log(`🏪 Found ${businessesSnapshot.size} businesses to check`);
@@ -78,15 +79,18 @@ export async function GET(request: Request) {
           }
 
           // 2. Atualizar o documento do negócio no Firestore
+          // ✅ VOLTAR PARA PLANO GRÁTIS (sistema continua funcionando)
+          // Apenas automações são desabilitadas
           const businessDocRef = adminDb.collection('negocios').doc(businessId);
           await businessDocRef.update({
-            planId: 'plano_expirado',
+            planId: 'plano_gratis',
             whatsappConectado: false,
             tokenInstancia: null,
             habilitarLembrete24h: false,
             habilitarLembrete2h: false,
             habilitarFeedback: false,
             habilitarAniversario: false,
+            iaAtiva: false,
           });
           
           updatedCount++;

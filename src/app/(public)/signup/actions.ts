@@ -27,7 +27,7 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
     let trialConfig: SystemConfig['trial'] = {
       enabled: false,
       days: 0,
-      planId: 'plano_expirado' // Plano padrão se o teste estiver desativado
+      planId: 'plano_gratis' // ✅ Sistema é GRATUITO por padrão
     };
 
     if (configSnap.exists) {
@@ -38,10 +38,13 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
     }
 
     // 2. Definir o plano inicial e a data de expiração
-    const initialPlanId = trialConfig.enabled ? trialConfig.planId : 'plano_expirado';
+    // ✅ LÓGICA CORRETA:
+    // - COM teste: Plano premium temporário (ex: 3 dias)
+    // - SEM teste: Plano grátis permanente (sistema gratuito!)
+    const initialPlanId = trialConfig.enabled ? trialConfig.planId : 'plano_gratis';
     const expiresAt = trialConfig.enabled && trialConfig.days > 0 
       ? add(new Date(), { days: trialConfig.days })
-      : null;
+      : null; // plano_gratis nunca expira
 
     // 3. Criar o documento do negócio
     const businessRef = adminDb.collection('negocios').doc(userId);

@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+/**
+ * ⚠️ IMPORTANTE: Middleware roda no Edge Runtime
+ * Não podemos usar Firebase Admin SDK aqui (precisa Node.js completo)
+ * A validação REAL de token JWT acontece em:
+ * - Layouts (client-side via custom claims)
+ * - APIs (server-side via adminAuth)
+ * 
+ * Middleware apenas verifica EXISTÊNCIA de cookies
+ */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -22,6 +31,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ✅ APIs admin: verificação de cookie (validação JWT completa acontece na própria API)
+  if (pathname.startsWith('/api/admin/')) {
+    const sessionCookie = request.cookies.get('session')?.value;
+    
+    if (!sessionCookie) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Cookie existe - deixa API fazer validação JWT completa
+    return NextResponse.next();
+  }
+  
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
@@ -31,12 +52,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ✅ Rotas admin: verificar cookie existe (validação JWT completa no layout)
   if (pathname.startsWith('/admin/')) {
-    const hasAdminFlag = request.cookies.get('admin-session');
+    const sessionCookie = request.cookies.get('session')?.value;
     
-    if (!hasAdminFlag) {
+    if (!sessionCookie) {
       return NextResponse.redirect(new URL('/admin', request.url));
     }
+    
+    // Cookie existe - layout fará validação JWT completa com custom claims
+    return NextResponse.next();
   }
   
   const businessRoutes = [
@@ -52,17 +77,17 @@ export function middleware(request: NextRequest) {
     '/pagamento',
   ];
 
+  // ✅ Rotas de negócio: verificar cookie existe (validação JWT completa no layout)
   if (businessRoutes.some(route => pathname.startsWith(route))) {
-    const hasAdminFlag = request.cookies.get('admin-session');
+    const sessionCookie = request.cookies.get('session')?.value;
     
-    if (hasAdminFlag) {
-      return NextResponse.next();
-    }
-    
-    const hasSession = request.cookies.get('session');
-    if (!hasSession) {
+    if (!sessionCookie) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
+    
+    // Cookie existe - layout fará validação JWT completa
+    // Admin pode acessar via custom claims verificados no layout
+    return NextResponse.next();
   }
 
   return NextResponse.next();

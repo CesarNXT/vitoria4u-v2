@@ -17,10 +17,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Users, Gem, LogOut, Sun, Moon, Loader2, Home, Settings, Building2 } from 'lucide-react';
 import Link from 'next/link';
-import { cn, isAdminUser } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useFirebase, FirebaseClientProvider } from '@/firebase';
 import { usePathname, useRouter } from 'next/navigation';
-import { getAuth, signOut } from 'firebase/auth';
+import { getAuth, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import type { User } from '@/lib/types';
@@ -35,6 +35,7 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { setOpenMobile } = useSidebar();
+  const [adminVerified, setAdminVerified] = useState(false);
   
   // 🔥 Sincronizar documento admin automaticamente
   useAdminSync();
@@ -44,23 +45,40 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   }, []);
 
   const typedUser = user as User | null;
-  const isAdmin = isAdminUser(typedUser?.email);
 
+  // ✅ VERIFICAÇÃO ÚNICA E DEFINITIVA
   useEffect(() => {
-    if (isUserLoading) return;
-    
-    if (!typedUser) {
-      window.location.href = '/admin';
-      return;
-    }
-    
-    if (!isAdmin) {
-      window.location.href = '/dashboard';
-      return;
-    }
-  }, [isUserLoading, typedUser, isAdmin]);
+    async function verifyAdminAccess() {
+      // Aguardar user carregar
+      if (isUserLoading) return;
+      
+      // Se não tem usuário, redirecionar
+      if (!typedUser) {
+        window.location.href = '/admin';
+        return;
+      }
 
-  if (isUserLoading || !typedUser || !isAdmin) {
+      try {
+        // Verificar custom claim do token
+        const firebaseUser = typedUser as unknown as FirebaseUser;
+        const idTokenResult = await firebaseUser.getIdTokenResult();
+        const isAdmin = idTokenResult.claims.admin === true;
+        
+        if (isAdmin) {
+          setAdminVerified(true);
+        } else {
+          window.location.href = '/admin';
+        }
+      } catch (error) {
+        window.location.href = '/admin';
+      }
+    }
+
+    verifyAdminAccess();
+  }, [typedUser, isUserLoading]);
+
+  // Mostrar loading até verificação completar
+  if (!adminVerified || isUserLoading || !typedUser) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -71,17 +89,16 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     try {
       const auth = getAuth();
+      // ✅ destroyUserSession já limpa todos os cookies incluindo impersonation
       await destroyUserSession();
       
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('impersonatedBusinessId');
         localStorage.clear();
       }
       
       await signOut(auth);
       window.location.href = '/';
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
       window.location.href = '/';
     }
   };

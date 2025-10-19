@@ -3,13 +3,8 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   allowedDevOrigins: [
-    'e43f53e58e61.ngrok-free.app',
-    '600d92ed5e38.ngrok-free.app',
-    '172.21.235.15',
-    '192.168.243.171',
-    '172.24.230.131',
-    '172.24.239.170',
-    '172.28.124.126', // IP atual da rede
+    '172.28.124.126',
+    '172.22.26.77', // IP atual da rede
   ],
   // Suprimir warnings desnecessários durante build e desenvolvimento
   logging: {

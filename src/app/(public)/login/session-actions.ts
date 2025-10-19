@@ -5,7 +5,8 @@ import {
   destroySession, 
   setAdminFlag,
   setImpersonationFlag,
-  clearImpersonationFlag 
+  clearImpersonationFlag,
+  getImpersonationId 
 } from '@/lib/session';
 
 export async function createUserSession(idToken: string) {
@@ -26,6 +27,10 @@ export async function startImpersonation(businessId: string) {
 
 export async function stopImpersonation() {
   await clearImpersonationFlag();
+}
+
+export async function getCurrentImpersonation() {
+  return await getImpersonationId();
 }
 
 export async function destroyUserSession() {

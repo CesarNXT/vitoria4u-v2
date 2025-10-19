@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getClientsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBusinessConfig } from '@/lib/firestore'
 import { useFirebase } from '@/firebase'
 import { useBusinessUser } from '@/contexts/BusinessUserContext'
@@ -97,20 +97,20 @@ export default function ClientsPage() {
     return () => unsubscribe()
   }, [finalUserId, firestore])
 
-  const handleCreateNew = () => {
+  const handleCreateNew = useCallback(() => {
     setSelectedClient(null)
     setIsFormModalOpen(true)
-  }
+  }, [])
 
-  const handleEdit = (client: Cliente) => {
+  const handleEdit = useCallback((client: Cliente) => {
     setSelectedClient(client);
     setIsFormModalOpen(true)
-  }
+  }, [])
 
-  const handleDeleteRequest = (client: Cliente) => {
+  const handleDeleteRequest = useCallback((client: Cliente) => {
     setClientToDelete(client)
     setIsAlertDialogOpen(true)
-  }
+  }, [])
 
   const handleDeleteConfirm = async () => {
     if (clientToDelete && finalUserId) {
@@ -157,10 +157,20 @@ export default function ClientsPage() {
 
       const id = selectedClient ? selectedClient.id : `client-${Date.now()}`;
 
+      // 🔥 OTIMIZAÇÃO: Extrair mês e dia para query eficiente de aniversários
+      let birthMonth: number | null = null;
+      let birthDay: number | null = null;
+      if (data.birthDate) {
+        birthMonth = data.birthDate.getMonth() + 1; // 1-12
+        birthDay = data.birthDate.getDate(); // 1-31
+      }
+
       const clientData: any = {
         name: data.name,
         phone: numericPhone,
         birthDate: data.birthDate ? data.birthDate.toISOString() : null, // String ISO
+        birthMonth, // Para query otimizada de aniversários
+        birthDay, // Para query otimizada de aniversários
         status: data.status,
         avatarUrl: data.avatarUrl || null,
         observacoes: data.observacoes || null,
@@ -194,16 +204,20 @@ export default function ClientsPage() {
     }
   }
 
-  const dynamicColumns = getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest })
+  const dynamicColumns = useMemo(
+    () => getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest }),
+    []
+  );
   
-    const filteredClients = useMemo(() => 
-        clients.filter(client => {
-            const clientName = String(client.name || '').toLowerCase();
-            const clientPhone = String(client.phone || '');
-            const searchTerm = filter.toLowerCase();
-            return clientName.includes(searchTerm) || clientPhone.includes(searchTerm);
-        }), [clients, filter]
-    );
+  const filteredClients = useMemo(() => 
+    clients.filter(client => {
+      const clientName = String(client.name || '').toLowerCase();
+      const clientPhone = String(client.phone || '');
+      const searchTerm = filter.toLowerCase();
+      return clientName.includes(searchTerm) || clientPhone.includes(searchTerm);
+    }), 
+    [clients, filter]
+  );
 
   if (isLoading) {
     return (

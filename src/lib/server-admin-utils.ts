@@ -1,9 +1,15 @@
 "use server";
 
+import { isEmailAdmin } from './admin-firestore';
+
+/**
+ * ✅ CORREÇÃO: Usa Firestore ao invés de .env
+ */
 export async function isServerAdmin(email: string | null | undefined): Promise<boolean> {
     if (!email) return false;
-    const adminEmails = (process.env.ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());
-    return adminEmails.includes(email);
+    
+    // Usar Firestore (enterprise-grade)
+    return await isEmailAdmin(email);
 }
 
 export async function requireAdmin(email: string | null | undefined): Promise<void> {

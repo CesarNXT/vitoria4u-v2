@@ -37,7 +37,6 @@ export default function AdminDashboardPage() {
       setBusinesses(businessesData)
       setIsLoading(false)
     }, (error) => {
-      console.error("Error fetching businesses:", error);
       toast({ variant: "destructive", title: "Erro ao buscar negócios" });
       setIsLoading(false);
     });
@@ -46,8 +45,8 @@ export default function AdminDashboardPage() {
   }, [firestore, toast])
   
   const handleAccessPanel = async (business: ConfiguracoesNegocio) => {
+    // ✅ SEGURANÇA: Usar cookie HTTP-only em vez de localStorage
     await startImpersonation(business.id);
-    localStorage.setItem('impersonatedBusinessId', business.id);
     window.location.href = '/dashboard';
   };
 

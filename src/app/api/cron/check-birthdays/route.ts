@@ -28,10 +28,15 @@ export async function GET(request: Request) {
             .get();
         
         console.log(`🏪 Found ${businessesSnapshot.size} active businesses`);
+        console.log(`📅 Looking for birthdays on: ${todayDay}/${todayMonth}`);
         
         let birthdayCount = 0;
+        let birthdaySuccess = 0;
+        let birthdayFailed = 0;
         let businessesProcessed = 0;
         let totalReads = businessesSnapshot.size; // Contador de leituras
+        const errorDetails: any[] = []; // Rastrear erros
+        const successDetails: any[] = []; // Rastrear sucessos
 
         // 🔥 OTIMIZAÇÃO 2: Processar em paralelo (lotes de 20)
         const BATCH_SIZE = 20;
@@ -79,8 +84,26 @@ export async function GET(request: Request) {
                         });
                         
                         birthdayCount++;
-                    } catch (error) {
-                        console.error(`❌ Error sending birthday to ${clientData.name}:`, error);
+                        birthdaySuccess++;
+                        
+                        const successInfo = {
+                            cliente: clientData.name,
+                            telefone: clientData.phone,
+                            negocio: businessData.nome
+                        };
+                        successDetails.push(successInfo);
+                        console.log(`✅ [${businessData.nome}] Birthday sent to ${clientData.name} (${clientData.phone})`);
+                    } catch (error: any) {
+                        birthdayCount++;
+                        birthdayFailed++;
+                        const errorInfo = {
+                            cliente: clientData.name,
+                            telefone: clientData.phone,
+                            negocio: businessData.nome,
+                            erro: error.message || 'Unknown error'
+                        };
+                        errorDetails.push(errorInfo);
+                        console.error(`❌ [${businessData.nome}] Error sending birthday to ${clientData.name}:`, error);
                     }
                 }));
 
@@ -91,15 +114,32 @@ export async function GET(request: Request) {
         }
 
         console.log(`✅ CRON Job (check-birthdays) finished`);
-        console.log(`🎉 Birthdays sent: ${birthdayCount}`);
+        console.log(`🎉 Birthdays found: ${birthdayCount}`);
+        console.log(`✅ Sent successfully: ${birthdaySuccess}`);
+        console.log(`❌ Failed: ${birthdayFailed}`);
         console.log(`🏪 Businesses processed: ${businessesProcessed}/${businessesSnapshot.size}`);
         console.log(`📊 Firebase reads: ${totalReads} (OPTIMIZED!)`);
+        
+        if (successDetails.length > 0) {
+            console.log(`📋 Detailed success list:`);
+            successDetails.forEach((s, i) => {
+                console.log(`   ${i + 1}. ${s.cliente} (${s.telefone}) - ${s.negocio}`);
+            });
+        }
+        
+        if (birthdayFailed > 0) {
+            console.warn(`⚠️ Errors detected:`, errorDetails);
+        }
         
         return NextResponse.json({ 
             message: `Birthday checks completed. Found ${birthdayCount} birthdays in ${businessesProcessed} businesses.`,
             birthdayCount,
+            birthdaySuccess,
+            birthdayFailed,
             businessesProcessed,
             totalReads,
+            successList: successDetails,
+            errors: errorDetails,
             optimization: `Saved ${202000 - totalReads} reads!` // Comparação com versão antiga
         });
     } catch (error) {

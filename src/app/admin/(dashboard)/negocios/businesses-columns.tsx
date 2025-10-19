@@ -20,14 +20,11 @@ type BusinessesColumnsProps = {
 
 // Função helper para copiar texto com fallback
 const copyToClipboard = async (text: string, toast: any) => {
-  console.log('Tentando copiar:', text);
-  
   try {
     // Método 1: Clipboard API moderna (funciona em HTTPS e localhost com permissão)
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(text);
-        console.log('✅ Copiado com Clipboard API:', text);
         toast({
           title: "✅ ID Copiado!",
           description: `${text}`,
@@ -35,7 +32,7 @@ const copyToClipboard = async (text: string, toast: any) => {
         });
         return;
       } catch (clipboardError) {
-        console.log('Clipboard API falhou, tentando fallback...', clipboardError);
+        // Tentar fallback
       }
     }
     
@@ -68,13 +65,12 @@ const copyToClipboard = async (text: string, toast: any) => {
     try {
       successful = document.execCommand('copy');
     } catch (err) {
-      console.error('execCommand erro:', err);
+      // Falhou
     }
     
     document.body.removeChild(textArea);
     
     if (successful) {
-      console.log('✅ Copiado com execCommand:', text);
       toast({
         title: "✅ ID Copiado!",
         description: `${text}`,
@@ -82,8 +78,6 @@ const copyToClipboard = async (text: string, toast: any) => {
       });
     } else {
       // Se tudo falhar, mostrar prompt para copiar manualmente
-      console.error('❌ Todos os métodos falharam');
-      
       // Criar modal visual para copiar manualmente
       const copyText = prompt('Copie o ID abaixo:', text);
       
@@ -94,8 +88,6 @@ const copyToClipboard = async (text: string, toast: any) => {
       });
     }
   } catch (error) {
-    console.error('❌ Erro geral ao copiar:', error);
-    
     // Último recurso: mostrar em prompt
     prompt('Erro ao copiar automaticamente. Copie o ID:', text);
     
