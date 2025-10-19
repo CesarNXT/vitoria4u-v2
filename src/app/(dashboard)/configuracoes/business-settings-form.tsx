@@ -207,6 +207,9 @@ export default function BusinessSettingsForm({
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
 
+  // Chave localStorage para salvar progresso do setup
+  const setupProgressKey = `vitoria4u-setup-${userId}`;
+
   // Valores padrão de horários para setup inicial
   const defaultHorarios = {
     domingo: { enabled: false, slots: [] },
@@ -218,29 +221,49 @@ export default function BusinessSettingsForm({
     sabado: { enabled: false, slots: [] },
   };
 
-  const defaultValues: Partial<FormData> = {
-    nome: settings?.nome || "",
-    telefone: formatPhoneNumber(settings?.telefone ? String(settings.telefone) : ""),
-    categoria: settings?.categoria || "",
-    endereco: settings?.endereco || {
-        cep: "", logradouro: "", numero: "", bairro: "", cidade: "", estado: ""
-    },
-    horariosFuncionamento: (settings?.horariosFuncionamento && settings.setupCompleted) 
-        ? settings.horariosFuncionamento 
-        : defaultHorarios,
-    habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
-    habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
-    habilitarAniversario: settings?.habilitarAniversario ?? false,
-    habilitarFeedback: settings?.habilitarFeedback ?? false,
-    feedbackPlatform: settings?.feedbackPlatform ?? 'google',
-    feedbackLink: settings?.feedbackLink || "",
-    habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
-    numeroEscalonamento: formatPhoneNumber(settings?.numeroEscalonamento ? String(settings.numeroEscalonamento) : ""),
-    nomeIa: settings?.nomeIa || 'Vitoria',
-    instrucoesIa: settings?.instrucoesIa || '',
-    iaAtiva: settings?.iaAtiva ?? true, // Sempre ativo por padrão
-    planosSaudeAceitos: settings?.planosSaudeAceitos || [],
+  // Carregar dados salvos do localStorage (apenas em setup mode)
+  const getDefaultValues = (): Partial<FormData> => {
+    const baseValues = {
+      nome: settings?.nome || "",
+      telefone: formatPhoneNumber(settings?.telefone ? String(settings.telefone) : ""),
+      categoria: settings?.categoria || "",
+      endereco: settings?.endereco || {
+          cep: "", logradouro: "", numero: "", bairro: "", cidade: "", estado: ""
+      },
+      horariosFuncionamento: (settings?.horariosFuncionamento && settings.setupCompleted) 
+          ? settings.horariosFuncionamento 
+          : defaultHorarios,
+      habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
+      habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
+      habilitarAniversario: settings?.habilitarAniversario ?? false,
+      habilitarFeedback: settings?.habilitarFeedback ?? false,
+      feedbackPlatform: settings?.feedbackPlatform ?? 'google',
+      feedbackLink: settings?.feedbackLink || "",
+      habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
+      numeroEscalonamento: formatPhoneNumber(settings?.numeroEscalonamento ? String(settings.numeroEscalonamento) : ""),
+      nomeIa: settings?.nomeIa || 'Vitoria',
+      instrucoesIa: settings?.instrucoesIa || '',
+      iaAtiva: settings?.iaAtiva ?? true,
+      planosSaudeAceitos: settings?.planosSaudeAceitos || [],
+    };
+
+    // Em setup mode, tentar carregar dados salvos do localStorage
+    if (isSetupMode && typeof window !== 'undefined') {
+      try {
+        const savedData = localStorage.getItem(setupProgressKey);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          return { ...baseValues, ...parsed };
+        }
+      } catch (error) {
+        // Silencioso - não expor informações no console
+      }
+    }
+
+    return baseValues;
   };
+
+  const defaultValues = getDefaultValues();
 
 
   const form = useForm<FormData>({
@@ -334,6 +357,22 @@ export default function BusinessSettingsForm({
     return () => subscription.unsubscribe();
   }, [watch, fetchAddressFromCep]);
 
+  // 💾 Salvar progresso no localStorage (apenas em setup mode)
+  useEffect(() => {
+    if (!isSetupMode || typeof window === 'undefined') return;
+
+    const subscription = watch((value) => {
+      try {
+        // Salvar dados no localStorage automaticamente
+        localStorage.setItem(setupProgressKey, JSON.stringify(value));
+      } catch (error) {
+        console.error('Erro ao salvar progresso:', error);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, isSetupMode, setupProgressKey]);
+
   /* --- step validation & navigation --- */
   const validateStep = async (stepIndex: number): Promise<boolean> => {
     const step = steps[stepIndex];
@@ -346,6 +385,8 @@ export default function BusinessSettingsForm({
   const handleNextStep = async () => {
     if (await validateStep(currentStep)) {
       setCurrentStep((s) => s + 1);
+      // Scroll suave para o topo
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -380,6 +421,15 @@ export default function BusinessSettingsForm({
         numeroEscalonamento: data.numeroEscalonamento ? parseInt(`55${String(data.numeroEscalonamento).replace(/\D/g, "")}`.slice(-13), 10) : null,
         feedbackLink: data.habilitarFeedback ? data.feedbackLink : "",
     };
+    
+    // 🗑️ Limpar progresso salvo do localStorage quando concluir setup
+    if (isSetupMode && typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(setupProgressKey);
+      } catch (error) {
+        // Silencioso - não expor informações no console
+      }
+    }
     
     onSave({ ...settings, ...dataToSave } as ConfiguracoesNegocio);
     
@@ -691,8 +741,11 @@ export default function BusinessSettingsForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
                     <div className="space-y-0.5 flex-1">
-                      <FormLabel className="text-base">Lembrete de 24h</FormLabel>
-                      <p className="text-sm text-muted-foreground">Enviar um lembrete 24 horas antes do agendamento.</p>
+                      <FormLabel className="text-base">🔔 Lembrete de 24h</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Sistema envia mensagem automática 24 horas antes do horário agendado.<br/>
+                        <strong>Para que serve:</strong> Reduz faltas lembrando o cliente com antecedência.
+                      </p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -706,8 +759,11 @@ export default function BusinessSettingsForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
                     <div className="space-y-0.5 flex-1">
-                      <FormLabel className="text-base">Lembrete de 2h</FormLabel>
-                      <p className="text-sm text-muted-foreground">Enviar um lembrete 2 horas antes do agendamento.</p>
+                      <FormLabel className="text-base">⏰ Lembrete de 2h</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Mensagem enviada 2 horas antes do atendimento.<br/>
+                        <strong>Para que serve:</strong> Último aviso para evitar esquecimentos de última hora.
+                      </p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -721,8 +777,11 @@ export default function BusinessSettingsForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
                     <div className="space-y-0.5 flex-1">
-                      <FormLabel className="text-base">Mensagem de Aniversário</FormLabel>
-                      <p className="text-sm text-muted-foreground">Enviar mensagem automática de felicitação no aniversário do cliente.</p>
+                      <FormLabel className="text-base">🎂 Mensagem de Aniversário</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> No dia do aniversário do cliente, envia felicitações automáticas.<br/>
+                        <strong>Para que serve:</strong> Fideliza clientes mostrando cuidado e atenção pessoal.
+                      </p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -737,9 +796,10 @@ export default function BusinessSettingsForm({
                     render={({ field }) => (
                       <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="space-y-0.5 flex-1">
-                          <FormLabel>Feedback Pós-Serviço</FormLabel>
+                          <FormLabel>⭐ Feedback Pós-Serviço</FormLabel>
                           <FormDescription>
-                            Ativar envio de pesquisa de satisfação.
+                            <strong>Como funciona:</strong> Após finalizar o atendimento, envia link para cliente avaliar.<br/>
+                            <strong>Para que serve:</strong> Aumenta avaliações online e melhora reputação no Google/Instagram.
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -816,9 +876,10 @@ export default function BusinessSettingsForm({
                     render={({ field }) => (
                       <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="space-y-0.5 flex-1">
-                          <FormLabel>Escalonamento Humano</FormLabel>
+                          <FormLabel>👤 Escalonamento Humano</FormLabel>
                           <FormDescription>
-                            Desviar para um atendente se a IA não souber.
+                            <strong>Como funciona:</strong> Quando a IA não souber responder, transfere conversa para um atendente humano.<br/>
+                            <strong>Para que serve:</strong> Garante que nenhum cliente fique sem atendimento em situações complexas.
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -865,8 +926,11 @@ export default function BusinessSettingsForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
                     <div className="space-y-0.5 flex-1">
-                      <FormLabel className="text-base">Lembrete de 24h</FormLabel>
-                      <p className="text-sm text-muted-foreground">Enviar um lembrete 24 horas antes do agendamento.</p>
+                      <FormLabel className="text-base">🔔 Lembrete de 24h</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Sistema envia mensagem automática 24 horas antes do horário agendado.<br/>
+                        <strong>Para que serve:</strong> Reduz faltas lembrando o cliente com antecedência.
+                      </p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -880,8 +944,11 @@ export default function BusinessSettingsForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
                     <div className="space-y-0.5 flex-1">
-                      <FormLabel className="text-base">Lembrete de 2h</FormLabel>
-                      <p className="text-sm text-muted-foreground">Enviar um lembrete 2 horas antes do agendamento.</p>
+                      <FormLabel className="text-base">⏰ Lembrete de 2h</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Mensagem enviada 2 horas antes do atendimento.<br/>
+                        <strong>Para que serve:</strong> Último aviso para evitar esquecimentos de última hora.
+                      </p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -895,8 +962,11 @@ export default function BusinessSettingsForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
                     <div className="space-y-0.5 flex-1">
-                      <FormLabel className="text-base">Mensagem de Aniversário</FormLabel>
-                      <p className="text-sm text-muted-foreground">Enviar mensagem automática de felicitação no aniversário do cliente.</p>
+                      <FormLabel className="text-base">🎂 Mensagem de Aniversário</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> No dia do aniversário do cliente, envia felicitações automáticas.<br/>
+                        <strong>Para que serve:</strong> Fideliza clientes mostrando cuidado e atenção pessoal.
+                      </p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -911,9 +981,10 @@ export default function BusinessSettingsForm({
                   render={({ field }) => (
                     <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="space-y-0.5 flex-1">
-                        <FormLabel>Feedback Pós-Serviço</FormLabel>
+                        <FormLabel>⭐ Feedback Pós-Serviço</FormLabel>
                         <FormDescription>
-                          Ativar envio de pesquisa de satisfação.
+                          <strong>Como funciona:</strong> Após finalizar o atendimento, envia link para cliente avaliar.<br/>
+                          <strong>Para que serve:</strong> Aumenta avaliações online e melhora reputação no Google/Instagram.
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -981,6 +1052,50 @@ export default function BusinessSettingsForm({
                       )}
                     />
                   </div>
+                )}
+              </div>
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={control}
+                  name="habilitarEscalonamento"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-0.5 flex-1">
+                        <FormLabel>👤 Escalonamento Humano</FormLabel>
+                        <FormDescription>
+                          <strong>Como funciona:</strong> Quando a IA não souber responder, transfere conversa para um atendente humano.<br/>
+                          <strong>Para que serve:</strong> Garante que nenhum cliente fique sem atendimento em situações complexas.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {habilitarEscalonamento && (
+                  <FormField
+                    control={control}
+                    name="numeroEscalonamento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número para Escalonamento *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="(XX) XXXXX-XXXX"
+                            inputMode="tel"
+                            value={field.value || ""}
+                            maxLength={15}
+                            onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
               </div>
             </div>
@@ -1229,7 +1344,10 @@ export default function BusinessSettingsForm({
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => setCurrentStep((s) => s - 1)} 
+                    onClick={() => {
+                      setCurrentStep((s) => s - 1);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }} 
                     className="flex-1 sm:w-32"
                   >
                     Voltar
