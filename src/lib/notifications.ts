@@ -140,7 +140,6 @@ export async function notifyProfessionalNewAppointment(data: {
 
 🎉 Você tem um novo agendamento!
 
-━━━━━━━━━━━━━━━━
 📅 *Data e Hora*
 ${data.dataHoraAtendimento}
 
@@ -149,7 +148,6 @@ ${data.nomeCliente}
 
 💼 *Procedimento*
 ${data.nomeServico}
-━━━━━━━━━━━━━━━━
 
 Nos vemos em breve! 😊`
 
@@ -211,7 +209,6 @@ export async function notifyProfessionalCancellation(data: {
 
 ❌ Um agendamento foi cancelado.
 
-━━━━━━━━━━━━━━━━
 📅 *Data e Hora*
 ${data.dataHoraAtendimento}
 
@@ -220,7 +217,6 @@ ${data.nomeCliente}
 
 💼 *Procedimento*
 ${data.nomeServico}
-━━━━━━━━━━━━━━━━
 
 Você tem um horário livre! 🕐`
 

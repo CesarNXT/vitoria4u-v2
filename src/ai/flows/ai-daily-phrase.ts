@@ -2,38 +2,38 @@
 
 /**
  * @fileOverview AI-powered flow to generate a daily motivational phrase for business users.
- *
- * - generateDailyPhrase - A function that generates a daily motivational phrase.
- * - DailyPhraseOutput - The output type for the generateDailyPhrase function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { model } from '@/ai/genkit';
 
-const DailyPhraseOutputSchema = z.object({
-  phrase: z.string().describe('A daily motivational phrase for business users.'),
-  author: z.string().describe('The author of the phrase, which can be "IA" or a real person.'),
-});
-
-export type DailyPhraseOutput = z.infer<typeof DailyPhraseOutputSchema>;
-
-export async function generateDailyPhrase(): Promise<DailyPhraseOutput> {
-  return generateDailyPhraseFlow();
+export interface DailyPhraseOutput {
+  phrase: string;
+  author: string;
 }
 
-const prompt = ai.definePrompt({
-  name: 'dailyPhrasePrompt',
-  output: {schema: DailyPhraseOutputSchema},
-  prompt: `Você é um coach de negócios. Gere uma frase motivacional curta e inspiradora para um usuário empreendedor começar o dia. A frase deve ter no máximo 20 palavras e ser em português brasileiro. Atribua a autoria a uma pessoa famosa ou à "IA".`,
-});
+export async function generateDailyPhrase(): Promise<DailyPhraseOutput> {
+  try {
+    const prompt = `Você é um coach de negócios. Gere uma frase motivacional curta e inspiradora para um usuário empreendedor começar o dia. A frase deve ter no máximo 20 palavras e ser em português brasileiro. 
 
-const generateDailyPhraseFlow = ai.defineFlow(
-  {
-    name: 'generateDailyPhraseFlow',
-    outputSchema: DailyPhraseOutputSchema,
-  },
-  async () => {
-    const {output} = await prompt({});
-    return output!;
+Responda APENAS em formato JSON válido, sem markdown, com esta estrutura exata:
+{"phrase": "sua frase aqui", "author": "nome do autor ou IA"}`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    
+    // Remove markdown se houver
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleanText);
+    
+    return {
+      phrase: parsed.phrase || 'Acredite no seu potencial e siga em frente!',
+      author: parsed.author || 'IA'
+    };
+  } catch (error) {
+    console.error('Erro ao gerar frase:', error);
+    return {
+      phrase: 'O sucesso é a soma de pequenos esforços repetidos dia após dia.',
+      author: 'Robert Collier'
+    };
   }
-);
+}

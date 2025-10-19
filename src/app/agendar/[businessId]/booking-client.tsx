@@ -225,6 +225,10 @@ export default function BookingClient({
             const clientAppointments = appointments.filter(a => a.cliente.phone === phoneAsNumber && a.status === 'Agendado');
             if (clientAppointments.length > 0) {
                 const appointment = clientAppointments[0];
+                if (!appointment) {
+                    setStep('NEW_CLIENT_FORM');
+                    return;
+                }
                 
                 // Garantir que a data está no formato Date correto
                 let convertedDate: Date;
@@ -239,8 +243,9 @@ export default function BookingClient({
                     convertedDate = new Date();
                 }
                 
-                const convertedAppointment = {
+                const convertedAppointment: typeof appointment = {
                     ...appointment,
+                    id: appointment.id || '',
                     date: convertedDate
                 };
                 

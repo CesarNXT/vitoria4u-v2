@@ -66,6 +66,12 @@ export async function POST(request: NextRequest) {
         }
 
         const clientDoc = clientSnapshot.docs[0];
+        if (!clientDoc) {
+            return NextResponse.json({ 
+                exists: false,
+                client: null
+            });
+        }
         const clientData = clientDoc.data();
 
         // Converter Firestore Timestamp para ISO string

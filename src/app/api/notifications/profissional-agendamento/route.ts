@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // Enviar mensagem via WhatsApp (usando token da instância do negócio)
     const firstName = nomeProfissional.split(' ')[0];
-    const message = `✨ *Olá, ${firstName}!* ✨\n\n🎉 Você tem um novo agendamento!\n\n━━━━━━━━━━━━━━━━\n📅 *Data e Hora*\n${dataHoraAtendimento}\n\n👤 *Cliente*\n${nomeCliente}\n\n💼 *Procedimento*\n${nomeServico}\n━━━━━━━━━━━━━━━━\n\nNos vemos em breve! 😊`;
+    const message = `✨ *Olá, ${firstName}!* ✨\n\n🎉 Você tem um novo agendamento!\n\n📅 *Data e Hora*\n${dataHoraAtendimento}\n\n👤 *Cliente*\n${nomeCliente}\n\n💼 *Procedimento*\n${nomeServico}\n\nNos vemos em breve! 😊`;
 
     const response = await fetch(`${WHATSAPP_API_URL}/send/text`, {
       method: 'POST',

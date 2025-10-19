@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     '192.168.243.171',
     '172.24.230.131',
     '172.24.239.170',
+    '172.28.124.126', // IP atual da rede
   ],
   // ✅ SEGURANÇA: Flags de ignore removidas para garantir qualidade do código
   // Se houver erros TypeScript/ESLint, eles DEVEM ser corrigidos antes do deploy

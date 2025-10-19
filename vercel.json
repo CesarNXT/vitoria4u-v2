@@ -2,19 +2,23 @@
   "crons": [
     {
       "path": "/api/cron/check-expirations",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 */6 * * *",
+      "description": "Verifica planos expirados a cada 6 horas"
     },
     {
       "path": "/api/cron/check-birthdays",
-      "schedule": "0 9 * * *"
+      "schedule": "0 9 * * *",
+      "description": "Envia mensagens de aniversário às 9h (diário)"
     },
     {
       "path": "/api/cron/check-returns",
-      "schedule": "0 10 * * *"
+      "schedule": "0 10 * * *",
+      "description": "Envia lembretes de retorno às 10h (diário)"
     },
     {
       "path": "/api/cron/send-reminders",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/15 * * * *",
+      "description": "Processa lembretes agendados (24h e 2h) a cada 15 minutos"
     }
   ]
 }

@@ -108,6 +108,7 @@ function sanitizeString(str: string): string {
   // Ocultar emails: exemplo@dominio.com → ex***@dominio.com
   sanitized = sanitized.replace(SENSITIVE_PATTERNS.email, (email) => {
     const [local, domain] = email.split('@');
+    if (!local || !domain) return email;
     if (local.length <= 2) return `**@${domain}`;
     return `${local.substring(0, 2)}***@${domain}`;
   });

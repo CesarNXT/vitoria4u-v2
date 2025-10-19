@@ -1,51 +1,44 @@
-
 'use server';
 
 /**
  * @fileOverview AI-powered flow to generate a service description.
- *
- * - generateServiceDescription - A function that generates a description for a given service name and business category.
- * - ServiceDescriptionInput - The input type for the function.
- * - ServiceDescriptionOutput - The output type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { model } from '@/ai/genkit';
 
-const ServiceDescriptionInputSchema = z.object({
-  serviceName: z.string().describe('The name of the service to describe.'),
-  businessCategory: z.string().describe('The category of the business (e.g., "Barbearia", "ClinicaDeEstetica").'),
-});
-
-const ServiceDescriptionOutputSchema = z.object({
-  description: z.string().describe('A creative and attractive description for the service.'),
-});
-
-export type ServiceDescriptionInput = z.infer<typeof ServiceDescriptionInputSchema>;
-export type ServiceDescriptionOutput = z.infer<typeof ServiceDescriptionOutputSchema>;
-
-export async function generateServiceDescription(input: ServiceDescriptionInput): Promise<ServiceDescriptionOutput> {
-  return generateServiceDescriptionFlow(input);
+export interface ServiceDescriptionInput {
+  serviceName: string;
+  businessCategory: string;
 }
 
-const prompt = ai.definePrompt({
-  name: 'serviceDescriptionPrompt',
-  input: {schema: ServiceDescriptionInputSchema},
-  output: {schema: ServiceDescriptionOutputSchema},
-  prompt: `Você é um especialista em marketing para negócios locais.
-  O negócio se enquadra na categoria: "{{businessCategory}}".
-  Gere uma descrição curta, criativa e atraente para o serviço chamado "{{serviceName}}", levando em conta o contexto da categoria do negócio.
-  A descrição deve ser em português brasileiro e ter no máximo 50 palavras, destacando os benefícios e o diferencial do serviço.`,
-});
+export interface ServiceDescriptionOutput {
+  description: string;
+}
 
-const generateServiceDescriptionFlow = ai.defineFlow(
-  {
-    name: 'generateServiceDescriptionFlow',
-    inputSchema: ServiceDescriptionInputSchema,
-    outputSchema: ServiceDescriptionOutputSchema,
-  },
-  async (input) => {
-    const {output} = await prompt(input);
-    return output!;
+export async function generateServiceDescription(input: ServiceDescriptionInput): Promise<ServiceDescriptionOutput> {
+  try {
+    const prompt = `Você é um especialista em marketing para negócios locais.
+O negócio se enquadra na categoria: "${input.businessCategory}".
+Gere uma descrição curta, criativa e atraente para o serviço chamado "${input.serviceName}", levando em conta o contexto da categoria do negócio.
+A descrição deve ser em português brasileiro e ter no máximo 50 palavras, destacando os benefícios e o diferencial do serviço.
+
+Responda APENAS em formato JSON válido, sem markdown, com esta estrutura exata:
+{"description": "sua descrição aqui"}`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    
+    // Remove markdown se houver
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleanText);
+    
+    return {
+      description: parsed.description || `${input.serviceName} - Serviço de qualidade para você.`
+    };
+  } catch (error) {
+    console.error('Erro ao gerar descrição:', error);
+    return {
+      description: `${input.serviceName} - Serviço de qualidade para você.`
+    };
   }
-);
+}

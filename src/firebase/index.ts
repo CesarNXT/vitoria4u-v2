@@ -3,7 +3,7 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
+import { getFirestore, initializeFirestore, memoryLocalCache } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -33,22 +33,20 @@ export function initializeFirebase() {
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
-  // Usar a nova API de cache (suporta múltiplas abas sem warnings)
+  // Usar cache em MEMÓRIA (sem IndexedDB que trava no Windows)
   let firestore;
   
   try {
-    // Tentar inicializar com cache persistente (nova API - sem warnings)
+    // Tentar inicializar com cache em memória (muito mais rápido)
     if (typeof window !== 'undefined') {
       firestore = initializeFirestore(firebaseApp, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager()
-        })
+        localCache: memoryLocalCache()
       });
     } else {
       firestore = getFirestore(firebaseApp);
     }
   } catch (error) {
-    // Se já foi inicializado, usar getFirestore() (sem warnings no console)
+    // Se já foi inicializado, usar getFirestore
     firestore = getFirestore(firebaseApp);
   }
   

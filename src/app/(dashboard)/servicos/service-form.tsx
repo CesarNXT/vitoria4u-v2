@@ -183,11 +183,13 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
   }
 
   const handleFormSubmit = (data: ServiceFormValues) => {
+    const { planosAceitos, ...rest } = data;
     const dataToSubmit = {
-      ...data,
+      ...rest,
       returnInDays: data.enableReturn && data.returnInDays ? parseInt(data.returnInDays, 10) : null,
+      planosAceitos: planosAceitos as string[] | undefined, // IDs dos planos
     };
-    onSubmit(dataToSubmit);
+    onSubmit(dataToSubmit as any); // Type assertion necessária devido à complexidade do tipo
   }
   
   const handleGenerateDescription = async () => {

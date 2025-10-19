@@ -74,10 +74,24 @@ export async function POST(request: NextRequest) {
         }
 
         let clientId: string;
+        
+        // 🔥 OTIMIZAÇÃO: Extrair mês e dia para query eficiente de aniversários
+        let birthMonth: number | null = null;
+        let birthDay: number | null = null;
+        if (birthDate) {
+            const date = new Date(birthDate);
+            if (!isNaN(date.getTime())) {
+                birthMonth = date.getMonth() + 1; // 1-12
+                birthDay = date.getDate(); // 1-31
+            }
+        }
+        
         let clientData: any = {
             name,
             phone: numericPhone, // Salvar como número
             birthDate: birthDate || null, // String ISO ou null
+            birthMonth, // Para query otimizada
+            birthDay, // Para query otimizada
             status: 'Ativo',
             instanciaWhatsapp: businessId,
             createdAt: FieldValue.serverTimestamp(),
@@ -91,6 +105,9 @@ export async function POST(request: NextRequest) {
         if (!existingClients.empty) {
             // Atualizar cliente existente
             const existingClient = existingClients.docs[0];
+            if (!existingClient) {
+                return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
+            }
             clientId = existingClient.id;
             
             // Atualizar dados + normalizar telefone para número
@@ -98,6 +115,8 @@ export async function POST(request: NextRequest) {
                 name,
                 phone: numericPhone, // Normalizar telefone para número
                 birthDate: birthDate || null, // String ISO ou null
+                birthMonth, // Atualizar índice de aniversário
+                birthDay, // Atualizar índice de aniversário
             };
 
             // Atualizar plano de saúde se fornecido

@@ -154,10 +154,12 @@ export function AppointmentForm({
         if (apptDate.toDateString() !== selectedDate.toDateString()) return false;
         
         const [apptHour, apptMin] = appt.startTime.split(':').map(Number);
+        if (apptHour === undefined || apptMin === undefined) return false;
         const apptStartMinutes = apptHour * 60 + apptMin;
         const apptEndMinutes = apptStartMinutes + appt.servico.duration;
         
         const [selHour, selMin] = selectedTime.split(':').map(Number);
+        if (selHour === undefined || selMin === undefined) return false;
         const selStartMinutes = selHour * 60 + selMin;
         const selEndMinutes = selStartMinutes + selectedService.duration;
         
@@ -165,8 +167,10 @@ export function AppointmentForm({
       });
       
       if (conflicts.length > 0) {
-        const conflictClient = conflicts[0].cliente.name;
-        const conflictTime = conflicts[0].startTime;
+        const firstConflict = conflicts[0];
+        if (!firstConflict) return;
+        const conflictClient = firstConflict.cliente.name;
+        const conflictTime = firstConflict.startTime;
         setConflictWarning(`⚠️ Conflito detectado! Já existe um agendamento com ${conflictClient} às ${conflictTime}. Você pode continuar, mas haverá sobreposição.`);
       } else {
         setConflictWarning(null);

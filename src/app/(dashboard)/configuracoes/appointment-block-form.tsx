@@ -42,10 +42,12 @@ const blockFormSchema = z.object({
     if (!data.startDate || !data.endDate || !data.startTime || !data.endTime) return false;
     const startDateTime = new Date(data.startDate);
     const [startHour, startMinute] = data.startTime.split(':').map(Number);
+    if (startHour === undefined || startMinute === undefined) return false;
     startDateTime.setHours(startHour, startMinute, 0, 0);
 
     const endDateTime = new Date(data.endDate);
     const [endHour, endMinute] = data.endTime.split(':').map(Number);
+    if (endHour === undefined || endMinute === undefined) return false;
     endDateTime.setHours(endHour, endMinute, 0, 0);
 
     return endDateTime > startDateTime;
@@ -110,7 +112,9 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
     if(startTimeValue && !block) {
       const startIndex = timeOptions.indexOf(startTimeValue);
       const nextTime = timeOptions[startIndex + 1] || timeOptions[startIndex];
-      setValue('endTime', nextTime);
+      if (nextTime) {
+        setValue('endTime', nextTime);
+      }
       trigger(['startTime', 'endTime']);
     }
   }, [startTimeValue, setValue, trigger, block]);
@@ -119,10 +123,12 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
   const handleSubmit = (data: BlockFormValues) => {
     const startDateTime = new Date(data.startDate);
     const [startHour, startMinute] = data.startTime.split(':').map(Number);
+    if (startHour === undefined || startMinute === undefined) return;
     startDateTime.setHours(startHour, startMinute, 0, 0);
 
     const endDateTime = new Date(data.endDate);
     const [endHour, endMinute] = data.endTime.split(':').map(Number);
+    if (endHour === undefined || endMinute === undefined) return;
     endDateTime.setHours(endHour, endMinute, 0, 0);
 
     onSubmit({

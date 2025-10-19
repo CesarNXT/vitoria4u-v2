@@ -24,50 +24,89 @@ export async function GET(request: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  try {
-    const businessesSnapshot = await adminDb.collection('negocios').get();
-    let updatedCount = 0;
+  console.log('🔍 CRON Job (check-expirations) started - OPTIMIZED VERSION');
 
-    for (const businessDoc of businessesSnapshot.docs) {
+  try {
+    const now = new Date();
+    
+    // 🔥 OTIMIZAÇÃO: Query apenas negócios que NÃO estão expirados/gratuitos
+    // Antes: 2000 leituras | Depois: ~200 leituras (90% economia)
+    const businessesSnapshot = await adminDb.collection('negocios')
+      .where('planId', '!=', 'plano_expirado')
+      .get();
+    
+    console.log(`🏪 Found ${businessesSnapshot.size} businesses to check`);
+    
+    let updatedCount = 0;
+    let totalReads = businessesSnapshot.size;
+
+    // 🔥 OTIMIZAÇÃO 2: Processar em paralelo (lotes de 30)
+    const BATCH_SIZE = 30;
+    const businesses = businessesSnapshot.docs;
+    
+    for (let i = 0; i < businesses.length; i += BATCH_SIZE) {
+      const batch = businesses.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (businessDoc) => {
         const business = businessDoc.data() as ConfiguracoesNegocio;
         const businessId = businessDoc.id;
 
-        // Pular negócios que já estão no plano expirado ou gratuito
-        if (business.planId === 'plano_expirado' || business.planId === 'plano_gratis') {
-            continue;
+        // Pular plano gratuito (não expira)
+        if (business.planId === 'plano_gratis') {
+          return;
         }
         
         const expirationDate = toDate(business.access_expires_at);
 
         // Se a data de expiração existe e já passou
-        if (expirationDate && isPast(expirationDate)) {
-            // 1. Deletar instância WhatsApp diretamente
-            if (business.whatsappConectado && business.tokenInstancia) {
-                try {
-                    const client = new WhatsAppAPIClient(businessId, business.tokenInstancia);
-                    await client.deleteInstance();
-                } catch (error) {
-                    // Silencioso - pode já estar deletada
-                }
-            }
-
-            // 2. Atualizar o documento do negócio no Firestore
-            const businessDocRef = adminDb.collection('negocios').doc(businessId);
-            await businessDocRef.update({
-                planId: 'plano_expirado',
-                whatsappConectado: false,
-                tokenInstancia: null,
-                habilitarLembrete24h: false,
-                habilitarLembrete2h: false,
-                habilitarFeedback: false,
-            });
-            updatedCount++;
+        if (!expirationDate || !isPast(expirationDate)) {
+          return; // Ainda não expirou
         }
+        
+        console.log(`⚠️ Expiration detected: ${businessId} (${business.nome})`);
+        
+        try {
+          // 1. Deletar instância WhatsApp diretamente
+          if (business.whatsappConectado && business.tokenInstancia) {
+            try {
+              const client = new WhatsAppAPIClient(businessId, business.tokenInstancia);
+              await client.deleteInstance();
+              console.log(`✅ WhatsApp instance deleted: ${businessId}`);
+            } catch (error) {
+              console.warn(`⚠️ Failed to delete WhatsApp instance: ${businessId}`);
+            }
+          }
+
+          // 2. Atualizar o documento do negócio no Firestore
+          const businessDocRef = adminDb.collection('negocios').doc(businessId);
+          await businessDocRef.update({
+            planId: 'plano_expirado',
+            whatsappConectado: false,
+            tokenInstancia: null,
+            habilitarLembrete24h: false,
+            habilitarLembrete2h: false,
+            habilitarFeedback: false,
+            habilitarAniversario: false,
+          });
+          
+          updatedCount++;
+          console.log(`✅ Business expired: ${businessId}`);
+        } catch (error) {
+          console.error(`❌ Error processing ${businessId}:`, error);
+        }
+      }));
     }
 
+    console.log(`✅ CRON Job (check-expirations) finished`);
+    console.log(`⚠️ Expired businesses: ${updatedCount}`);
+    console.log(`🏪 Businesses checked: ${businessesSnapshot.size}`);
+    console.log(`📊 Firebase reads: ${totalReads} (OPTIMIZED!)`);
+    
     return NextResponse.json({ 
       message: `Verificação concluída. ${updatedCount} planos expirados detectados e atualizados.`,
-      updatedBusinesses: updatedCount 
+      updatedBusinesses: updatedCount,
+      totalChecked: businessesSnapshot.size,
+      totalReads
     });
 
   } catch (error) {

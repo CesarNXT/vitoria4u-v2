@@ -312,7 +312,9 @@ export default function BusinessSettingsForm({
 
   /* --- step validation & navigation --- */
   const validateStep = async (stepIndex: number): Promise<boolean> => {
-    const fieldsToValidate = steps[stepIndex].fields;
+    const step = steps[stepIndex];
+    if (!step) return false;
+    const fieldsToValidate = step.fields;
     const result = await trigger(fieldsToValidate as any);
     return result;
   };
@@ -1023,7 +1025,7 @@ export default function BusinessSettingsForm({
             <div className="space-y-6">
               {/* Título do Step Atual */}
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-semibold">{steps[currentStep].title}</h2>
+                <h2 className="text-2xl font-semibold">{steps[currentStep]?.title || 'Configuração'}</h2>
                 <p className="text-sm text-muted-foreground">
                   {currentStep === 0 && "Configure as informações básicas do seu negócio"}
                   {currentStep === 1 && "Defina os horários de funcionamento do seu estabelecimento"}

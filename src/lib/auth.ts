@@ -21,6 +21,9 @@ export async function getInitialUser(): Promise<User | null> {
         }
 
         const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+        if (!app) {
+            throw new Error('Failed to initialize Firebase app');
+        }
         const firestore = getFirestore(app);
         
         const userDocRef = doc(firestore, 'users', decodedToken.uid);
