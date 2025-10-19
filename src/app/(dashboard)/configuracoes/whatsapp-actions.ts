@@ -128,9 +128,9 @@ export async function connectWhatsAppAction(data: {
     console.log('📱 Conectando com telefone...')
     const result = await api.connectWithPhone(cleanPhone)
     
-    // 5. Configurar webhook
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://vitoria4u.site'}/api/whatsapp/webhook`
-    console.log('🔔 Configurando webhook:', webhookUrl)
+    // 5. Configurar webhook (N8N)
+    const webhookUrl = process.env.N8N_WHATSAPP_WEBHOOK_URL || 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
+    console.log('🔔 Configurando webhook N8N:', webhookUrl)
     await api.setupWebhook(webhookUrl)
     
     // 6. Verificar se paircode foi gerado
