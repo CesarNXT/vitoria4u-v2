@@ -72,7 +72,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
   
   const form = useForm<BlockFormValues>({
     resolver: zodResolver(blockFormSchema),
-    mode: "onChange",
+    mode: "onSubmit",
     defaultValues: block ? {
       reason: block.reason,
       startDate: new Date(block.startDate),
@@ -200,7 +200,9 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
                     <FormLabel>Hora de Início</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
                         <FormControl>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-full">
+                          <SelectValue className="truncate" />
+                        </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                             {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
@@ -240,7 +242,9 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
                     <FormLabel>Hora de Término</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
                         <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione..." className="truncate" />
+                        </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                             {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
