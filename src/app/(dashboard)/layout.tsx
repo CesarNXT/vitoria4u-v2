@@ -117,7 +117,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     }
 
     // USUÁRIO NORMAL = só redireciona se REALMENTE não completou setup
-    if (!settings || settings.setupCompleted !== true) {
+    // Considera completo se tem nome E telefone
+    const hasData = settings?.nome && settings?.telefone;
+    if (!settings || (settings.setupCompleted !== true && !hasData)) {
       if (pathname !== '/configuracoes') {
         router.push('/configuracoes');
       }
@@ -134,7 +136,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   }
 
   // Admin impersonando NUNCA está em setup
-  const needsSetup = (isAdmin && impersonatedId) ? false : (!settings || settings.setupCompleted !== true);
+  // Considera completo se tem nome E telefone (contas antigas)
+  const hasBasicData = settings?.nome && settings?.telefone;
+  const needsSetup = (isAdmin && impersonatedId) ? false : (!settings || (settings.setupCompleted !== true && !hasBasicData));
 
   const handleLogout = async () => {
     try {

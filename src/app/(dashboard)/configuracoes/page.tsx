@@ -232,7 +232,8 @@ export default function SettingsPage() {
 
   // ✅ NOVO: Admin pode ter seu próprio negócio!
   // Determine if it's setup mode based on setupCompleted flag
-  const isSetupMode = !settings?.setupCompleted;
+  // Se tem nome e telefone, considera setup completo (contas antigas)
+  const isSetupMode = !settings?.setupCompleted && !(settings?.nome && settings?.telefone);
 
   return (
     <div className={cn(

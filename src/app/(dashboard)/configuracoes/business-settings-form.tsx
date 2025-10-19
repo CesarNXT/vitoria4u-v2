@@ -1299,7 +1299,122 @@ export default function BusinessSettingsForm({
                       Configure lembretes e notificações para seus clientes
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>{renderStepContent(2)}</CardContent>
+                  <CardContent>
+                    {/* Sempre mostra conteúdo de notificações, independente de ser clínica */}
+                    <div className="space-y-6">
+                      <FormField
+                        control={control}
+                        name="habilitarLembrete24h"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                            <div className="space-y-0.5 flex-1">
+                              <FormLabel className="text-base">🔔 Lembrete de 24h</FormLabel>
+                              <p className="text-sm text-muted-foreground">
+                                <strong>Como funciona:</strong> Sistema envia mensagem automática 24 horas antes do horário agendado.<br/>
+                                <strong>Para que serve:</strong> Reduz faltas lembrando o cliente com antecedência.
+                              </p>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={control}
+                        name="habilitarLembrete2h"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                            <div className="space-y-0.5 flex-1">
+                              <FormLabel className="text-base">⏰ Lembrete de 2h</FormLabel>
+                              <p className="text-sm text-muted-foreground">
+                                <strong>Como funciona:</strong> Envia lembrete 2 horas antes da consulta.<br/>
+                                <strong>Para que serve:</strong> Reforça o compromisso próximo ao horário.
+                              </p>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={control}
+                        name="habilitarAniversario"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                            <div className="space-y-0.5 flex-1">
+                              <FormLabel className="text-base">🎂 Mensagem de Aniversário</FormLabel>
+                              <p className="text-sm text-muted-foreground">
+                                <strong>Como funciona:</strong> Envia parabéns automático no dia do aniversário do cliente.<br/>
+                                <strong>Para que serve:</strong> Fortalece relacionamento e fidelização.
+                              </p>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={control}
+                        name="habilitarFeedback"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                            <div className="space-y-0.5 flex-1">
+                              <FormLabel className="text-base">⭐ Feedback Pós-Atendimento</FormLabel>
+                              <p className="text-sm text-muted-foreground">
+                                <strong>Como funciona:</strong> Após o atendimento, envia link para avaliação.<br/>
+                                <strong>Para que serve:</strong> Coleta avaliações e melhora a reputação online.
+                              </p>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      {habilitarFeedback && (
+                        <div className="ml-4 space-y-4 pl-4 border-l-2">
+                          <FormField
+                            control={control}
+                            name="feedbackPlatform"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Plataforma de Avaliação</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione onde coletar avaliações" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="google">Google Meu Negócio</SelectItem>
+                                    <SelectItem value="instagram">Instagram</SelectItem>
+                                    <SelectItem value="custom">Link Personalizado</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={control}
+                            name="feedbackLink"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Link para Avaliação</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="https://..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
                 </Card>
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSubmitting}>
