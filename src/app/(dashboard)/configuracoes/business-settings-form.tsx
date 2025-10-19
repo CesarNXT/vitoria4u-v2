@@ -140,12 +140,25 @@ const businessSettingsSchema = z.object({
       });
     }
     // Feedback validation
-    if (data.habilitarFeedback && (!data.feedbackLink || data.feedbackLink.trim() === '')) {
-         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "O link ou usuário para feedback é obrigatório.",
-            path: ["feedbackLink"],
+    if (data.habilitarFeedback) {
+      // Validar plataforma
+      if (!data.feedbackPlatform) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecione a plataforma de feedback (Google ou Instagram).",
+          path: ["feedbackPlatform"],
         });
+      }
+      // Validar link/usuário
+      if (!data.feedbackLink || data.feedbackLink.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: data.feedbackPlatform === 'instagram' 
+            ? "O usuário do Instagram é obrigatório (ex: @seu_negocio)." 
+            : "O link de avaliação do Google é obrigatório.",
+          path: ["feedbackLink"],
+        });
+      }
     }
 });
 
@@ -194,15 +207,6 @@ export default function BusinessSettingsForm({
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
 
-  const setupSteps = [
-    { title: "Detalhes do Negócio", fields: ["nome", "telefone", "categoria", "endereco.cep", "endereco.logradouro", "endereco.numero", "endereco.bairro", "endereco.cidade", "endereco.estado"] },
-    { title: "Horários de Funcionamento", fields: ["horariosFuncionamento"] },
-    { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] },
-  ];
-
-  const allSteps = [...setupSteps, { title: "Configurações de IA", fields: ["nomeIa", "instrucoesIa"] }];
-  const steps = isSetupMode ? setupSteps : allSteps;
-
   // Valores padrão de horários para setup inicial
   const defaultHorarios = {
     domingo: { enabled: false, slots: [] },
@@ -250,6 +254,26 @@ export default function BusinessSettingsForm({
   // Verificar se a categoria atual é uma clínica
   const categoriaAtual = watch('categoria');
   const isClinica = isCategoriaClinica(categoriaAtual);
+
+  // Setup steps dinâmico - adiciona passo de planos de saúde para clínicas
+  const setupSteps = useMemo(() => {
+    const baseSetupSteps = [
+      { title: "Detalhes do Negócio", fields: ["nome", "telefone", "categoria", "endereco.cep", "endereco.logradouro", "endereco.numero", "endereco.bairro", "endereco.cidade", "endereco.estado"] },
+      { title: "Horários de Funcionamento", fields: ["horariosFuncionamento"] },
+    ];
+
+    const clinicSetupStep = { title: "Planos de Saúde", fields: ["planosSaudeAceitos"] };
+    
+    const notificationsStep = { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] };
+
+    // Se for clínica, adiciona passo de planos de saúde antes das notificações
+    return isClinica 
+      ? [...baseSetupSteps, clinicSetupStep, notificationsStep]
+      : [...baseSetupSteps, notificationsStep];
+  }, [isClinica]);
+
+  const allSteps = useMemo(() => [...setupSteps, { title: "Configurações de IA", fields: ["nomeIa", "instrucoesIa"] }], [setupSteps]);
+  const steps = isSetupMode ? setupSteps : allSteps;
 
   // Scroll automático para primeiro erro
   useEffect(() => {
@@ -644,7 +668,21 @@ export default function BusinessSettingsForm({
         );
       case 1: // Horários
         return <BusinessAgendaForm />;
-      case 2: // Notificações
+      case 2: // Planos de Saúde (apenas para clínicas) ou Notificações
+        // Se for clínica, case 2 é Planos de Saúde
+        if (isClinica && steps[2]?.title === "Planos de Saúde") {
+          return (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4 bg-muted/20">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configure os planos de saúde e odontológicos que sua clínica aceita. Isso facilitará o agendamento e controle.
+                </p>
+                <HealthInsuranceManager categoria={categoriaAtual} />
+              </div>
+            </div>
+          );
+        }
+        // Caso contrário, é Notificações
         return (
           <div className="space-y-6">
               <FormField
@@ -720,7 +758,7 @@ export default function BusinessSettingsForm({
                             name="feedbackPlatform"
                             render={({ field }) => (
                                 <FormItem className="space-y-3">
-                                <FormLabel>Plataforma de Feedback</FormLabel>
+                                <FormLabel>Plataforma de Feedback *</FormLabel>
                                 <FormControl>
                                     <RadioGroup
                                     onValueChange={field.onChange}
@@ -751,7 +789,7 @@ export default function BusinessSettingsForm({
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>
-                                  {feedbackPlatform === 'google' ? 'Link de Avaliação do Google' : 'Usuário do Instagram'}
+                                  {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
                                 </FormLabel>
                                 <FormControl>
                                 <Input
@@ -816,7 +854,139 @@ export default function BusinessSettingsForm({
                </div>
           </div>
         );
-      case 3: // Configurações de IA
+      case 3: // Notificações (para clínicas no setup) ou Configurações de IA
+        // Se for clínica no setup mode, case 3 são Notificações
+        if (isClinica && isSetupMode && steps[3]?.title === "Notificações") {
+          return (
+            <div className="space-y-6">
+              <FormField
+                control={control}
+                name="habilitarLembrete24h"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">Lembrete de 24h</FormLabel>
+                      <p className="text-sm text-muted-foreground">Enviar um lembrete 24 horas antes do agendamento.</p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="habilitarLembrete2h"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">Lembrete de 2h</FormLabel>
+                      <p className="text-sm text-muted-foreground">Enviar um lembrete 2 horas antes do agendamento.</p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="habilitarAniversario"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">Mensagem de Aniversário</FormLabel>
+                      <p className="text-sm text-muted-foreground">Enviar mensagem automática de felicitação no aniversário do cliente.</p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={control}
+                  name="habilitarFeedback"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-0.5 flex-1">
+                        <FormLabel>Feedback Pós-Serviço</FormLabel>
+                        <FormDescription>
+                          Ativar envio de pesquisa de satisfação.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {habilitarFeedback && (
+                  <div className="space-y-4 pt-4 border-t">
+                    <FormField
+                      control={control}
+                      name="feedbackPlatform"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Plataforma de Feedback *</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
+                            >
+                              <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="google" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Google Maps</FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="instagram" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Instagram</FormLabel>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={control}
+                      name="feedbackLink"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={
+                                feedbackPlatform === 'google'
+                                  ? 'https://maps.app.goo.gl/seu-link'
+                                  : '@seu_negocio'
+                              }
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+        // Caso contrário, é Configurações de IA
         return (
            <div className="space-y-4">
               <FormField
@@ -1032,7 +1202,9 @@ export default function BusinessSettingsForm({
                 <p className="text-sm text-muted-foreground">
                   {currentStep === 0 && "Configure as informações básicas do seu negócio"}
                   {currentStep === 1 && "Defina os horários de funcionamento do seu estabelecimento"}
-                  {currentStep === 2 && "Configure as notificações e lembretes para seus clientes"}
+                  {currentStep === 2 && isClinica && steps[2]?.title === "Planos de Saúde" && "Configure os planos de saúde aceitos pela sua clínica"}
+                  {currentStep === 2 && (!isClinica || steps[2]?.title !== "Planos de Saúde") && "Configure as notificações e lembretes para seus clientes"}
+                  {currentStep === 3 && "Configure as notificações e lembretes para seus clientes"}
                 </p>
               </div>
               <div className="min-h-[350px]">{renderStepContent(currentStep)}</div>

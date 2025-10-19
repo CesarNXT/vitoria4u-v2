@@ -385,9 +385,10 @@ export function WhatsAppConnectButton({
       
       // Se esgotou tentativas com Pair Code, oferecer QR Code
       if (attempt >= MAX_RETRIES - 1 && isPaircodeError && method === 'paircode') {
-        setError('Não foi possível gerar código de pareamento. Deseja tentar com QR Code?')
+        setError('O código de pareamento falhou após 3 tentativas. Tente usar o QR Code (método mais confiável).')
         setIsLoading(false)
-        return // Usuário pode clicar em "Tentar QR Code"
+        setShowMethodChoice(true) // Mostrar escolha de método novamente
+        return
       }
       
       // Erro geral

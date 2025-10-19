@@ -124,40 +124,72 @@ export async function connectWhatsAppAction(data: {
     console.log('⏳ Aguardando 2s...')
     await new Promise(resolve => setTimeout(resolve, 2000))
     
-    // 4. Conectar com telefone
-    console.log('📱 Conectando com telefone...')
-    const result = await api.connectWithPhone(cleanPhone)
+    // 4. Conectar com telefone (tentar paircode primeiro)
+    console.log('📱 Tentando conectar com telefone (PairCode)...')
+    let result = await api.connectWithPhone(cleanPhone)
     
-    // 5. Configurar webhook (N8N)
+    // 5. Verificar se paircode foi gerado
+    if (!result.pairCode || result.pairCode === '') {
+      console.warn('⚠️ PairCode vazio ou falhou, tentando QR Code...')
+      
+      try {
+        // FALLBACK: Tentar QR Code
+        result = await api.connectWithQRCode()
+        
+        if (result.qrCode) {
+          console.log('✅ QR Code gerado com sucesso!')
+          
+          // Configurar webhook
+          const webhookUrl = process.env.N8N_WHATSAPP_WEBHOOK_URL || 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
+          await api.setupWebhook(webhookUrl)
+          
+          // Enviar instrução via SMS
+          await sendNotificationSMS(
+            cleanPhone, 
+            '📱 *Instruções para Conexão via QR Code:*\n\n' +
+            '1. Abra o WhatsApp no seu celular\n' +
+            '2. Toque em *Mais opções* (⋮) > *Aparelhos conectados*\n' +
+            '3. Toque em *Conectar um aparelho*\n' +
+            '4. Escaneie o QR Code que aparecerá na tela do computador\n\n' +
+            '_O QR Code será exibido na tela agora._'
+          )
+          
+          return {
+            success: true,
+            qrCode: result.qrCode,
+            message: 'Use o QR Code para conectar (método mais confiável)',
+            method: 'qrcode'
+          }
+        }
+      } catch (qrError: any) {
+        console.error('❌ Erro ao gerar QR Code:', qrError.message)
+        
+        // Falhou tudo
+        await sendNotificationSMS(
+          cleanPhone, 
+          'Estamos com problemas de conexão aguarde alguns minutos e tente novamente.'
+        )
+        
+        await api.deleteInstance()
+        
+        return {
+          success: false,
+          error: 'Não foi possível gerar código de conexão'
+        }
+      }
+    }
+    
+    // PairCode foi gerado com sucesso
+    console.log('✅ PairCode gerado:', result.pairCode)
+    
+    // Configurar webhook
     const webhookUrl = process.env.N8N_WHATSAPP_WEBHOOK_URL || 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
     console.log('🔔 Configurando webhook N8N:', webhookUrl)
     await api.setupWebhook(webhookUrl)
     
-    // 6. Verificar se paircode foi gerado
-    if (!result.pairCode || result.pairCode === '') {
-      // FALHA: Paircode vazio
-      console.error('❌ PairCode vazio')
-      
-      // Enviar SMS de erro
-      await sendNotificationSMS(
-        cleanPhone, 
-        'Estamos com problemas de conexão aguarde alguns minutos e tente novamente.'
-      )
-      
-      // Deletar instância
-      await api.deleteInstance()
-      
-      return {
-        success: false,
-        error: 'Não foi possível gerar código de conexão'
-      }
-    }
-    
-    console.log('✅ PairCode gerado:', result.pairCode)
-    
-    // 7. Enviar paircode via SMS
+    // Enviar paircode via SMS
     await sendNotificationSMS(cleanPhone, '*Copie o codigo abaixo:*')
-    await sendNotificationSMS(cleanPhone, result.pairCode)
+    await sendNotificationSMS(cleanPhone, result.pairCode!)
     
     // 8. Aguardar 60s e verificar conexão (em background)
     // Não aguardar aqui para não travar a resposta
@@ -168,7 +200,8 @@ export async function connectWhatsAppAction(data: {
     return {
       success: true,
       pairCode: result.pairCode,
-      message: 'Código enviado via SMS'
+      message: 'Código enviado via SMS',
+      method: 'paircode'
     }
     
   } catch (error: any) {

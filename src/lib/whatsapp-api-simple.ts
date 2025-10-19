@@ -119,11 +119,11 @@ export class WhatsAppAPI {
   }
 
   // ==========================================
-  // PASSO 2: CONECTAR COM TELEFONE (PAIRCODE)
+  // PASSO 2A: CONECTAR COM TELEFONE (PAIRCODE)
   // ==========================================
 
   async connectWithPhone(phone: string): Promise<PairCodeResponse> {
-    console.log('📱 PASSO 2: Conectando com telefone...');
+    console.log('📱 PASSO 2A: Conectando com telefone...');
     console.log('📞 Telefone:', phone);
 
     if (!this.instanceToken) {
@@ -161,6 +161,40 @@ export class WhatsAppAPI {
     }
 
     throw new Error('Nem PairCode nem QRCode foram gerados');
+  }
+
+  // ==========================================
+  // PASSO 2B: CONECTAR VIA QR CODE (FALLBACK)
+  // ==========================================
+
+  async connectWithQRCode(): Promise<PairCodeResponse> {
+    console.log('📱 PASSO 2B: Conectando via QR Code (método mais confiável)...');
+
+    if (!this.instanceToken) {
+      throw new Error('Instância não criada. Chame createInstance() primeiro.');
+    }
+
+    const response = await this.makeRequest(
+      '/instance/connect',
+      'POST',
+      {}, // Sem telefone = gera QR Code
+      true // Usa instanceToken
+    );
+
+    console.log('📥 Resposta completa:', JSON.stringify(response, null, 2));
+
+    const qrCode = response.instance?.qrcode || response.qrcode;
+
+    if (qrCode) {
+      console.log('✅ QR Code gerado');
+      return {
+        success: true,
+        qrCode,
+        instanceToken: this.instanceToken
+      };
+    }
+
+    throw new Error('QR Code não foi gerado');
   }
 
   // ==========================================

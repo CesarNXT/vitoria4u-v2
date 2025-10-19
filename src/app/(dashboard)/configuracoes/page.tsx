@@ -258,11 +258,11 @@ export default function SettingsPage() {
 
         {/* This is shown only in setup mode, taking the full page */}
         {isSetupMode && (
-             <div className="flex flex-1 items-center justify-center p-4 md:p-8 bg-muted/40 min-h-screen">
-                <Card className="w-full max-w-3xl">
+             <div className="flex flex-1 items-center justify-center p-4 md:p-8 lg:p-12 bg-muted/40 min-h-screen">
+                <Card className="w-full max-w-7xl">
                     <CardHeader>
-                    <CardTitle>Bem-vindo! Vamos configurar seu negócio.</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-2xl md:text-3xl">Bem-vindo! Vamos configurar seu negócio.</CardTitle>
+                    <CardDescription className="text-base">
                         Precisamos de algumas informações básicas para começar. Preencha os campos abaixo para habilitar as funcionalidades da plataforma.
                     </CardDescription>
                     </CardHeader>
