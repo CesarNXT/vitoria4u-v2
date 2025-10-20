@@ -500,130 +500,130 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
             )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="professionals"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Profissionais que realizam</FormLabel>
+        {/* Status do Serviço - Linha separada */}
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status do Serviço</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setProfessionalsDialogOpen(true)}
-                    className={cn(
-                      "w-full justify-between",
-                      !field.value.length && "text-muted-foreground"
-                    )}
-                  >
-                    <span className="truncate">
-                      {selectedProfessionalsDetails.length > 0 
-                        ? selectedProfessionalsDetails.map(p => p.name).join(', ')
-                        : "Selecione os profissionais"}
-                    </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
                 </FormControl>
-                
-                <Dialog open={professionalsDialogOpen} onOpenChange={setProfessionalsDialogOpen}>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <VisuallyHidden>
-                      <DialogTitle>Selecione os profissionais</DialogTitle>
-                      <DialogDescription>Escolha os profissionais que executarão este serviço</DialogDescription>
-                    </VisuallyHidden>
-                    <div className="space-y-4">
-                      <Input
-                        placeholder="Buscar profissional..."
-                        value={professionalSearchTerm}
-                        onChange={(e) => setProfessionalSearchTerm(e.target.value)}
-                      />
-                      <div className="max-h-[300px] overflow-y-auto space-y-1">
-                        {filteredProfessionals.length > 0 ? (
-                          filteredProfessionals.map((prof) => {
-                            const isSelected = field.value.includes(prof.id);
-                            const isInactive = prof.status === 'Inativo';
-                            return (
-                              <Button
-                                key={prof.id}
-                                variant={isSelected ? "secondary" : "ghost"}
-                                className={cn(
-                                  "w-full justify-start",
-                                  isInactive && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
-                                )}
-                                onClick={() => {
-                                  if (isInactive) {
-                                    toast({
-                                      variant: "destructive",
-                                      title: "Profissional Inativo",
-                                      description: `${prof.name} está inativo e não pode ser selecionado. Ative o profissional primeiro.`,
-                                    });
-                                    return;
-                                  }
-                                  const currentIds = field.value || [];
-                                  const newIds = currentIds.includes(prof.id)
-                                    ? currentIds.filter((id) => id !== prof.id)
-                                    : [...currentIds, prof.id];
-                                  field.onChange(newIds);
-                                }}
-                                disabled={isInactive}
-                              >
-                                {isSelected && (
-                                  <Check className="mr-2 h-4 w-4" />
-                                )}
-                                <span className="flex-1 text-left">{prof.name}</span>
-                                {isInactive && (
-                                  <span className="text-xs text-muted-foreground ml-2">(Inativo)</span>
-                                )}
-                              </Button>
-                            );
-                          })
-                        ) : (
-                          <p className="text-center text-sm text-muted-foreground py-6">
-                            Nenhum profissional encontrado
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex justify-end gap-2 pt-4 border-t">
-                        <Button
-                          type="button"
-                          onClick={() => setProfessionalsDialogOpen(false)}
-                          className="w-full sm:w-auto"
-                        >
-                          Salvar Seleção
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                <SelectContent>
+                  <SelectItem value="Ativo">Ativo</SelectItem>
+                  <SelectItem value="Inativo">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status do Serviço</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        {/* Profissionais - Linha separada com mais espaço */}
+        <FormField
+          control={form.control}
+          name="professionals"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Profissionais que realizam</FormLabel>
+              <FormControl>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setProfessionalsDialogOpen(true)}
+                  className={cn(
+                    "w-full justify-between",
+                    !field.value.length && "text-muted-foreground"
+                  )}
+                >
+                  <span className="truncate">
+                    {selectedProfessionalsDetails.length > 0 
+                      ? selectedProfessionalsDetails.map(p => p.name).join(', ')
+                      : "Selecione os profissionais"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </FormControl>
+              
+              <Dialog open={professionalsDialogOpen} onOpenChange={setProfessionalsDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                  <VisuallyHidden>
+                    <DialogTitle>Selecione os profissionais</DialogTitle>
+                    <DialogDescription>Escolha os profissionais que executarão este serviço</DialogDescription>
+                  </VisuallyHidden>
+                  <div className="space-y-4">
+                    <Input
+                      placeholder="Buscar profissional..."
+                      value={professionalSearchTerm}
+                      onChange={(e) => setProfessionalSearchTerm(e.target.value)}
+                    />
+                    <div className="max-h-[300px] overflow-y-auto space-y-1">
+                      {filteredProfessionals.length > 0 ? (
+                        filteredProfessionals.map((prof) => {
+                          const isSelected = field.value.includes(prof.id);
+                          const isInactive = prof.status === 'Inativo';
+                          return (
+                            <Button
+                              key={prof.id}
+                              variant={isSelected ? "secondary" : "ghost"}
+                              className={cn(
+                                "w-full justify-start",
+                                isInactive && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
+                              )}
+                              onClick={() => {
+                                if (isInactive) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Profissional Inativo",
+                                    description: `${prof.name} está inativo e não pode ser selecionado. Ative o profissional primeiro.`,
+                                  });
+                                  return;
+                                }
+                                const currentIds = field.value || [];
+                                const newIds = currentIds.includes(prof.id)
+                                  ? currentIds.filter((id) => id !== prof.id)
+                                  : [...currentIds, prof.id];
+                                field.onChange(newIds);
+                              }}
+                              disabled={isInactive}
+                            >
+                              {isSelected && (
+                                <Check className="mr-2 h-4 w-4" />
+                              )}
+                              <span className="flex-1 text-left">{prof.name}</span>
+                              {isInactive && (
+                                <span className="text-xs text-muted-foreground ml-2">(Inativo)</span>
+                              )}
+                            </Button>
+                          );
+                        })
+                      ) : (
+                        <p className="text-center text-sm text-muted-foreground py-6">
+                          Nenhum profissional encontrado
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      <Button
+                        type="button"
+                        onClick={() => setProfessionalsDialogOpen(false)}
+                        className="w-full sm:w-auto"
+                      >
+                        Salvar Seleção
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
