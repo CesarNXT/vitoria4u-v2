@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     let totalProcessado = 0;
     let totalErros = 0;
     let campanhasAtualizadas = 0;
-    const maxEnviosPorExecucao = 5; // ⏱️ Limitar para evitar timeout de 10s do Vercel
+    const maxEnviosPorExecucao = 30; // ⏱️ Processar múltiplos envios por execução
 
     // Processar cada campanha
     for (const activeCampaignDoc of activeCampaignsSnapshot.docs) {
@@ -169,20 +169,20 @@ export async function GET(request: Request) {
 
       for (const envio of enviosParaProcessar) {
         if (totalProcessado >= maxEnviosPorExecucao) {
-          console.log(`⏸️ [CRON] Limite de envios atingido (${maxEnviosPorExecucao}), próximos na execução seguinte`);
+          console.log(`⏸️ [CRON] Limite de ${maxEnviosPorExecucao} envios atingido, continuando na próxima execução`);
           break;
         }
 
         try {
-          // ⏱️ ANTI-BAN: Verificar intervalo desde último envio
+          // ⏱️ ANTI-BAN: Verificar intervalo desde último envio (15-25 segundos)
           const ultimoEnvio = campanha.envios
             .filter(e => e.enviadoEm)
             .sort((a, b) => (b.enviadoEm?.seconds || 0) - (a.enviadoEm?.seconds || 0))[0];
 
           if (ultimoEnvio && ultimoEnvio.enviadoEm) {
             const tempoDesdeUltimoEnvio = agora.getTime() - (ultimoEnvio.enviadoEm.toDate().getTime());
-            const tempoMinimoMs = 80 * 1000; // 80 segundos mínimo
-            const intervaloAleatorio = Math.floor(Math.random() * (120 - 80 + 1)) + 80;
+            const tempoMinimoMs = 15 * 1000; // 15 segundos mínimo
+            const intervaloAleatorio = Math.floor(Math.random() * (25 - 15 + 1)) + 15;
 
             if (tempoDesdeUltimoEnvio < tempoMinimoMs) {
               const aguardar = Math.ceil((tempoMinimoMs - tempoDesdeUltimoEnvio) / 1000);

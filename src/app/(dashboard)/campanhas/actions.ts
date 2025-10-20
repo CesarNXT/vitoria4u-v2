@@ -132,8 +132,8 @@ export async function createCampanhaAction(data: {
       status: 'Pendente',
     }));
 
-    // Calcular tempo estimado de conclusão
-    const tempoMedioPorMensagem = 100; // segundos
+    // Calcular tempo estimado de conclusão (média 20 segundos por mensagem)
+    const tempoMedioPorMensagem = 20; // segundos
     const totalMinutos = (data.contatos.length * tempoMedioPorMensagem) / 60;
     const horas = Math.floor(totalMinutos / 60);
     const minutos = Math.floor(totalMinutos % 60);
@@ -212,11 +212,18 @@ export async function getCampanhasAction() {
       return {
         id: doc.id,
         ...data,
-        // Converter Timestamps para strings ISO (serializável)
+        // Converter Timestamps para Date objects serializáveis
         dataAgendamento: data.dataAgendamento?.toDate?.() || data.dataAgendamento,
         createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
         dataInicioExecucao: data.dataInicioExecucao?.toDate?.() || data.dataInicioExecucao,
         dataConclusao: data.dataConclusao?.toDate?.() || data.dataConclusao,
+        canceledAt: data.canceledAt?.toDate?.() || data.canceledAt,
+        // Serializar envios (converter Timestamps dentro do array)
+        envios: data.envios?.map((envio: any) => ({
+          ...envio,
+          enviadoEm: envio.enviadoEm?.toDate?.() || envio.enviadoEm || null,
+        })) || [],
       };
     });
 
@@ -257,8 +264,15 @@ export async function getCampanhaDetailsAction(campanhaId: string) {
       // Converter Timestamps para Date objects serializáveis
       dataAgendamento: data?.dataAgendamento?.toDate?.() || data?.dataAgendamento,
       createdAt: data?.createdAt?.toDate?.() || data?.createdAt,
+      updatedAt: data?.updatedAt?.toDate?.() || data?.updatedAt,
       dataInicioExecucao: data?.dataInicioExecucao?.toDate?.() || data?.dataInicioExecucao,
       dataConclusao: data?.dataConclusao?.toDate?.() || data?.dataConclusao,
+      canceledAt: data?.canceledAt?.toDate?.() || data?.canceledAt,
+      // Serializar envios (converter Timestamps dentro do array)
+      envios: data?.envios?.map((envio: any) => ({
+        ...envio,
+        enviadoEm: envio.enviadoEm?.toDate?.() || envio.enviadoEm || null,
+      })) || [],
     } as Campanha;
 
     return { success: true, campanha };
