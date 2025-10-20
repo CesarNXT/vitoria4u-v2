@@ -75,16 +75,81 @@ export async function notifyNewAppointment(data: {
   dataHoraAtendimento: string
   criadoPor?: string
   telefoneCliente?: string
+  isFromPanel?: boolean
 }): Promise<void> {
   
-  const message = `*📢 Novo Agendamento Recebido 📢*
+  // Diferenciar mensagem baseado na origem
+  const titulo = data.isFromPanel 
+    ? '*📢 Novo Agendamento Cadastrado 📢*'
+    : '*📢 Novo Agendamento Recebido 📢*'
+  
+  const message = `${titulo}
 
 *📅 Data e hora:* ${data.dataHoraAtendimento}
 
 *👤 Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n*📱 Telefone:* ${data.telefoneCliente}` : ''}
-*💼 Procedimento:* ${data.nomeServico}${data.criadoPor ? `\n\n*📝 Agendado por:* ${data.criadoPor}` : ''}`
+*💼 Procedimento:* ${data.nomeServico}${data.criadoPor ? `\n\n*📋 Agendado por:* ${data.criadoPor}` : ''}`
 
   await sendSMS(data.telefoneEmpresa, message)
+}
+
+// ==========================================
+// NOTIFICAR: CONFIRMAÇÃO PARA O CLIENTE
+// ==========================================
+
+/**
+ * Envia confirmação de agendamento para o CLIENTE
+ * Usa o token da própria empresa (não o token do sistema)
+ */
+export async function notifyClientAppointmentConfirmation(data: {
+  tokenInstancia: string // Token do WhatsApp da empresa
+  telefoneCliente: string
+  nomeCliente: string
+  nomeEmpresa: string
+  nomeServico: string
+  dataHoraAtendimento: string
+  nomeProfissional?: string
+}): Promise<void> {
+  try {
+    const cleanPhone = data.telefoneCliente.toString().replace(/\D/g, '')
+    
+    const message = `Olá *${data.nomeCliente}*! 👋
+
+✅ Seu agendamento foi *confirmado* com sucesso!
+
+*📅 Data e hora:* ${data.dataHoraAtendimento}
+*💼 Serviço:* ${data.nomeServico}${data.nomeProfissional ? `\n*👨‍⚕️ Profissional:* ${data.nomeProfissional}` : ''}
+*🏢 Local:* ${data.nomeEmpresa}
+
+Qualquer dúvida, estamos à disposição! 😊`
+
+    console.log('📩 Enviando confirmação para cliente:', {
+      phone: cleanPhone,
+      servico: data.nomeServico
+    })
+
+    const response = await fetch(`${API_BASE}/send/text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': data.tokenInstancia // Usa token da empresa
+      },
+      body: JSON.stringify({
+        number: cleanPhone,
+        text: message
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Erro ao enviar confirmação: ${error}`)
+    }
+
+    console.log('✅ Confirmação enviada para cliente com sucesso')
+  } catch (error: any) {
+    console.error('❌ Erro ao enviar confirmação para cliente:', error.message)
+    throw error // Lança erro para poder mostrar ao usuário
+  }
 }
 
 // ==========================================

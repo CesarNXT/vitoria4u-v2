@@ -36,7 +36,8 @@ import { format, isSameDay, isDate, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { AppointmentCard } from './appointment-card'
 import { AppointmentBlockForm } from '../configuracoes/appointment-block-form'
-import { sendCreationHooks, sendCompletionHooks, sendCancellationHooks, sendDeletionHooks, sendReminderHooksOnly } from './actions'
+import { sendCreationHooks, sendCompletionHooks, sendCancellationHooks, sendDeletionHooks, sendReminderHooksOnly, sendClientConfirmation } from './actions'
+import { AppointmentConfirmationModal } from '@/components/appointment-confirmation-modal'
 import { getAppointmentsOnSnapshot, getClientsOnSnapshot, getProfessionalsOnSnapshot, getServicesOnSnapshot, saveOrUpdateDocument, deleteDocument, getBlockedDatesOnSnapshot, getBusinessConfig } from '@/lib/firestore'
 import { convertTimestamps, normalizePhoneNumber } from '@/lib/utils'
 import { AppointmentsFilter, type AppointmentFilters } from './appointments-filter'
@@ -89,6 +90,11 @@ export default function AgendamentosPage() {
   // Confirmação de envio de feedback ao finalizar
   const [isFeedbackConfirmOpen, setIsFeedbackConfirmOpen] = useState(false);
   const [pendingFeedbackPayload, setPendingFeedbackPayload] = useState<{
+    settings: any;
+    appointment: any;
+  } | null>(null);
+  const [isClientConfirmOpen, setIsClientConfirmOpen] = useState(false);
+  const [pendingClientConfirm, setPendingClientConfirm] = useState<{
     settings: any;
     appointment: any;
   } | null>(null);
@@ -259,9 +265,16 @@ export default function AgendamentosPage() {
         // Send creation hooks only if it's a NEW appointment (not editing)
         if (!isEditing && data.status === 'Agendado') {
             try {
-                await sendCreationHooks(serializableSettings, serializableAppointment as any, 'Gestor (Painel)');
+                await sendCreationHooks(serializableSettings, serializableAppointment as any, 'Gestor (Painel)', true); // isFromPanel: true
             } catch (error) {
                 // Erro silencioso - logar apenas no servidor
+            }
+            
+            // Mostrar modal de confirmação para enviar ao cliente
+            // Só mostra se WhatsApp conectado E feature ativada
+            if (businessSettings?.whatsappConectado && businessSettings?.notificarClienteAgendamento) {
+                setPendingClientConfirm({ settings: serializableSettings, appointment: serializableAppointment });
+                setIsClientConfirmOpen(true);
             }
         }
         
@@ -371,45 +384,67 @@ export default function AgendamentosPage() {
     } catch (error) {
       toast({ variant: "destructive", title: "Erro ao Finalizar" });
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
-  };
+};
 
-  const handleDeleteRequest = (appointment: Agendamento) => {
+const handleSendClientConfirmation = async () => {
+    if (!pendingClientConfirm) return;
+    
+    try {
+        await sendClientConfirmation(
+            pendingClientConfirm.settings,
+            pendingClientConfirm.appointment
+        );
+        
+        toast({
+            title: '✅ Confirmação Enviada',
+            description: 'Cliente recebeu a confirmação do agendamento por WhatsApp.',
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: '❌ Erro ao Enviar',
+            description: error.message || 'Não foi possível enviar a confirmação.',
+        });
+    }
+};
+
+const handleDeleteRequest = (appointment: Agendamento) => {
     setAppointmentToDelete(appointment);
     setIsAlertDialogOpen(true);
-  };
+};
 
-  const safeToISOString = (date: any) => {
+const safeToISOString = (date: any) => {
     if (!date) return null;
     const dateObj = date.toDate ? date.toDate() : new Date(date);
     if (isNaN(dateObj.getTime())) return null;
     return dateObj.toISOString();
-  };
+};
 
-  const handleDeleteConfirm = async () => {
+const handleDeleteConfirm = async () => {
     if (!appointmentToDelete || !finalUserId || !businessSettings) return;
     
     setIsSubmitting(true);
     try {
         const serializableAppointment = {
-          ...appointmentToDelete,
-          date: safeToISOString(appointmentToDelete.date),
-          createdAt: appointmentToDelete.createdAt ? safeToISOString(appointmentToDelete.createdAt) : undefined,
-          canceledAt: appointmentToDelete.canceledAt ? safeToISOString(appointmentToDelete.canceledAt) : undefined,
-          cliente: {
-            ...appointmentToDelete.cliente,
-            birthDate: safeToISOString(appointmentToDelete.cliente.birthDate),
-          }
+            ...appointmentToDelete,
+            date: safeToISOString(appointmentToDelete.date),
+            createdAt: appointmentToDelete.createdAt ? safeToISOString(appointmentToDelete.createdAt) : undefined,
+            canceledAt: appointmentToDelete.canceledAt ? safeToISOString(appointmentToDelete.canceledAt) : undefined,
+            cliente: {
+                ...appointmentToDelete.cliente,
+                birthDate: safeToISOString(appointmentToDelete.cliente.birthDate),
+            }
         };
 
         const serializableSettings = JSON.parse(JSON.stringify(convertTimestamps(businessSettings)));
         
         // Deletar reminders antes de deletar o agendamento
         try {
-          await deleteReminders(appointmentToDelete.id);
+            await deleteReminders(appointmentToDelete.id);
         } catch (error) {
-          // Silencioso
+            // Silencioso
         }
         
         await sendDeletionHooks(serializableSettings, serializableAppointment as any);
@@ -425,28 +460,28 @@ export default function AgendamentosPage() {
         setIsAlertDialogOpen(false);
 
     } catch (error) {
-       toast({ variant: "destructive", title: "Erro ao Excluir", description: "Não foi possível excluir o agendamento." });
+        toast({ variant: "destructive", title: "Erro ao Excluir", description: "Não foi possível excluir o agendamento." });
     } finally {
         setIsSubmitting(false);
     }
-  };
+};
+
+// State and handlers for Blocked Dates
+const [isBlockDateDialogOpen, setIsBlockDateDialogOpen] = useState(false);
+const [isNewBlockEntryDialogOpen, setIsNewBlockEntryDialogOpen] = useState(false);
+const [selectedBlock, setSelectedBlock] = useState<DataBloqueada | null>(null);
+const [isSubmittingBlock, setIsSubmittingBlock] = useState(false);
+const MAX_BLOCKED_DATES = 3;
   
-  // State and handlers for Blocked Dates
-  const [isBlockDateDialogOpen, setIsBlockDateDialogOpen] = useState(false);
-  const [isNewBlockEntryDialogOpen, setIsNewBlockEntryDialogOpen] = useState(false);
-  const [selectedBlock, setSelectedBlock] = useState<DataBloqueada | null>(null);
-  const [isSubmittingBlock, setIsSubmittingBlock] = useState(false);
-  const MAX_BLOCKED_DATES = 3;
-  
-   const handleBlockFormSubmit = async (data: Omit<DataBloqueada, 'id'>) => {
+const handleBlockFormSubmit = async (data: Omit<DataBloqueada, 'id'>) => {
     if (!finalUserId) return;
     setIsSubmittingBlock(true);
     try {
         const id = selectedBlock ? selectedBlock.id : `block-${Date.now()}`;
         const blockToSave = {
-          reason: data.reason,
-          startDate: new Date(data.startDate).toISOString(),
-          endDate: new Date(data.endDate).toISOString(),
+            reason: data.reason,
+            startDate: new Date(data.startDate).toISOString(),
+            endDate: new Date(data.endDate).toISOString(),
         };
         await saveOrUpdateDocument('datasBloqueadas', id, blockToSave, finalUserId);
         toast({ title: selectedBlock ? "Bloqueio Atualizado" : "Data Bloqueada" });
@@ -457,102 +492,102 @@ export default function AgendamentosPage() {
     } finally {
         setIsSubmittingBlock(false);
     }
-  };
+};
 
-  const handleDeleteBlockedDate = async (id: string) => {
+const handleDeleteBlockedDate = async (id: string) => {
     if (!finalUserId) return;
     
     // Encontrar o bloqueio para verificar se é passado
     const block = blockedDates.find(b => b.id === id);
     if (block) {
-      const now = new Date();
-      const blockEnd = new Date(block.endDate);
-      
-      // Verificar se o bloqueio já terminou (passado)
-      if (blockEnd < now) {
-        toast({ 
-          variant: "destructive",
-          title: "Não é possível excluir", 
-          description: "Bloqueios passados não podem ser removidos. Eles servem como histórico." 
-        });
-        return;
-      }
+        const now = new Date();
+        const blockEnd = new Date(block.endDate);
+        
+        // Verificar se o bloqueio já terminou (passado)
+        if (blockEnd < now) {
+            toast({ 
+                variant: "destructive",
+                title: "Não é possível excluir", 
+                description: "Bloqueios passados não podem ser removidos. Eles servem como histórico." 
+            });
+            return;
+        }
     }
     
     await deleteDocument('datasBloqueadas', id, finalUserId);
     toast({ title: "Bloqueio Removido" });
-  }
-  
-  const handleEditBlock = (block: DataBloqueada) => {
+};
+
+const handleEditBlock = (block: DataBloqueada) => {
     setSelectedBlock(block);
     setIsNewBlockEntryDialogOpen(true);
-  };
+};
 
-  const handleAddNewBlock = () => {
+const handleAddNewBlock = () => {
     setSelectedBlock(null);
     setIsNewBlockEntryDialogOpen(true);
-  }
+};
 
-  // --- RENDER ---
-  const dynamicColumns = getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest, onFinalize: handleFinalize });
+// --- RENDER ---
+const dynamicColumns = getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest, onFinalize: handleFinalize });
   
-  const filteredAppointments = useMemo(() => {
+const filteredAppointments = useMemo(() => {
     return appointments.filter(appointment => {
-      const { clientName, professionalId, serviceId, status, date } = filters;
-      
-      const dateObj = appointment.date?.toDate ? appointment.date.toDate() : new Date(appointment.date);
+        const { clientName, professionalId, serviceId, status, date } = filters;
+        
+        const dateObj = appointment.date?.toDate ? appointment.date.toDate() : new Date(appointment.date);
 
-      const appointmentClientName = String(appointment.cliente.name || '').toLowerCase();
-      if (clientName && !appointmentClientName.includes(clientName.toLowerCase())) return false;
-      if (professionalId && appointment.profissional.id !== professionalId) return false;
-      if (serviceId && appointment.servico.id !== serviceId) return false;
-      if (status && appointment.status !== status) return false;
-      if (date && !isSameDay(startOfDay(dateObj), startOfDay(date))) return false;
+        const appointmentClientName = String(appointment.cliente.name || '').toLowerCase();
+        if (clientName && !appointmentClientName.includes(clientName.toLowerCase())) return false;
+        if (professionalId && appointment.profissional.id !== professionalId) return false;
+        if (serviceId && appointment.servico.id !== serviceId) return false;
+        if (status && appointment.status !== status) return false;
+        if (date && !isSameDay(startOfDay(dateObj), startOfDay(date))) return false;
 
-      return true;
+        return true;
     }).sort((a, b) => {
-      const dateA = isDate(a.date) ? a.date : new Date(a.date);
-      const dateB = isDate(b.date) ? b.date : new Date(b.date);
-      return dateB.getTime() - dateA.getTime();
+        const dateA = isDate(a.date) ? a.date : new Date(a.date);
+        const dateB = isDate(b.date) ? b.date : new Date(b.date);
+        return dateB.getTime() - dateA.getTime();
     });
-  }, [appointments, filters]);
+}, [appointments, filters]);
   
-  if (isLoading) {
+if (isLoading) {
     return (
         <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin" />
         </div>
     )
-  }
+}
 
-  return (
+return (
     <div className="flex flex-col gap-8 p-4 md:p-8">
-       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agendamentos</h1>
-          <p className="text-muted-foreground">Gerencie os horários dos seus clientes.</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Agendamentos</h1>
+                <p className="text-muted-foreground">Gerencie os horários dos seus clientes.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <Button variant="destructive-gradient" onClick={() => setIsBlockDateDialogOpen(true)} className="w-full sm:w-auto">
+                    <CalendarClock className="mr-2 h-4 w-4" />
+                    Gerenciar Bloqueios
+                </Button>
+                <Button onClick={handleCreateNew} className="w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Novo Agendamento
+                </Button>
+            </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-            <Button variant="destructive-gradient" onClick={() => setIsBlockDateDialogOpen(true)} className="w-full sm:w-auto">
-                <CalendarClock className="mr-2 h-4 w-4" />
-                Gerenciar Bloqueios
-            </Button>
-            <Button onClick={handleCreateNew} className="w-full sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Novo Agendamento
-            </Button>
-        </div>
-      </div>
 
-       <Card>
+        <Card>
             <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <LinkIcon className="h-5 w-5" />
-                Link de Agendamento Público
-            </CardTitle>
-            <CardDescription>
-                Compartilhe este link com seus clientes para que eles possam agendar um horário online.
-            </CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                    <LinkIcon className="h-5 w-5" />
+                    Link de Agendamento Público
+                </CardTitle>
+                <CardDescription>
+                    Compartilhe este link com seus clientes para que eles possam agendar um horário online.
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex w-full max-w-md items-center space-x-2">
@@ -565,111 +600,118 @@ export default function AgendamentosPage() {
             </CardContent>
         </Card>
 
+        <Card>
+            <CardHeader>
+                <CardTitle>Todos os Agendamentos</CardTitle>
+                <CardDescription>Filtre e gerencie todos os seus agendamentos em um só lugar.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <AppointmentsFilter
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    services={services}
+                    professionals={professionals}
+                />
+                <div className="block md:hidden mt-4">
+                    <div className="space-y-4">
+                        {filteredAppointments.length > 0 ? (
+                            filteredAppointments.map(appointment => (
+                                <AppointmentCard 
+                                    key={appointment.id} 
+                                    appointment={appointment} 
+                                    onEdit={handleEdit}
+                                    onDelete={handleDeleteRequest}
+                                    onFinalize={handleFinalize}
+                                />
+                            ))
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">Nenhum agendamento encontrado para os filtros selecionados.</p>
+                        )}
+                    </div>
+                </div>
+                <div className='hidden md:block'>
+                    <DataTable 
+                        columns={dynamicColumns} 
+                        data={filteredAppointments}
+                    />
+                </div>
+            </CardContent>
+        </Card>
+        
+        {/* Dialog for Create/Edit */}
+        <Dialog open={isFormModalOpen} onOpenChange={(open) => {
+            if (!open) setSelectedAppointment(null);
+            setIsFormModalOpen(open);
+        }}>
+            <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>{selectedAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
+                    <DialogDescription>
+                        Preencha os detalhes abaixo para criar ou editar um agendamento.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 overflow-y-auto px-1 -mx-1 md:px-6 md:-mx-6">
+                    <AppointmentForm 
+                        key={selectedAppointment ? selectedAppointment.id : 'new-appointment'}
+                        appointment={selectedAppointment} 
+                        clients={clients} 
+                        services={services} 
+                        professionals={professionals} 
+                        allAppointments={appointments}
+                        businessId={finalUserId!}
+                        onSubmit={handleFormSubmit}
+                        isSubmitting={isSubmitting}
+                    />
+                </div>
+            </DialogContent>
+        </Dialog>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Todos os Agendamentos</CardTitle>
-            <CardDescription>Filtre e gerencie todos os seus agendamentos em um só lugar.</CardDescription>
-        </CardHeader>
-        <CardContent>
-           <AppointmentsFilter
-              filters={filters}
-              onFiltersChange={setFilters}
-              services={services}
-              professionals={professionals}
-            />
-          <div className="block md:hidden mt-4">
-              <div className="space-y-4">
-              {filteredAppointments.length > 0 ? (
-                filteredAppointments.map(appointment => (
-                  <AppointmentCard 
-                    key={appointment.id} 
-                    appointment={appointment} 
-                    onEdit={handleEdit}
-                    onDelete={handleDeleteRequest}
-                    onFinalize={handleFinalize}
-                  />
-                ))
-              ) : (
-                 <p className="text-center text-muted-foreground py-8">Nenhum agendamento encontrado para os filtros selecionados.</p>
-              )}
-              </div>
-          </div>
-            <div className='hidden md:block'>
-              <DataTable 
-                columns={dynamicColumns} 
-                data={filteredAppointments}
-              />
-            </div>
-        </CardContent>
-      </Card>
-      
-      {/* Dialog for Create/Edit */}
-      <Dialog open={isFormModalOpen} onOpenChange={(open) => {
-        if (!open) setSelectedAppointment(null);
-        setIsFormModalOpen(open);
-      }}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>{selectedAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
-            <DialogDescription>
-              Preencha os detalhes abaixo para criar ou editar um agendamento.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-1 -mx-1 md:px-6 md:-mx-6">
-            <AppointmentForm 
-                key={selectedAppointment ? selectedAppointment.id : 'new-appointment'}
-                appointment={selectedAppointment} 
-                clients={clients} 
-                services={services} 
-                professionals={professionals} 
-                allAppointments={appointments}
-                businessId={finalUserId!}
-                onSubmit={handleFormSubmit}
-                isSubmitting={isSubmitting}
-            />
-           </div>
-        </DialogContent>
-      </Dialog>
+        {/* Alert Dialog for Delete Confirmation */}
+        <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o agendamento do cliente
+                        <span className="font-bold"> {appointmentToDelete?.cliente.name}</span>.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Alert Dialog for Delete Confirmation */}
-      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente o agendamento do cliente
-              <span className="font-bold"> {appointmentToDelete?.cliente.name}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Modal de Confirmação para Cliente */}
+        <AppointmentConfirmationModal
+            open={isClientConfirmOpen}
+            onOpenChange={setIsClientConfirmOpen}
+            onConfirm={handleSendClientConfirmation}
+            clientName={pendingClientConfirm?.appointment?.cliente?.name || ''}
+        />
 
-      {/* Alert Dialog for Feedback Confirmation */}
-      <AlertDialog open={isFeedbackConfirmOpen} onOpenChange={setIsFeedbackConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Enviar feedback ao cliente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              O agendamento foi marcado como Finalizado. Deseja enviar a solicitação de feedback para o cliente agora?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleSkipFeedbackSend}>Não enviar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmFeedbackSend} disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Enviar agora
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Alert Dialog for Feedback Confirmation */}
+        <AlertDialog open={isFeedbackConfirmOpen} onOpenChange={setIsFeedbackConfirmOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Enviar feedback ao cliente?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        O agendamento foi marcado como Finalizado. Deseja enviar a solicitação de feedback para o cliente agora?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={handleSkipFeedbackSend}>Não enviar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmFeedbackSend} disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Enviar agora
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
         {/* Dialog for Managing Blocked Dates */}
         <Dialog open={isBlockDateDialogOpen} onOpenChange={setIsBlockDateDialogOpen}>

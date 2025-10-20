@@ -28,7 +28,8 @@ import {
     notifyCancelledAppointment,
     notifyProfessionalNewAppointment,
     notifyProfessionalCancellation,
-    notifyFeedbackRequest
+    notifyFeedbackRequest,
+    notifyClientAppointmentConfirmation
 } from "@/lib/notifications";
 
 // ✅ N8N REMOVIDO - Agora usa código nativo em notifications.ts
@@ -156,7 +157,8 @@ async function sendProfessionalNotification(
 export async function sendCreationHooks(
     businessSettings: ConfiguracoesNegocio,
     appointment: Agendamento,
-    criadoPor?: string
+    criadoPor?: string,
+    isFromPanel?: boolean // true = criado pelo painel, false/undefined = link externo
 ): Promise<void> {
     
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
@@ -171,6 +173,7 @@ export async function sendCreationHooks(
         dataHoraAtendimento: dataHoraAtendimento,
         criadoPor: criadoPor,
         telefoneCliente: appointment.cliente.phone?.toString(),
+        isFromPanel: isFromPanel, // Diferencia "Cadastrado" vs "Recebido"
     });
 
     // 👤 MENSAGENS DO USUÁRIO (Token Dinâmico - SÓ se conectado)
@@ -182,6 +185,43 @@ export async function sendCreationHooks(
     // Os reminders são criados no Firestore (collection: scheduled_reminders)
     // e processados pelo cron job /api/cron/send-reminders
     // Veja: src/lib/scheduled-reminders.ts e src/app/(dashboard)/agendamentos/page.tsx
+}
+
+/**
+ * Envia confirmação de agendamento para o CLIENTE
+ * Deve ser chamado SEPARADAMENTE após sendCreationHooks
+ * Só envia se whatsappConectado === true E notificarClienteAgendamento === true
+ */
+export async function sendClientConfirmation(
+    businessSettings: ConfiguracoesNegocio,
+    appointment: Agendamento
+): Promise<void> {
+    // Verifica se WhatsApp está conectado
+    if (!businessSettings.whatsappConectado) {
+        logger.debug('❌ WhatsApp não conectado - confirmação para cliente cancelada');
+        throw new Error('WhatsApp não conectado. Conecte seu WhatsApp para enviar confirmações.');
+    }
+
+    // Verifica se token existe
+    if (!businessSettings.tokenInstancia) {
+        logger.debug('❌ Token de instância ausente');
+        throw new Error('Token de instância não encontrado.');
+    }
+
+    const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
+    const dataHoraAtendimento = format(appointmentDateTime, "dd/MM/yyyy 'às' HH:mm");
+
+    await notifyClientAppointmentConfirmation({
+        tokenInstancia: businessSettings.tokenInstancia,
+        telefoneCliente: appointment.cliente.phone?.toString() || '',
+        nomeCliente: appointment.cliente.name,
+        nomeEmpresa: businessSettings.nome,
+        nomeServico: appointment.servico.name,
+        dataHoraAtendimento: dataHoraAtendimento,
+        nomeProfissional: appointment.profissional?.name,
+    });
+    
+    logger.debug('✅ Confirmação enviada para cliente com sucesso');
 }
 
 /**

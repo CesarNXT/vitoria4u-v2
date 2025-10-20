@@ -245,7 +245,8 @@ export async function POST(request: NextRequest) {
                 }
                 
                 // Enviar webhooks (notificação gestor + lembretes + notificação profissional)
-                await sendCreationHooks(businessSettings as any, fullAppointment as any);
+                // isFromPanel: false = agendamento via link externo
+                await sendCreationHooks(businessSettings as any, fullAppointment as any, undefined, false);
                 logger.success('Webhooks de criação enviados', { appointmentId: newAppointmentRef.id });
             }
         } catch (webhookError) {

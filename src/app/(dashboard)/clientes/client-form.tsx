@@ -22,6 +22,7 @@ import { CalendarIcon, Loader2, Upload, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn, formatPhoneNumber } from '@/lib/utils'
+import { handleError, getErrorMessage } from '@/lib/error-handler'
 import type { Cliente, PlanoSaude, ConfiguracoesNegocio } from '@/lib/types'
 import { useState, useEffect } from 'react'
 import { isCategoriaClinica } from '@/lib/categoria-utils'
@@ -44,7 +45,16 @@ const clientFormSchema = z.object({
   }, {
     message: "O celular deve ter 11 dígitos (DDD + 9 + número). Exemplo: 11999887766"
   }),
-  birthDate: z.date().optional(),
+  birthDate: z.date().optional().refine((date) => {
+    // Se não forneceu data, tudo ok (campo opcional)
+    if (!date) return true;
+    // Se forneceu, validar que tem pelo menos 1 ano de idade
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return date <= oneYearAgo;
+  }, {
+    message: "Selecione uma data válida.",
+  }),
   status: z.boolean().default(true), // true = Ativo, false = Inativo
   avatarUrl: z.string().optional(),
   observacoes: z.string().max(500, 'As observações devem ter no máximo 500 caracteres.').optional(),
@@ -212,9 +222,8 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
         throw new Error(`Falha no upload: ${responseText}`);
       }
     } catch (error) {
-      console.error(error);
-      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-      toast({ variant: "destructive", title: "Erro no Upload", description: errorMessage });
+      handleError(error, { context: 'Avatar upload' });
+      toast({ variant: "destructive", title: "Erro no Upload", description: getErrorMessage(error) });
       setAvatarPreview(client?.avatarUrl || null);
       form.setValue('avatarUrl', client?.avatarUrl || undefined);
     } finally {
@@ -328,13 +337,13 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
             <FormItem>
               <FormLabel>Nome Completo</FormLabel>
               <FormControl>
-                <Input placeholder="Nome do cliente" {...field} />
+                <Input placeholder="Ex: João Silva" maxLength={120} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="phone"
@@ -343,13 +352,12 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
                 <FormLabel>Telefone</FormLabel>
                 <FormControl>
                   <Input
+                    type="tel"
                     placeholder="(99) 99999-9999"
-                    inputMode="numeric"
                     {...field}
-                    maxLength={15}
                     onChange={(e) => {
-                        const formatted = formatPhoneNumber(e.target.value);
-                        field.onChange(formatted);
+                      const formatted = formatPhoneNumber(e.target.value);
+                      field.onChange(formatted);
                     }}
                   />
                 </FormControl>
@@ -357,7 +365,8 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
               </FormItem>
             )}
           />
-           <FormField
+
+          <FormField
             control={form.control}
             name="birthDate"
             render={({ field }) => (

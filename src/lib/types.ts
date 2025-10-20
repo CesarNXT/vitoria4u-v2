@@ -84,6 +84,7 @@ export interface ConfiguracoesNegocio {
   audit?: any;
   setupCompleted?: boolean; // Flag que indica se a configuração inicial obrigatória foi concluída
   planosSaudeAceitos?: PlanoSaude[]; // Planos de saúde/odontológicos aceitos
+  notificarClienteAgendamento?: boolean; // Enviar confirmação de agendamento para o cliente
 }
 
 export interface Agendamento {

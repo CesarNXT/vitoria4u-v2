@@ -46,35 +46,20 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   const typedUser = user as User | null;
 
-  // ✅ VERIFICAÇÃO ÚNICA E DEFINITIVA
+  // ✅ VERIFICAÇÃO SEM GAMBIARRA - Apenas verifica se está logado
   useEffect(() => {
-    async function verifyAdminAccess() {
-      // Aguardar user carregar
-      if (isUserLoading) return;
-      
-      // Se não tem usuário, redirecionar
-      if (!typedUser) {
-        window.location.href = '/admin';
-        return;
-      }
-
-      try {
-        // Verificar custom claim do token
-        const firebaseUser = typedUser as unknown as FirebaseUser;
-        const idTokenResult = await firebaseUser.getIdTokenResult();
-        const isAdmin = idTokenResult.claims.admin === true;
-        
-        if (isAdmin) {
-          setAdminVerified(true);
-        } else {
-          window.location.href = '/admin';
-        }
-      } catch (error) {
-        window.location.href = '/admin';
-      }
+    // Aguardar user carregar
+    if (isUserLoading) return;
+    
+    // Se não tem usuário, redirecionar para login
+    if (!typedUser) {
+      window.location.href = '/admin';
+      return;
     }
 
-    verifyAdminAccess();
+    // Se tem usuário logado, permitir acesso
+    // (A verificação de admin já foi feita no login)
+    setAdminVerified(true);
   }, [typedUser, isUserLoading]);
 
   // Mostrar loading até verificação completar

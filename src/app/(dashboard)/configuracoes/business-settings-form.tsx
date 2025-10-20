@@ -121,6 +121,7 @@ const businessSettingsSchema = z.object({
     id: z.string(),
     nome: z.string(),
   })).optional(),
+  notificarClienteAgendamento: z.boolean().optional(),
 }).superRefine((data, ctx) => {
     // Escalation validation
      if (data.habilitarEscalonamento && data.numeroEscalonamento) {
@@ -237,6 +238,7 @@ export default function BusinessSettingsForm({
       habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
       habilitarAniversario: settings?.habilitarAniversario ?? false,
       habilitarFeedback: settings?.habilitarFeedback ?? false,
+      notificarClienteAgendamento: settings?.notificarClienteAgendamento ?? false,
       feedbackPlatform: settings?.feedbackPlatform ?? 'google',
       feedbackLink: settings?.feedbackLink || "",
       habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
@@ -1075,6 +1077,24 @@ export default function BusinessSettingsForm({
                   </div>
                 )}
               </div>
+              <FormField
+                control={control}
+                name="notificarClienteAgendamento"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">✅ Confirmação de Agendamento</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Envia mensagem de confirmação para o cliente assim que um agendamento é criado.<br/>
+                        <strong>Para que serve:</strong> Confirma o horário marcado e passa segurança para o cliente.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               <div className="space-y-4 rounded-lg border p-4">
                 <FormField
                   control={control}

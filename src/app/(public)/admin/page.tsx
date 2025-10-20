@@ -58,21 +58,18 @@ function AdminLoginContent() {
         const { auth } = initializeFirebase();
 
         try {
+            // 1. Verificar se é admin ANTES de tentar login
             const { isAdmin } = await verifyAdmin(email);
             if (!isAdmin) {
-                setError("Acesso negado. Este e-mail não é de um administrador. Use /login para usuários comuns.");
+                setError("Acesso negado. Este e-mail não é de um administrador.");
                 setIsLoading(false);
                 return;
             }
 
+            // 2. Fazer login
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             
-            // ✅ FORÇA REFRESH do token para pegar custom claims atualizados
-            await userCredential.user.getIdToken(true); // force refresh = true
-            
-            // Verificar se custom claim está presente
-            const tokenResult = await userCredential.user.getIdTokenResult();
-            
+            // 3. Criar sessão admin
             const idToken = await userCredential.user.getIdToken();
             const sessionResult = await createAdminSession(idToken);
             
@@ -82,13 +79,14 @@ function AdminLoginContent() {
 
             toast({
                 title: "Login Admin realizado!",
-                description: "Redirecionando para o painel administrativo...",
+                description: "Redirecionando...",
             });
             
             window.location.href = '/admin/dashboard';
-            return;
+            
         } catch (firebaseError: any) {
             handleFirebaseAuthError(firebaseError, setError);
+        } finally {
             setIsLoading(false);
         }
     };

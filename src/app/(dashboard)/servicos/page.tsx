@@ -5,6 +5,7 @@ import { getServicesOnSnapshot, getProfessionalsOnSnapshot, saveOrUpdateDocument
 import { useFirebase } from '@/firebase';
 import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import type { Servico, Profissional, User, ConfiguracoesNegocio, PlanoSaude } from '@/lib/types';
+import { handleError } from '@/lib/error-handler';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2, Users } from 'lucide-react';
 import { getColumns } from './columns';
@@ -182,7 +183,7 @@ export default function ServicesPage() {
         setIsFormModalOpen(false);
         setSelectedService(null);
     } catch (error) {
-        console.error("Error saving service:", error);
+        handleError(error, { context: 'Save service' });
         toast({
             variant: "destructive",
             title: "Erro ao Salvar",

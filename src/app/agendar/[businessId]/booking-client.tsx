@@ -51,6 +51,13 @@ const newClientFormSchema = z.object({
     .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "O nome não pode conter números ou caracteres especiais."),
   birthDate: z.date({
     required_error: "A data de nascimento é obrigatória.",
+  }).refine((date) => {
+    // Validar que a pessoa tem pelo menos 1 ano de idade
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return date <= oneYearAgo;
+  }, {
+    message: "Selecione uma data válida.",
   }),
   temPlano: z.boolean().optional(),
   planoSaude: z.object({
@@ -558,6 +565,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
                         <FormControl>
                             <Input
                             placeholder="ex: Maria da Silva"
+                            maxLength={120}
                             {...field}
                             />
                         </FormControl>

@@ -25,7 +25,8 @@ import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { useScrollToError } from '@/lib/form-utils'
 import Image from 'next/image'
-import { formatPhoneNumber } from '@/lib/utils'
+import { cn, formatPhoneNumber } from '@/lib/utils';
+import { handleError, getErrorMessage } from '@/lib/error-handler';
 import { getAuth } from 'firebase/auth'
 
 const timeSlotSchema = z.object({
@@ -190,9 +191,8 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
         throw new Error(`Falha no upload: ${responseText}`);
       }
     } catch (error) {
-      console.error(error);
-      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-      toast({ variant: "destructive", title: "Erro no Upload", description: errorMessage });
+      handleError(error, { context: 'Avatar upload' });
+      toast({ variant: "destructive", title: "Erro no Upload", description: getErrorMessage(error) });
       setImagePreview(professional?.avatarUrl || null);
        form.setValue('avatarUrl', professional?.avatarUrl || "");
     } finally {

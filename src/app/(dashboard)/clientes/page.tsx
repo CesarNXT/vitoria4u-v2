@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { normalizePhoneNumber } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { handleError } from '@/lib/error-handler'
 import { ClientStatsCards } from './client-stats-cards'
 import { Input } from '@/components/ui/input'
 import { ClientCard } from './client-card'
@@ -193,7 +195,7 @@ export default function ClientsPage() {
       })
       setIsFormModalOpen(false)
     } catch (error) {
-      console.error("Error saving client:", error)
+      handleError(error, { context: 'Save client' })
       toast({
         variant: "destructive",
         title: "Erro ao Salvar",

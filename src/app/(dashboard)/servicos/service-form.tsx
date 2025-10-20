@@ -26,17 +26,18 @@ import { getAuth } from 'firebase/auth'
 import Image from 'next/image'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { VisuallyHidden } from '@/components/ui/visually-hidden'
-import { cn } from "@/lib/utils"
+import { cn, formatPhoneNumber } from '@/lib/utils';
+import { handleError, getErrorMessage } from '@/lib/error-handler';
 import { Switch } from "@/components/ui/switch"
 import { generateServiceDescription } from "./actions"
 import { useScrollToError } from '@/lib/form-utils'
 
 const serviceFormSchema = z.object({
-  name: z.string().min(3, "O nome deve ter no mínimo 3 caracteres."),
-  description: z.string().optional(),
-  price: z.number().min(0, "O preço não pode ser negativo."),
+  name: z.string().min(3, "O nome deve ter no mínimo 3 caracteres.").max(120, "O nome não pode ter mais de 120 caracteres."),
+  description: z.string().max(800, "A descrição não pode ter mais de 800 caracteres.").optional(),
+  price: z.number().min(0, "O preço não pode ser negativo.").max(100000, "O preço não pode ser maior que R$ 100.000,00."),
   priceType: z.enum(["fixed", "on_request", "starting_from"]),
-  custo: z.number().min(0, "O custo não pode ser negativo.").optional(),
+  custo: z.number().min(0, "O custo não pode ser negativo.").max(100000, "O custo não pode ser maior que R$ 100.000,00.").optional(),
   duration: z.number().min(5, "A duração deve ser de no mínimo 5 minutos."),
   status: z.enum(["Ativo", "Inativo"]),
   professionals: z.array(z.string()).min(1, "Selecione pelo menos um profissional."),
@@ -167,9 +168,8 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
         throw new Error(`Falha no upload: ${errorText}`);
       }
     } catch (error) {
-      console.error(error);
-      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-      toast({ variant: "destructive", title: "Erro no Upload", description: errorMessage });
+      handleError(error, { context: 'Image upload' });
+      toast({ variant: "destructive", title: "Erro no Upload", description: getErrorMessage(error) });
       setImagePreview(service?.imageUrl || null);
        form.setValue('imageUrl', service?.imageUrl || "");
     } finally {
@@ -220,7 +220,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
         description: "A descrição do serviço foi gerada com sucesso.",
       });
     } catch (error) {
-      console.error("Error generating service description:", error);
+      handleError(error, { context: 'Generate service description' });
       toast({
         variant: "destructive",
         title: "Erro ao Gerar Descrição",
@@ -231,14 +231,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
     }
   };
 
-  const onFormErrors = (errors: any) => {
-    console.error("Erros de validação do formulário:", errors);
-    toast({ 
-      variant: "destructive",
-      title: "Erro de Validação", 
-      description: "Por favor, corrija os erros no formulário antes de salvar."
-    });
-  };
+  // Scroll automático para o primeiro erro (sem toast)
 
   const selectedProfessionalsDetails = professionals.filter(p => selectedProfessionalIds.includes(p.id));
   const selectedPlanosDetails = planosSaudeDisponiveis.filter(p => selectedPlanosIds?.includes(p.id));
@@ -247,13 +240,17 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, '');
     const numericValue = Number(rawValue) / 100;
-    form.setValue('price', numericValue, { shouldValidate: true });
+    if (numericValue <= 100000) {
+      form.setValue('price', numericValue, { shouldValidate: true });
+    }
   }
 
   const handleCustoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, '');
     const numericValue = Number(rawValue) / 100;
-    form.setValue('custo', numericValue, { shouldValidate: true });
+    if (numericValue <= 100000) {
+      form.setValue('custo', numericValue, { shouldValidate: true });
+    }
   }
 
   const formattedPrice = new Intl.NumberFormat('pt-BR', {
@@ -274,7 +271,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
   return (
     <>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit, onFormErrors)} className="space-y-6 pt-4">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6 pt-4">
         <FormField
           control={form.control}
           name="name"
@@ -282,7 +279,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
             <FormItem>
               <FormLabel>Nome do Serviço</FormLabel>
               <FormControl>
-                <Input placeholder="Ex: Corte Masculino" {...field} />
+                <Input placeholder="Ex: Corte Masculino" maxLength={120} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -297,7 +294,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
               <FormLabel>Descrição (Opcional)</FormLabel>
               <div className="relative">
                 <FormControl>
-                  <Textarea placeholder="Descreva o serviço..." {...field} value={field.value ?? ''}/>
+                  <Textarea placeholder="Descreva o serviço..." maxLength={800} {...field} value={field.value ?? ''}/>
                 </FormControl>
                 <Button 
                     type="button" 
