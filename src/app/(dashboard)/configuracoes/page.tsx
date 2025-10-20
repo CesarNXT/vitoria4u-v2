@@ -41,6 +41,7 @@ function generateScheduleSummary(horarios: ConfiguracoesNegocio['horariosFuncion
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<ConfiguracoesNegocio | null>(null);
+  const [userPlan, setUserPlan] = useState<any | null>(null);
   const { user, firestore } = useFirebase();
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -114,6 +115,15 @@ export default function SettingsPage() {
                 } as ConfiguracoesNegocio;
                 
                 setSettings(updatedSettings);
+                
+                // Buscar o plano do usuário
+                if (data.planId) {
+                    const planRef = doc(firestore, `planos/${data.planId}`);
+                    const planDoc = await getDoc(planRef);
+                    if (planDoc.exists()) {
+                        setUserPlan({ id: planDoc.id, ...planDoc.data() });
+                    }
+                }
             } else {
                 // ✅ CRIAR documento no Firestore se não existir (evita loop de redirecionamento)
                 const initialSettings = {
@@ -304,7 +314,8 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="px-6 md:px-8 pb-8">
           {user && <BusinessSettingsForm 
-            settings={settings} 
+            settings={settings}
+            userPlan={userPlan}
             userId={impersonatedId || user.uid} 
             onSave={handleSave} 
             onLogout={isSetupMode ? handleLogout : undefined}

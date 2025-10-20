@@ -37,6 +37,7 @@ import { ChevronDown, Filter } from "lucide-react"
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  meta?: any
   filterColumn?: {
     id: string;
     placeholder: string;
@@ -50,6 +51,7 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
   columns,
   data,
+  meta,
   filterColumn,
   statusFilterColumn,
 }: DataTableProps<TData, TValue>) {
@@ -61,6 +63,7 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
+    meta,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
@@ -122,14 +125,21 @@ export function DataTable<TData, TValue>({
           </DropdownMenu>
         )}
       </div>
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table style={{ tableLayout: 'fixed' }}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead 
+                      key={header.id}
+                      style={{
+                        width: header.column.columnDef.size !== 150 ? header.column.columnDef.size : undefined,
+                        maxWidth: header.column.columnDef.size !== 150 ? header.column.columnDef.size : undefined,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -150,7 +160,14 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell 
+                      key={cell.id}
+                      style={{
+                        width: cell.column.columnDef.size !== 150 ? cell.column.columnDef.size : undefined,
+                        maxWidth: cell.column.columnDef.size !== 150 ? cell.column.columnDef.size : undefined,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

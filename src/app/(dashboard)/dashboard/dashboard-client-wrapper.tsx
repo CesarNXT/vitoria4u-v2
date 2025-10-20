@@ -76,7 +76,7 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
   return (
     <>
        <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate max-w-[90%] sm:max-w-full">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
           {serializedSettings?.nome || 'Dashboard'}
         </h2>
       </div>

@@ -15,11 +15,12 @@ const allFeatures: { id: PlanFeature; label: string }[] = [
   { id: 'feedback_pos_atendimento', label: 'Feedback Pós-Atendimento' },
   { id: 'lembrete_aniversario', label: 'Lembrete de Aniversário' },
   { id: 'lembrete_profissional', label: 'Lembrete para Profissional' },
-  { id: 'disparo_de_mensagens', label: 'Disparo de Mensagens em Massa' },
+  { id: 'disparo_de_mensagens', label: 'Campanhas' },
   { id: 'retorno_manutencao', label: 'Lembrete de Retorno' },
   { id: 'notificacao_gestor_agendamento', label: 'Aviso de Agendamento/Cancelamento' },
+  { id: 'notificacao_cliente_agendamento', label: 'Confirmação para o Cliente' },
   { id: 'atendimento_whatsapp_ia', label: 'Atendimento com IA' },
-  { id: 'atendimento_manual_ou_automatizado', label: 'Atendimento Híbrido (IA + Manual)' },
+  { id: 'escalonamento_humano', label: 'Escalonamento Humano' },
 ];
 
 interface AdminPlanFormProps {

@@ -51,17 +51,29 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Profis
         </Button>
       )
     },
+    size: 200,
     cell: ({ row }) => {
       const professional = row.original;
       const profName = String(professional.name || 'Profissional');
       const initials = profName.charAt(0).toUpperCase();
       return (
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar className="h-8 w-8 flex-shrink-0">
             <AvatarImage src={professional.avatarUrl || undefined} alt={profName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <span className="font-medium">{profName}</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-medium truncate cursor-help">{profName}</span>
+              </TooltipTrigger>
+              {profName.length > 30 && (
+                <TooltipContent>
+                  <p>{profName}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )
     },

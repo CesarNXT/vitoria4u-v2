@@ -208,6 +208,13 @@ export async function sendClientConfirmation(
         throw new Error('Token de instância não encontrado.');
     }
 
+    // Verifica se o plano tem acesso à feature
+    const hasAccess = await checkFeatureAccess(businessSettings, 'notificacao_cliente_agendamento');
+    if (!hasAccess) {
+        logger.debug('❌ Plano não tem acesso à feature notificacao_cliente_agendamento');
+        throw new Error('Seu plano não inclui confirmações automáticas para clientes. Faça upgrade para ativar esta funcionalidade.');
+    }
+
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
     const dataHoraAtendimento = format(appointmentDateTime, "dd/MM/yyyy 'às' HH:mm");
 

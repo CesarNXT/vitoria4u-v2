@@ -19,7 +19,7 @@ import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 
-export const getColumns = (impersonate: (userId: string) => void): ColumnDef<ConfiguracoesNegocio>[] => [
+export const getColumns = (): ColumnDef<ConfiguracoesNegocio>[] => [
     {
         id: 'select',
         header: ({ table }) => (
@@ -106,10 +106,6 @@ export const getColumns = (impersonate: (userId: string) => void): ColumnDef<Con
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(business.id)}>
                             Copiar ID do Negócio
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => impersonate(business.id)}>
-                            Acessar como Cliente
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                            <Link href={`/agendar/${business.id}`} target="_blank">

@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Logo } from '@/components/logo';
 import { ArrowLeft, ChevronRight, CheckCircle2, AlertTriangle, XCircle, CalendarDays, Loader2, Link2Off, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -527,9 +526,17 @@ const handleCancelAppointment = async (appointmentId: string) => {
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const formatted = formatPhoneNumber(e.target.value);
         setPhone(formatted);
-        if (phoneError) {
-             validatePhone(formatted);
-        }
+        // Validar sempre que o usuário digitar
+        validatePhone(formatted);
+    };
+
+    // Função para formatar nomes em Title Case
+    const formatNameToTitleCase = (name: string): string => {
+        return name
+            .toLowerCase()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
     };
   
     const NewClientForm = () => {
@@ -567,6 +574,10 @@ const handleCancelAppointment = async (appointmentId: string) => {
                             placeholder="ex: Maria da Silva"
                             maxLength={120}
                             {...field}
+                            onChange={(e) => {
+                                const formatted = formatNameToTitleCase(e.target.value);
+                                field.onChange(formatted);
+                            }}
                             />
                         </FormControl>
                         <FormMessage />
@@ -745,19 +756,30 @@ const handleCancelAppointment = async (appointmentId: string) => {
                             onClick={() => handleSelectService(service)}
                             className="flex w-full items-center justify-between rounded-md border p-4 text-left transition-all hover:bg-muted"
                         >
-                            <div className="flex items-center gap-4">
-                                <Avatar className="h-12 w-12 rounded-md">
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                <Avatar className="h-12 w-12 rounded-md flex-shrink-0">
                                     <AvatarImage src={service.imageUrl || undefined} alt={service.name} className="object-cover" />
                                     <AvatarFallback>{String(service.name || 'S').charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <div>
-                                    <p className="font-medium">{service.name}</p>
+                                <div className="min-w-0 flex-1">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <p className="font-medium truncate cursor-help">{service.name}</p>
+                                        </TooltipTrigger>
+                                        {service.name.length > 30 && (
+                                          <TooltipContent>
+                                            <p>{service.name}</p>
+                                          </TooltipContent>
+                                        )}
+                                      </Tooltip>
+                                    </TooltipProvider>
                                     <p className="text-sm text-muted-foreground">
                                         {service.duration} min - {formatServicePrice(service.price, service.priceType)}
                                     </p>
                                 </div>
                             </div>
-                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                            <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                         </button>
                     ))
                 ) : (
@@ -789,16 +811,27 @@ const handleCancelAppointment = async (appointmentId: string) => {
                         onClick={() => handleSelectProfessional(prof)}
                         className="flex w-full items-center justify-between rounded-md border p-4 text-left transition-all hover:bg-muted"
                     >
-                        <div className="flex items-center gap-3">
-                            <Avatar>
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <Avatar className="flex-shrink-0">
                                 <AvatarImage src={prof.avatarUrl || undefined} alt={prof.name} />
                                 <AvatarFallback>{String(prof.name || 'P').charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
-                            <div>
-                                <p className="font-medium">{prof.name}</p>
+                            <div className="min-w-0 flex-1">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <p className="font-medium truncate cursor-help">{prof.name}</p>
+                                    </TooltipTrigger>
+                                    {prof.name.length > 25 && (
+                                      <TooltipContent>
+                                        <p>{prof.name}</p>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                     </button>
                 ))}
                 {availableProfessionals.length === 0 && <p className="text-center text-muted-foreground">Nenhum profissional disponível para este serviço.</p>}
@@ -941,17 +974,50 @@ const handleCancelAppointment = async (appointmentId: string) => {
             <div className="space-y-6">
                 <div className="space-y-4 rounded-md border p-4">
                     <div className="font-medium">Resumo do Agendamento</div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Cliente:</span>
-                        <span>{currentUser.name}</span>
+                    <div className="flex justify-between items-center text-sm gap-2">
+                        <span className="text-muted-foreground flex-shrink-0">Cliente:</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="truncate text-right cursor-help">{currentUser.name}</span>
+                            </TooltipTrigger>
+                            {currentUser.name.length > 25 && (
+                              <TooltipContent>
+                                <p>{currentUser.name}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Serviço:</span>
-                        <span>{selectedService.name}</span>
+                    <div className="flex justify-between items-center text-sm gap-2">
+                        <span className="text-muted-foreground flex-shrink-0">Serviço:</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="truncate text-right cursor-help">{selectedService.name}</span>
+                            </TooltipTrigger>
+                            {selectedService.name.length > 25 && (
+                              <TooltipContent>
+                                <p>{selectedService.name}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Profissional:</span>
-                        <span>{selectedProfessional.name}</span>
+                    <div className="flex justify-between items-center text-sm gap-2">
+                        <span className="text-muted-foreground flex-shrink-0">Profissional:</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="truncate text-right cursor-help">{selectedProfessional.name}</span>
+                            </TooltipTrigger>
+                            {selectedProfessional.name.length > 25 && (
+                              <TooltipContent>
+                                <p>{selectedProfessional.name}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Data:</span>
@@ -1084,7 +1150,12 @@ const handleCancelAppointment = async (appointmentId: string) => {
                     placeholder="(XX) XXXXX-XXXX"
                     value={phone}
                     onChange={handlePhoneChange}
-                    onBlur={(e) => validatePhone(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handlePhoneSubmit(e as any);
+                        }
+                    }}
                     required
                     maxLength={15}
                 />
@@ -1128,7 +1199,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
         case 'NEW_CLIENT_FORM': return currentUser ? 'Confirme seus dados' : 'Quase lá! Faltam alguns dados.';
         case 'MODIFY_EXISTING': return 'Gerenciar Agendamento';
         case 'TIPO_ATENDIMENTO': return 'Tipo de Atendimento';
-        case 'SERVICE': return `Serviços disponíveis para você, ${currentUser?.name?.split(' ')[0] || ''}.`;
+        case 'SERVICE': return 'Serviços disponíveis para você';
         case 'PROFESSIONAL': return 'Quem irá te atender?';
         case 'DATETIME': return 'Escolha Data e Hora';
         case 'CONFIRMATION': return 'Confirme seu Agendamento';
@@ -1193,7 +1264,12 @@ const handleCancelAppointment = async (appointmentId: string) => {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     )}
-                    <CardTitle className="text-2xl font-headline pt-2">{getStepTitle()}</CardTitle>
+                    <CardTitle className="text-2xl font-headline pt-2 px-12">{getStepTitle()}</CardTitle>
+                    {step === 'SERVICE' && currentUser?.name && (
+                      <p className="text-base text-muted-foreground mt-2 px-4 truncate">
+                        Olá, {currentUser.name.split(' ')[0]}!
+                      </p>
+                    )}
                     <CardDescription>{getStepDescription()}</CardDescription>
                 </CardHeader>
                 <CardContent className="animate-fade-in-up">

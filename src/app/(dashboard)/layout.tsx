@@ -80,7 +80,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const typedUser = user as User | null;
   const [isAdmin, setIsAdmin] = useState(false);
   
-  // ✅ Verificar admin via custom claims do token JWT
+  // ✅ Verificar admin via custom claims do token JWT  
   useEffect(() => {
     async function checkAdmin() {
       if (!user) {
@@ -90,10 +90,16 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       
       const adminStatus = await isAdminUser(user);
       setIsAdmin(adminStatus);
+      
+      // 🚫 BLOQUEIO: Admins não podem acessar painel de negócios
+      // Apenas usuários comuns têm acesso
+      if (adminStatus && !impersonatedId) {
+        router.replace('/admin/dashboard');
+      }
     }
     
     checkAdmin();
-  }, [user]);
+  }, [user, impersonatedId, router]);
   
   const businessSettingsRef = useMemoFirebase(
     () => (businessUserId && firestore ? doc(firestore, `negocios/${businessUserId}`) : null),

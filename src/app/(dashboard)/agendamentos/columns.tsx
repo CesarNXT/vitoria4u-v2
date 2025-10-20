@@ -33,20 +33,32 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
     accessorKey: "cliente.name",
     header: "Cliente",
     id: 'clientName',
+    size: 220,
     cell: ({ row }) => {
       const cliente = row.original.cliente;
       const clientName = String(cliente.name || 'Cliente');
       const initials = clientName.charAt(0).toUpperCase();
       return (
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar className="h-8 w-8 flex-shrink-0">
             <AvatarImage src={cliente.avatarUrl || undefined} alt={clientName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <div className="flex flex-col">
-            <span className="font-medium">{clientName}</span>
-            <span className="text-xs text-muted-foreground">{formatPhoneNumber(String(cliente.phone))}</span>
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium truncate cursor-help">{clientName}</span>
+                  <span className="text-xs text-muted-foreground">{formatPhoneNumber(String(cliente.phone))}</span>
+                </div>
+              </TooltipTrigger>
+              {clientName.length > 25 && (
+                <TooltipContent>
+                  <p>{clientName}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )
     },
@@ -55,13 +67,47 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
   {
     accessorKey: "servico",
     header: "Serviço",
-    cell: ({ row }) => row.original.servico.name,
+    size: 180,
+    cell: ({ row }) => {
+      const serviceName = row.original.servico.name;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate block cursor-help max-w-[200px]">{serviceName}</span>
+            </TooltipTrigger>
+            {serviceName.length > 30 && (
+              <TooltipContent>
+                <p>{serviceName}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
     accessorFn: (row) => row.servico.name,
   },
   {
     accessorKey: "profissional",
     header: "Profissional",
-    cell: ({ row }) => row.original.profissional.name,
+    size: 150,
+    cell: ({ row }) => {
+      const professionalName = row.original.profissional.name;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate block cursor-help max-w-[180px]">{professionalName}</span>
+            </TooltipTrigger>
+            {professionalName.length > 25 && (
+              <TooltipContent>
+                <p>{professionalName}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
     accessorFn: (row) => row.profissional.name,
   },
   {

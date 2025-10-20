@@ -101,26 +101,28 @@ export const FEATURE_LABELS: Record<PlanFeature, string> = {
   'lembrete_2h': 'Lembrete 2h antes',
   'feedback_pos_atendimento': 'Feedback pós-atendimento',
   'lembrete_aniversario': 'Lembrete de aniversário',
-  'lembrete_profissional': 'Notificação para profissional',
-  'disparo_de_mensagens': 'Disparo de mensagens (campanhas)',
+  'lembrete_profissional': 'Lembrete para profissional',
+  'disparo_de_mensagens': 'Campanhas',
   'retorno_manutencao': 'Lembrete de retorno',
-  'notificacao_gestor_agendamento': 'Notificação ao gestor',
-  'atendimento_whatsapp_ia': 'Atendimento WhatsApp com IA',
-  'atendimento_manual_ou_automatizado': 'Modo manual/automático'
+  'notificacao_gestor_agendamento': 'Aviso de agendamento/cancelamento',
+  'notificacao_cliente_agendamento': 'Confirmação para o cliente',
+  'atendimento_whatsapp_ia': 'Atendimento com IA',
+  'escalonamento_humano': 'Escalonamento Humano'
 };
 
 /**
  * Descrições das features
  */
 export const FEATURE_DESCRIPTIONS: Record<PlanFeature, string> = {
-  'lembrete_24h': 'Envia lembrete automático para clientes 24 horas antes do agendamento',
-  'lembrete_2h': 'Envia lembrete automático 2 horas antes do agendamento',
-  'feedback_pos_atendimento': 'Solicita feedback do cliente após o atendimento',
-  'lembrete_aniversario': 'Envia mensagem de aniversário para clientes',
-  'lembrete_profissional': 'Notifica profissional quando há novo agendamento',
-  'disparo_de_mensagens': 'Permite enviar campanhas em massa via WhatsApp',
-  'retorno_manutencao': 'Lembra clientes de retornar após X dias (ex: manutenção)',
-  'notificacao_gestor_agendamento': 'Notifica gestor sobre novos agendamentos e cancelamentos',
-  'atendimento_whatsapp_ia': 'IA responde automaticamente no WhatsApp e agenda',
-  'atendimento_manual_ou_automatizado': 'Escolha entre atendimento manual ou automático'
+  'lembrete_24h': 'Envia lembrete automático 24 horas antes do agendamento (requer WhatsApp conectado)',
+  'lembrete_2h': 'Envia lembrete automático 2 horas antes do agendamento (requer WhatsApp conectado)',
+  'feedback_pos_atendimento': 'Solicita feedback do cliente após o atendimento (requer WhatsApp conectado)',
+  'lembrete_aniversario': 'Envia mensagem de aniversário para clientes (requer WhatsApp conectado)',
+  'lembrete_profissional': 'Notifica profissional quando há novo agendamento (requer WhatsApp conectado)',
+  'disparo_de_mensagens': 'Permite enviar campanhas em massa via WhatsApp (requer WhatsApp conectado)',
+  'retorno_manutencao': 'Lembra clientes de retornar após período definido (requer WhatsApp conectado)',
+  'notificacao_gestor_agendamento': 'Notifica gestor sobre novos agendamentos e cancelamentos via token fixo do sistema (funciona sem WhatsApp)',
+  'notificacao_cliente_agendamento': 'Envia confirmação automática quando cliente agenda (requer WhatsApp conectado)',
+  'atendimento_whatsapp_ia': 'IA responde automaticamente no WhatsApp e agenda via webhook N8N (híbrido: só IA ou IA + humano)',
+  'escalonamento_humano': 'Transfere conversa para atendente humano quando IA não souber responder (requer WhatsApp conectado)'
 };

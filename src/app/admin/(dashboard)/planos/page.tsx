@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import type { Plano } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -55,17 +55,30 @@ export default function AdminPlanosPage() {
   const handleSavePlan = async (updatedPlanData: Partial<Plano>) => {
     if (!editingPlan) return;
 
-    const planRef = doc(firestore, 'planos', editingPlan.id);
     try {
-      await updateDoc(planRef, updatedPlanData);
+      // Usar API server-side para atualizar planos
+      const response = await fetch('/api/admin/update-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: editingPlan.id,
+          updates: updatedPlanData
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao atualizar plano');
+      }
+
       toast({
         title: 'Plano Atualizado!',
         description: `O plano ${updatedPlanData.name || editingPlan.name} foi salvo com sucesso.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Erro ao Salvar',
-        description: 'Não foi possível atualizar o plano. Tente novamente.',
+        description: error.message || 'Não foi possível atualizar o plano. Tente novamente.',
         variant: 'destructive',
       });
     } finally {

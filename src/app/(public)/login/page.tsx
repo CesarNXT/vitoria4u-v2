@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useFirebase, FirebaseClientProvider } from "@/firebase"
 import { createUserSession } from './session-actions'
+import { isAdminEmail } from '@/lib/admin-list'
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -91,10 +92,13 @@ function LoginPageContent() {
 
         if (isLoginView) {
             try {
-                // ✅ PERMITIR ADMINS TEREM NEGÓCIOS (como Google, AWS fazem)
-                // Admin pode acessar /login para gerenciar seu negócio
-                // Admin pode acessar /admin para gerenciar o sistema
-                // Mesmo email, dois papéis diferentes!
+                // 🚫 BLOQUEIO: Admins não podem logar em /login
+                // Admins devem usar APENAS /admin
+                if (isAdminEmail(email)) {
+                    setError("Administradores devem usar o painel admin. Acesse: /admin");
+                    setIsLoading(false);
+                    return;
+                }
 
                 // ✅ Login com Firebase
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -140,6 +144,13 @@ function LoginPageContent() {
                 return;
             }
 
+            // 🚫 BLOQUEIO: Admins não podem criar conta em /login
+            if (isAdminEmail(email)) {
+                setError("Administradores devem usar o painel admin. Acesse: /admin");
+                setIsLoading(false);
+                return;
+            }
+
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const newUser = userCredential.user;
@@ -178,6 +189,15 @@ function LoginPageContent() {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
             const additionalInfo = getAdditionalUserInfo(result);
+
+            // 🚫 BLOQUEIO: Admins não podem logar em /login
+            if (user.email && isAdminEmail(user.email)) {
+                // Fazer logout imediatamente
+                await auth.signOut();
+                setError("Administradores devem usar o painel admin. Acesse: /admin");
+                setIsGoogleLoading(false);
+                return;
+            }
 
             // 🔒 SEGURANÇA: Criar session cookie segura
             const idToken = await user.getIdToken();

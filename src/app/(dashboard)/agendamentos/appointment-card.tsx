@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/lib/utils";
 import { CalendarIcon, Clock, Settings, User, Pencil, Trash2, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AppointmentCardProps {
   appointment: Agendamento;
@@ -45,26 +46,59 @@ export function AppointmentCard({ appointment, onEdit, onDelete, onFinalize }: A
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex items-center gap-3">
-          <Avatar>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Avatar className="flex-shrink-0">
             <AvatarImage src={cliente.avatarUrl || undefined} alt={clientName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <div>
-            <p className="font-semibold">{clientName}</p>
+          <div className="min-w-0 flex-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="font-semibold truncate cursor-help">{clientName}</p>
+                </TooltipTrigger>
+                {clientName.length > 25 && (
+                  <TooltipContent>
+                    <p>{clientName}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
             <p className="text-sm text-muted-foreground">{formatPhoneNumber(String(cliente.phone))}</p>
           </div>
         </div>
-         <Badge variant={variant} className={className}>{statusTraducao[status]}</Badge>
+         <Badge variant={variant} className={`${className} flex-shrink-0`}>{statusTraducao[status]}</Badge>
       </CardHeader>
       <CardContent className="space-y-3 text-sm pb-4">
-        <div className="flex items-center gap-2 text-muted-foreground">
-            <Settings className="h-4 w-4" />
-            <span>{servico.name}</span>
+        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+            <Settings className="h-4 w-4 flex-shrink-0" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="truncate cursor-help">{servico.name}</span>
+                </TooltipTrigger>
+                {servico.name.length > 30 && (
+                  <TooltipContent>
+                    <p>{servico.name}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
         </div>
-        <div className="flex items-center gap-2 text-muted-foreground">
-            <User className="h-4 w-4" />
-            <span>{profissional.name}</span>
+        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+            <User className="h-4 w-4 flex-shrink-0" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="truncate cursor-help">{profissional.name}</span>
+                </TooltipTrigger>
+                {profissional.name.length > 25 && (
+                  <TooltipContent>
+                    <p>{profissional.name}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
         </div>
         <div className="grid grid-cols-2 gap-2">
              <div className="flex items-center gap-2 text-muted-foreground">

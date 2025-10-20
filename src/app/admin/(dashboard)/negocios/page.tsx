@@ -16,7 +16,6 @@ import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { startImpersonation } from '@/app/(public)/login/session-actions';
 
 export default function AdminNegociosPage() {
   const { firestore, user } = useFirebase();
@@ -97,11 +96,6 @@ export default function AdminNegociosPage() {
     setEditingBusiness(business);
   };
 
-  const handleAccessPanel = async (business: ConfiguracoesNegocio) => {
-    // ✅ SEGURANÇA: Usar cookie HTTP-only em vez de localStorage
-    await startImpersonation(business.id);
-    window.location.href = '/dashboard';
-  };
 
   const handleDelete = async (business: ConfiguracoesNegocio) => {
     const confirmMessage = `⚠️ ATENÇÃO! Esta ação é IRREVERSÍVEL!
@@ -279,7 +273,7 @@ Digite "DELETAR" para confirmar:`;
       {/* Versão Desktop - Tabela */}
       <div className="hidden md:block">
         <DataTable
-          columns={getBusinessesColumns({ onEdit: handleEdit, onAccessPanel: handleAccessPanel, onDelete: handleDelete })}
+          columns={getBusinessesColumns({ onEdit: handleEdit, onDelete: handleDelete })}
           data={filteredBusinesses}
           filterColumn={{
             id: "nome",
@@ -345,12 +339,6 @@ Digite "DELETAR" para confirmar:`;
               )}
 
               <div className="flex gap-2 pt-2 border-t">
-                <button
-                  onClick={() => handleAccessPanel(business)}
-                  className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-                >
-                  Acessar Painel
-                </button>
                 <button
                   onClick={() => handleEdit(business)}
                   className="px-3 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors"

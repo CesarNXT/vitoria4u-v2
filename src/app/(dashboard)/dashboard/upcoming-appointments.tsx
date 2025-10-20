@@ -7,6 +7,7 @@ import type { Agendamento } from "@/lib/types"
 import { isAfter, isToday, startOfToday, format } from "date-fns"
 import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface UpcomingAppointmentsProps {
   appointments: Agendamento[];
@@ -62,16 +63,38 @@ export function UpcomingAppointments({ appointments }: UpcomingAppointmentsProps
             const clientName = String(appt.cliente.name || 'Cliente');
             const initials = clientName.charAt(0).toUpperCase();
             return (
-            <div key={appt.id} className="flex items-center">
-              <Avatar className="h-9 w-9">
+            <div key={appt.id} className="flex items-center gap-2 min-w-0">
+              <Avatar className="h-9 w-9 flex-shrink-0">
                 <AvatarImage src={appt.cliente.avatarUrl || undefined} alt={clientName} />
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium leading-none">{clientName}</p>
-                <p className="text-sm text-muted-foreground">{appt.servico.name}</p>
+              <div className="ml-2 space-y-1 min-w-0 flex-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p className="text-sm font-medium leading-none truncate cursor-help">{clientName}</p>
+                    </TooltipTrigger>
+                    {clientName.length > 25 && (
+                      <TooltipContent>
+                        <p>{clientName}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p className="text-sm text-muted-foreground truncate cursor-help">{appt.servico.name}</p>
+                    </TooltipTrigger>
+                    {appt.servico.name.length > 25 && (
+                      <TooltipContent>
+                        <p>{appt.servico.name}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               </div>
-              <div className="ml-auto text-right">
+              <div className="ml-auto text-right flex-shrink-0">
                  <Badge variant="secondary" className="font-medium whitespace-nowrap">{getFormattedDate(appt.date)}</Badge>
                  <p className="text-sm font-medium">{appt.startTime}</p>
               </div>

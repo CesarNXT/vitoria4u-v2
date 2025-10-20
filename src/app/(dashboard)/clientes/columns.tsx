@@ -53,17 +53,29 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
         </Button>
       )
     },
+    size: 250, // Largura máxima da coluna
     cell: ({ row }) => {
       const client = row.original;
       const clientName = String(client.name || 'Cliente');
       const initials = clientName.charAt(0).toUpperCase();
       return (
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar className="h-8 w-8 flex-shrink-0">
             <AvatarImage src={client.avatarUrl || undefined} alt={clientName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <span className="font-medium">{clientName}</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-medium truncate cursor-help">{clientName}</span>
+              </TooltipTrigger>
+              {clientName.length > 30 && (
+                <TooltipContent>
+                  <p>{clientName}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )
     },

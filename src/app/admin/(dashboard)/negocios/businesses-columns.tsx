@@ -5,7 +5,7 @@ import type { ConfiguracoesNegocio } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, ArrowUpDown, AlertTriangle, LogIn, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, AlertTriangle, Edit, Trash2 } from 'lucide-react';
 import { format, differenceInDays, isFuture } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getAccessStatus, formatPhoneNumber } from '@/lib/utils';
@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 
 type BusinessesColumnsProps = {
   onEdit: (business: ConfiguracoesNegocio) => void;
-  onAccessPanel: (business: ConfiguracoesNegocio) => void;
   onDelete: (business: ConfiguracoesNegocio) => void;
 };
 
@@ -100,7 +99,7 @@ const copyToClipboard = async (text: string, toast: any) => {
   }
 };
 
-export const getBusinessesColumns = ({ onEdit, onAccessPanel, onDelete }: BusinessesColumnsProps): ColumnDef<ConfiguracoesNegocio>[] => [
+export const getBusinessesColumns = ({ onEdit, onDelete }: BusinessesColumnsProps): ColumnDef<ConfiguracoesNegocio>[] => [
   {
     accessorKey: "nome",
     header: ({ column }) => (
@@ -237,7 +236,7 @@ export const getBusinessesColumns = ({ onEdit, onAccessPanel, onDelete }: Busine
     id: "actions",
     cell: ({ row }) => {
       const business = row.original;
-      return <BusinessActionsCell business={business} onEdit={onEdit} onAccessPanel={onAccessPanel} onDelete={onDelete} />;
+      return <BusinessActionsCell business={business} onEdit={onEdit} onDelete={onDelete} />;
     },
   },
 ];
@@ -246,12 +245,10 @@ export const getBusinessesColumns = ({ onEdit, onAccessPanel, onDelete }: Busine
 function BusinessActionsCell({ 
   business, 
   onEdit, 
-  onAccessPanel,
   onDelete
 }: { 
   business: ConfiguracoesNegocio; 
   onEdit: (business: ConfiguracoesNegocio) => void; 
-  onAccessPanel: (business: ConfiguracoesNegocio) => void;
   onDelete: (business: ConfiguracoesNegocio) => void;
 }) {
   const { toast } = useToast();
@@ -266,10 +263,6 @@ function BusinessActionsCell({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => onAccessPanel(business)} className="cursor-pointer">
-          <LogIn className="mr-2 h-4 w-4" />
-          Acessar Painel
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onEdit(business)} className="cursor-pointer">
           <Edit className="mr-2 h-4 w-4" />
           Editar Assinatura

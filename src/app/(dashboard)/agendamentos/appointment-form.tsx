@@ -24,6 +24,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StandardDatePicker } from '@/components/ui/standard-date-picker';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -307,27 +308,38 @@ export function AppointmentForm({
                 <FormItem className="flex flex-col">
                   <FormLabel>Cliente</FormLabel>
                   <FormControl>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setClientPopoverOpen(true)}
-                      className={cn(
-                        "w-full justify-between",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {selectedClient ? selectedClient.name : "Selecione o cliente"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setClientPopoverOpen(true)}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <span className="truncate">{selectedClient ? selectedClient.name : "Selecione o cliente"}</span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </TooltipTrigger>
+                        {selectedClient && selectedClient.name.length > 30 && (
+                          <TooltipContent>
+                            <p>{selectedClient.name}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   </FormControl>
                   
                   <Dialog open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="max-w-[90vw] sm:max-w-[425px] overflow-hidden">
                       <VisuallyHidden>
                         <DialogTitle>Selecione um cliente</DialogTitle>
                         <DialogDescription>Escolha o cliente para este agendamento</DialogDescription>
                       </VisuallyHidden>
-                      <div className="space-y-4">
+                      <div className="space-y-4 min-w-0">
                         <Input
                           placeholder="Buscar por nome ou telefone..."
                           value={clientSearchTerm}
@@ -339,7 +351,7 @@ export function AppointmentForm({
                               <Button
                                 key={client.id}
                                 variant={field.value === client.id ? "secondary" : "ghost"}
-                                className="w-full justify-start"
+                                className="w-full justify-start min-w-0"
                                 onClick={() => {
                                   field.onChange(client.id);
                                   setClientPopoverOpen(false);
@@ -347,9 +359,9 @@ export function AppointmentForm({
                                 }}
                               >
                                 {field.value === client.id && (
-                                  <Check className="mr-2 h-4 w-4" />
+                                  <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                {client.name}
+                                <span className="truncate">{client.name}</span>
                               </Button>
                             ))
                           ) : (
@@ -387,18 +399,18 @@ export function AppointmentForm({
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      {selectedService ? selectedService.name : "Selecione o serviço"}
+                      <span className="truncate">{selectedService ? selectedService.name : "Selecione o serviço"}</span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </FormControl>
                   
                   <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="max-w-[90vw] sm:max-w-[425px] overflow-hidden">
                       <VisuallyHidden>
                         <DialogTitle>Selecione um serviço</DialogTitle>
                         <DialogDescription>Escolha o serviço para este agendamento</DialogDescription>
                       </VisuallyHidden>
-                      <div className="space-y-4">
+                      <div className="space-y-4 min-w-0">
                         <Input
                           placeholder="Buscar serviço..."
                           value={serviceSearchTerm}
@@ -410,7 +422,7 @@ export function AppointmentForm({
                               <Button
                                 key={service.id}
                                 variant={field.value === service.id ? "secondary" : "ghost"}
-                                className="w-full justify-start"
+                                className="w-full justify-start min-w-0"
                                 onClick={() => {
                                   field.onChange(service.id);
                                   setValue('profissionalId', '');
@@ -419,9 +431,9 @@ export function AppointmentForm({
                                 }}
                               >
                                 {field.value === service.id && (
-                                  <Check className="mr-2 h-4 w-4" />
+                                  <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                {service.name}
+                                <span className="truncate">{service.name}</span>
                               </Button>
                             ))
                           ) : (
@@ -460,19 +472,19 @@ export function AppointmentForm({
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      {selectedProfessional ? selectedProfessional.name : 
-                       !selectedServiceId ? "Escolha um serviço" : "Selecione o profissional"}
+                      <span className="truncate">{selectedProfessional ? selectedProfessional.name : 
+                       !selectedServiceId ? "Escolha um serviço" : "Selecione o profissional"}</span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </FormControl>
                   
                   <Dialog open={professionalDialogOpen} onOpenChange={setProfessionalDialogOpen}>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="max-w-[90vw] sm:max-w-[425px] overflow-hidden">
                       <VisuallyHidden>
                         <DialogTitle>Selecione um profissional</DialogTitle>
                         <DialogDescription>Escolha o profissional para este agendamento</DialogDescription>
                       </VisuallyHidden>
-                      <div className="space-y-4">
+                      <div className="space-y-4 min-w-0">
                         <Input
                           placeholder="Buscar profissional..."
                           value={professionalSearchTerm}
@@ -484,7 +496,7 @@ export function AppointmentForm({
                               <Button
                                 key={professional.id}
                                 variant={field.value === professional.id ? "secondary" : "ghost"}
-                                className="w-full justify-start"
+                                className="w-full justify-start min-w-0"
                                 onClick={() => {
                                   field.onChange(professional.id);
                                   setProfessionalDialogOpen(false);
@@ -492,9 +504,9 @@ export function AppointmentForm({
                                 }}
                               >
                                 {field.value === professional.id && (
-                                  <Check className="mr-2 h-4 w-4" />
+                                  <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                {professional.name}
+                                <span className="truncate">{professional.name}</span>
                               </Button>
                             ))
                           ) : (

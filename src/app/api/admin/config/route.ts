@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb, adminAuth } from '@/lib/firebase-admin'
-import { isUserAdmin } from '@/lib/admin-firestore'
+import { isAdminEmail } from '@/lib/admin-list'
 import { logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
@@ -20,10 +20,9 @@ export async function GET(request: NextRequest) {
     // Verificar token
     const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true)
     
-    // Verificar se é admin
-    const isAdmin = await isUserAdmin(decodedToken.uid)
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    // Verificar se é admin (usando lista estática)
+    if (!isAdminEmail(decodedToken.email)) {
+      return NextResponse.json({ error: 'Acesso negado - apenas administradores' }, { status: 403 })
     }
 
     // Buscar configurações do sistema
@@ -46,22 +45,9 @@ export async function GET(request: NextRequest) {
       )
       .sort((a: any, b: any) => a.price - b.price)
 
-    // Buscar admins
-    const adminsSnapshot = await adminDb
-      .collection('system_admins')
-      .where('active', '==', true)
-      .get()
-    
-    const admins = adminsSnapshot.docs.map(doc => ({
-      uid: doc.data().uid,
-      email: doc.data().email,
-      isAdmin: true
-    }))
-
     return NextResponse.json({
       config,
-      plans,
-      admins
+      plans
     })
   } catch (error: any) {
     logger.error('Erro ao buscar configurações admin:', error)
@@ -84,10 +70,9 @@ export async function POST(request: NextRequest) {
     // Verificar token
     const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true)
     
-    // Verificar se é admin
-    const isAdmin = await isUserAdmin(decodedToken.uid)
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    // Verificar se é admin (usando lista estática)
+    if (!isAdminEmail(decodedToken.email)) {
+      return NextResponse.json({ error: 'Acesso negado - apenas administradores' }, { status: 403 })
     }
 
     const body = await request.json()

@@ -36,6 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import type { ConfiguracoesNegocio, DiasDaSemana, Endereco } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { usePlanFeatures } from '@/hooks/use-plan-features';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useScrollToError } from '@/lib/form-utils';
 import { Loader2, LogOut, ChevronRight, Search, Building2, Bell, Bot, Clock, Heart } from 'lucide-react';
@@ -122,6 +123,7 @@ const businessSettingsSchema = z.object({
     nome: z.string(),
   })).optional(),
   notificarClienteAgendamento: z.boolean().optional(),
+  notificarGestorAgendamento: z.boolean().optional(),
 }).superRefine((data, ctx) => {
     // Escalation validation
      if (data.habilitarEscalonamento && data.numeroEscalonamento) {
@@ -189,6 +191,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
 
 interface BusinessSettingsFormProps {
   settings: ConfiguracoesNegocio | null;
+  userPlan: any | null;
   userId: string;
   onSave: (settings: ConfiguracoesNegocio) => void;
   onLogout?: () => void;
@@ -196,13 +199,18 @@ interface BusinessSettingsFormProps {
 }
 
 export default function BusinessSettingsForm({ 
-    settings, 
+    settings,
+    userPlan,
     userId, 
     onSave, 
     onLogout, 
     isSetupMode = false 
 }: BusinessSettingsFormProps) {
   const { toast } = useToast();
+  
+  // Hook para verificar features do plano
+  const { hasFeature } = usePlanFeatures(settings, userPlan);
+  
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -239,6 +247,7 @@ export default function BusinessSettingsForm({
       habilitarAniversario: settings?.habilitarAniversario ?? false,
       habilitarFeedback: settings?.habilitarFeedback ?? false,
       notificarClienteAgendamento: settings?.notificarClienteAgendamento ?? false,
+      notificarGestorAgendamento: settings?.notificarGestorAgendamento ?? true,
       feedbackPlatform: settings?.feedbackPlatform ?? 'google',
       feedbackLink: settings?.feedbackLink || "",
       habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
@@ -792,6 +801,24 @@ export default function BusinessSettingsForm({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={control}
+                name="notificarClienteAgendamento"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">✅ Confirmação de Agendamento</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Envia mensagem de confirmação para o cliente assim que um agendamento é criado.<br/>
+                        <strong>Para que serve:</strong> Confirma o horário marcado e passa segurança para o cliente.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
                <div className="space-y-4 rounded-lg border p-4">
                   <FormField
                     control={control}
@@ -1320,18 +1347,19 @@ export default function BusinessSettingsForm({
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {/* Sempre mostra conteúdo de notificações, independente de ser clínica */}
+                    {/* Notificações condicionais baseadas nas features do plano */}
                     <div className="space-y-6">
+                      {/* Aviso Gestor - SEMPRE aparece (não depende de WhatsApp) */}
                       <FormField
                         control={control}
-                        name="habilitarLembrete24h"
+                        name="notificarGestorAgendamento"
                         render={({ field }) => (
-                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4 bg-blue-50 dark:bg-blue-950">
                             <div className="space-y-0.5 flex-1">
-                              <FormLabel className="text-base">🔔 Lembrete de 24h</FormLabel>
+                              <FormLabel className="text-base">🔔 Aviso ao Gestor</FormLabel>
                               <p className="text-sm text-muted-foreground">
-                                <strong>Como funciona:</strong> Sistema envia mensagem automática 24 horas antes do horário agendado.<br/>
-                                <strong>Para que serve:</strong> Reduz faltas lembrando o cliente com antecedência.
+                                <strong>Como funciona:</strong> Notifica o gestor sobre novos agendamentos e cancelamentos.<br/>
+                                <strong>Para que serve:</strong> Mantém você informado em tempo real. <strong>Não requer WhatsApp conectado.</strong>
                               </p>
                             </div>
                             <FormControl>
@@ -1340,60 +1368,116 @@ export default function BusinessSettingsForm({
                           </FormItem>
                         )}
                       />
-                      <FormField
-                        control={control}
-                        name="habilitarLembrete2h"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
-                            <div className="space-y-0.5 flex-1">
-                              <FormLabel className="text-base">⏰ Lembrete de 2h</FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                <strong>Como funciona:</strong> Envia lembrete 2 horas antes da consulta.<br/>
-                                <strong>Para que serve:</strong> Reforça o compromisso próximo ao horário.
-                              </p>
-                            </div>
-                            <FormControl>
-                              <Switch checked={field.value} onCheckedChange={field.onChange} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={control}
-                        name="habilitarAniversario"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
-                            <div className="space-y-0.5 flex-1">
-                              <FormLabel className="text-base">🎂 Mensagem de Aniversário</FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                <strong>Como funciona:</strong> Envia parabéns automático no dia do aniversário do cliente.<br/>
-                                <strong>Para que serve:</strong> Fortalece relacionamento e fidelização.
-                              </p>
-                            </div>
-                            <FormControl>
-                              <Switch checked={field.value} onCheckedChange={field.onChange} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={control}
-                        name="habilitarFeedback"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
-                            <div className="space-y-0.5 flex-1">
-                              <FormLabel className="text-base">⭐ Feedback Pós-Atendimento</FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                <strong>Como funciona:</strong> Após o atendimento, envia link para avaliação.<br/>
-                                <strong>Para que serve:</strong> Coleta avaliações e melhora a reputação online.
-                              </p>
-                            </div>
-                            <FormControl>
-                              <Switch checked={field.value} onCheckedChange={field.onChange} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
+                      
+                      {/* Lembrete 24h - Só aparece se plano tiver */}
+                      {hasFeature('lembrete_24h') && (
+                        <FormField
+                          control={control}
+                          name="habilitarLembrete24h"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                              <div className="space-y-0.5 flex-1">
+                                <FormLabel className="text-base">🔔 Lembrete de 24h</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  <strong>Como funciona:</strong> Sistema envia mensagem automática 24 horas antes do horário agendado.<br/>
+                                  <strong>Para que serve:</strong> Reduz faltas lembrando o cliente com antecedência.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      
+                      {/* Lembrete 2h - Só aparece se plano tiver */}
+                      {hasFeature('lembrete_2h') && (
+                        <FormField
+                          control={control}
+                          name="habilitarLembrete2h"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                              <div className="space-y-0.5 flex-1">
+                                <FormLabel className="text-base">⏰ Lembrete de 2h</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  <strong>Como funciona:</strong> Envia lembrete 2 horas antes da consulta.<br/>
+                                  <strong>Para que serve:</strong> Reforça o compromisso próximo ao horário.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      
+                      {/* Lembrete Aniversário - Só aparece se plano tiver */}
+                      {hasFeature('lembrete_aniversario') && (
+                        <FormField
+                          control={control}
+                          name="habilitarAniversario"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                              <div className="space-y-0.5 flex-1">
+                                <FormLabel className="text-base">🎂 Mensagem de Aniversário</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  <strong>Como funciona:</strong> Envia parabéns automático no dia do aniversário do cliente.<br/>
+                                  <strong>Para que serve:</strong> Fortalece relacionamento e fidelização.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      
+                      {/* Confirmação Cliente - Só aparece se plano tiver */}
+                      {hasFeature('notificacao_cliente_agendamento') && (
+                        <FormField
+                          control={control}
+                          name="notificarClienteAgendamento"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                              <div className="space-y-0.5 flex-1">
+                                <FormLabel className="text-base">✅ Confirmação de Agendamento</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  <strong>Como funciona:</strong> Envia mensagem de confirmação para o cliente assim que um agendamento é criado.<br/>
+                                  <strong>Para que serve:</strong> Confirma o horário marcado e passa segurança para o cliente.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      
+                      {/* Feedback - Só aparece se plano tiver */}
+                      {hasFeature('feedback_pos_atendimento') && (
+                        <FormField
+                          control={control}
+                          name="habilitarFeedback"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
+                              <div className="space-y-0.5 flex-1">
+                                <FormLabel className="text-base">⭐ Feedback Pós-Atendimento</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  <strong>Como funciona:</strong> Após o atendimento, envia link para avaliação.<br/>
+                                  <strong>Para que serve:</strong> Coleta avaliações e melhora a reputação online.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      )}
                       {habilitarFeedback && (
                         <div className="ml-4 space-y-4 pl-4 border-l-2">
                           <FormField
@@ -1431,6 +1515,54 @@ export default function BusinessSettingsForm({
                               </FormItem>
                             )}
                           />
+                        </div>
+                      )}
+                      
+                      {/* Escalonamento Humano - Só aparece se plano tiver */}
+                      {hasFeature('escalonamento_humano') && (
+                        <div className="space-y-4 rounded-lg border p-4">
+                          <FormField
+                            control={control}
+                            name="habilitarEscalonamento"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-0.5 flex-1">
+                                  <FormLabel className="text-base">👤 Escalonamento Humano</FormLabel>
+                                  <p className="text-sm text-muted-foreground">
+                                    <strong>Como funciona:</strong> Quando a IA não souber responder, transfere conversa para um atendente humano.<br/>
+                                    <strong>Para que serve:</strong> Garante que nenhum cliente fique sem atendimento em situações complexas.
+                                  </p>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          {habilitarEscalonamento && (
+                            <FormField
+                              control={control}
+                              name="numeroEscalonamento"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Número para Escalonamento *</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="(XX) XXXXX-XXXX"
+                                      inputMode="tel"
+                                      value={field.value || ""}
+                                      maxLength={15}
+                                      onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
                         </div>
                       )}
                     </div>

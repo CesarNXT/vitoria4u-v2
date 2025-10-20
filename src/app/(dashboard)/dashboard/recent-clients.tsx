@@ -4,6 +4,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Cliente } from "@/lib/types"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { formatPhoneNumber } from "@/lib/utils"
 
 interface RecentClientsProps {
   clients: Cliente[];
@@ -27,14 +29,25 @@ export function RecentClients({ clients }: RecentClientsProps) {
             const initials = clientName.charAt(0).toUpperCase();
             
             return (
-              <div key={client.id} className="flex items-center">
-                <Avatar className="h-9 w-9">
+              <div key={client.id} className="flex items-center gap-2 min-w-0">
+                <Avatar className="h-9 w-9 flex-shrink-0">
                   <AvatarImage src={client.avatarUrl || undefined} alt="Avatar" />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <div className="ml-4 space-y-1">
-                  <p className="text-sm font-medium leading-none">{clientName}</p>
-                  <p className="text-sm text-muted-foreground">{client.phone}</p>
+                <div className="ml-2 space-y-1 min-w-0 flex-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-sm font-medium leading-none truncate cursor-help">{clientName}</p>
+                      </TooltipTrigger>
+                      {clientName.length > 25 && (
+                        <TooltipContent>
+                          <p>{clientName}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+                  <p className="text-sm text-muted-foreground">{formatPhoneNumber(String(client.phone))}</p>
                 </div>
               </div>
             );

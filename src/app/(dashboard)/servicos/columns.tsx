@@ -32,17 +32,29 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Servic
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+    size: 200,
     cell: ({ row }) => {
       const service = row.original;
       const serviceName = String(service.name || 'Serviço');
       const initials = serviceName.charAt(0).toUpperCase();
       return (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 rounded-md">
+        <div className="flex items-center gap-3 min-w-0">
+          <Avatar className="h-10 w-10 rounded-md flex-shrink-0">
             <AvatarImage src={service.imageUrl || undefined} alt={serviceName} className="object-cover" />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <span className="font-medium">{serviceName}</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-medium truncate cursor-help">{serviceName}</span>
+              </TooltipTrigger>
+              {serviceName.length > 30 && (
+                <TooltipContent>
+                  <p>{serviceName}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )
     },

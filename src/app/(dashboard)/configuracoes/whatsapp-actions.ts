@@ -8,6 +8,8 @@
 
 import { adminDb } from '@/lib/firebase-admin'
 import { WhatsAppAPI } from '@/lib/whatsapp-api-simple'
+import { checkFeatureAccess } from '@/lib/server-utils'
+import type { ConfiguracoesNegocio } from '@/lib/types'
 
 const NOTIFICATION_TOKEN = 'b2e97825-2d28-4646-ae38-3357fcbf0e20'
 const API_BASE = 'https://vitoria4u.uazapi.com'
@@ -108,14 +110,22 @@ export async function connectWhatsAppAction(data: {
   console.log('📞 Telefone formatado:', cleanPhone)
   
   try {
-    // 1. Criar API instance
+    // 1. Buscar configurações do negócio para verificar features
+    const businessDoc = await adminDb.collection('negocios').doc(businessId).get()
+    const businessSettings = businessDoc.data() as ConfiguracoesNegocio
+    
+    // Verificar se tem feature de IA
+    const hasIAFeature = await checkFeatureAccess(businessSettings, 'atendimento_whatsapp_ia')
+    console.log('🤖 Feature de IA disponível:', hasIAFeature)
+    
+    // 2. Criar API instance
     const api = new WhatsAppAPI(businessId)
     
-    // 2. Criar instância
+    // 3. Criar instância
     console.log('🔧 Criando instância...')
     const token = await api.createInstance('apilocal')
     
-    // Salvar token temporariamente no Firestore
+    // Salvar token no Firestore
     await adminDb.collection('negocios').doc(businessId).update({
       tokenInstancia: token
     })
@@ -139,9 +149,18 @@ export async function connectWhatsAppAction(data: {
         if (result.qrCode) {
           console.log('✅ QR Code gerado com sucesso!')
           
-          // Configurar webhook
-          const webhookUrl = process.env.N8N_WHATSAPP_WEBHOOK_URL || 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-          await api.setupWebhook(webhookUrl)
+          // Configurar webhook APENAS se tiver feature de IA
+          if (hasIAFeature) {
+            // URL FIXA E CORRETA da webhook N8N
+            const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
+            console.log('🤖 Configurando webhook N8N (IA ativa):', webhookUrl)
+            
+            // Garantir que a webhook está sendo configurada
+            const webhookResult = await api.setupWebhook(webhookUrl)
+            console.log('✅ Webhook configurada com sucesso')
+          } else {
+            console.log('⏭️ Webhook N8N não configurada (plano sem IA)')
+          }
           
           // Enviar instrução via SMS
           await sendNotificationSMS(
@@ -182,10 +201,18 @@ export async function connectWhatsAppAction(data: {
     // PairCode foi gerado com sucesso
     console.log('✅ PairCode gerado:', result.pairCode)
     
-    // Configurar webhook
-    const webhookUrl = process.env.N8N_WHATSAPP_WEBHOOK_URL || 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-    console.log('🔔 Configurando webhook N8N:', webhookUrl)
-    await api.setupWebhook(webhookUrl)
+    // Configurar webhook APENAS se tiver feature de IA
+    if (hasIAFeature) {
+      // URL FIXA E CORRETA da webhook N8N
+      const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
+      console.log('🤖 Configurando webhook N8N (IA ativa):', webhookUrl)
+      
+      // Garantir que a webhook está sendo configurada
+      const webhookResult = await api.setupWebhook(webhookUrl)
+      console.log('✅ Webhook configurada com sucesso')
+    } else {
+      console.log('⏭️ Webhook N8N não configurada (plano sem IA)')
+    }
     
     // Enviar paircode via SMS
     await sendNotificationSMS(cleanPhone, '*Copie o codigo abaixo:*')
@@ -207,6 +234,75 @@ export async function connectWhatsAppAction(data: {
   } catch (error: any) {
     console.error('❌ Erro:', error.message)
     
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+// ==========================================
+// AÇÃO: VERIFICAR E CORRIGIR WEBHOOK
+// ==========================================
+
+export async function verifyAndFixWebhookAction(data: {
+  businessId: string
+}) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('🔍 VERIFICAR E CORRIGIR WEBHOOK')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  
+  const { businessId } = data
+  
+  try {
+    // 1. Buscar configurações do negócio
+    const businessDoc = await adminDb.collection('negocios').doc(businessId).get()
+    const businessSettings = businessDoc.data() as ConfiguracoesNegocio
+    
+    if (!businessSettings.whatsappConectado || !businessSettings.tokenInstancia) {
+      return {
+        success: false,
+        message: 'WhatsApp não está conectado ou token ausente'
+      }
+    }
+    
+    // 2. Verificar se tem feature de IA
+    const hasIAFeature = await checkFeatureAccess(businessSettings, 'atendimento_whatsapp_ia')
+    console.log('🤖 Feature de IA disponível:', hasIAFeature)
+    
+    // 3. Criar API instance
+    const api = new WhatsAppAPI(businessId, businessSettings.tokenInstancia)
+    
+    // 4. Configurar ou remover webhook baseado na feature
+    if (hasIAFeature) {
+      // URL FIXA E CORRETA da webhook N8N
+      const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
+      console.log('🤖 Configurando webhook N8N (IA ativa):', webhookUrl)
+      
+      await api.setupWebhook(webhookUrl)
+      console.log('✅ Webhook configurada/corrigida com sucesso')
+      
+      return {
+        success: true,
+        message: 'Webhook configurada corretamente',
+        webhookUrl
+      }
+    } else {
+      console.log('⏭️ Plano sem IA - webhook não deve estar configurada')
+      
+      // Configurar webhook vazia para garantir que não há webhook ativa
+      await api.setupWebhook('')
+      console.log('✅ Webhook removida/limpa')
+      
+      return {
+        success: true,
+        message: 'Webhook removida (plano sem IA)',
+        webhookUrl: null
+      }
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Erro:', error.message)
     return {
       success: false,
       error: error.message

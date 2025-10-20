@@ -85,6 +85,7 @@ export interface ConfiguracoesNegocio {
   setupCompleted?: boolean; // Flag que indica se a configuração inicial obrigatória foi concluída
   planosSaudeAceitos?: PlanoSaude[]; // Planos de saúde/odontológicos aceitos
   notificarClienteAgendamento?: boolean; // Enviar confirmação de agendamento para o cliente
+  notificarGestorAgendamento?: boolean; // Notificar gestor sobre agendamentos/cancelamentos (não requer WhatsApp)
 }
 
 export interface Agendamento {
@@ -125,8 +126,9 @@ export type PlanFeature =
   | 'disparo_de_mensagens'
   | 'retorno_manutencao'
   | 'notificacao_gestor_agendamento'
+  | 'notificacao_cliente_agendamento'
   | 'atendimento_whatsapp_ia'
-  | 'atendimento_manual_ou_automatizado';
+  | 'escalonamento_humano';
 
 export interface Plano {
   id: string;
@@ -196,4 +198,48 @@ export interface SystemConfig {
     days: number;
     planId: string; // ID do plano oferecido no teste
   };
+}
+
+export type CampanhaTipo = 'texto' | 'imagem' | 'audio' | 'video';
+export type CampanhaStatus = 'Agendada' | 'Em Andamento' | 'Concluída' | 'Cancelada' | 'Erro';
+
+export interface CampanhaContato {
+  clienteId: string;
+  nome: string;
+  telefone: number;
+  selecionado: boolean;
+  status: 'Ativo' | 'Inativo';
+}
+
+export interface CampanhaEnvio {
+  contatoId: string;
+  telefone: number;
+  status: 'Pendente' | 'Enviado' | 'Erro';
+  enviadoEm?: Timestamp;
+  erro?: string;
+}
+
+export interface Campanha {
+  id: string;
+  businessId: string;
+  nome: string;
+  tipo: CampanhaTipo;
+  mensagem?: string; // Para tipo texto
+  mediaUrl?: string; // Para tipo imagem, audio, video
+  contatos: CampanhaContato[];
+  totalContatos: number;
+  contatosEnviados: number;
+  status: CampanhaStatus;
+  dataAgendamento: Timestamp;
+  horaInicio: string; // Ex: "08:00"
+  dataInicioExecucao?: Timestamp; // Quando começou a executar
+  dataConclusao?: Timestamp; // Quando terminou
+  tempoEstimadoConclusao?: string; // Ex: "2h 30min"
+  instanciaWhatsapp: string;
+  tokenInstancia: string;
+  envios: CampanhaEnvio[];
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  canceledAt?: Timestamp;
+  erro?: string; // Erro geral da campanha
 }
