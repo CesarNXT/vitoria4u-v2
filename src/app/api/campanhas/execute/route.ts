@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Campanha, CampanhaEnvio } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
@@ -18,14 +18,13 @@ import { Timestamp } from 'firebase-admin/firestore';
  * - Com campanhas: ~5-30 leituras (active_campaigns + campanhas completas)
  * - Economia: 95% vs versão antiga
  */
-export async function GET(req: NextRequest) {
+export async function GET(request: Request) {
   try {
-    // Validar cron secret
-    const cronSecret = req.headers.get('x-cron-secret');
-    const expectedSecret = process.env.CRON_SECRET || 'dev-secret-key';
+    // Verificar autenticação do cron (mesmo padrão dos outros CRONs)
+    const authToken = (request.headers.get('authorization') || '').split('Bearer ')[1];
     
-    if (cronSecret !== expectedSecret) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (authToken !== process.env.CRON_SECRET) {
+      return new Response('Unauthorized', { status: 401 });
     }
 
     const startTime = Date.now();
