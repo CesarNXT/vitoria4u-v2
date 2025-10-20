@@ -2,19 +2,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 🔐 SISTEMA DE ADMIN SEGURO - USA CUSTOM CLAIMS
-    // Custom claims são definidos no Firebase Auth pelo backend
-    // e são verificados automaticamente pelo token JWT
+    // 🔐 SISTEMA DE ADMIN SEGURO - USA LISTA ESTÁTICA DE EMAILS
+    // Lista de emails administradores (mesma de src/lib/admin-list.ts)
     function isAdmin() {
-      // Verifica se o token JWT tem custom claim 'admin' = true
+      // Lista de emails dos administradores
+      let adminEmails = [
+        'italocesar.hd@gmail.com',
+        'eduardosoarestonon@gmail.com'
+      ];
+      
       return request.auth != null && 
-             request.auth.token.admin == true;
-    }
-    
-    function isSuperAdmin() {
-      // Para futuro: se precisar distinguir super_admin de admin
-      return request.auth != null && 
-             request.auth.token.super_admin == true;
+             request.auth.token.email != null &&
+             request.auth.token.email in adminEmails;
     }
     
     // ✅ System Admins - Lista de administradores do sistema

@@ -44,7 +44,7 @@ import { format, isDate } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import type { Agendamento, Cliente, Servico, Profissional } from '@/lib/types';
+import type { Agendamento, Cliente, Servico, Profissional, ConfiguracoesNegocio } from '@/lib/types';
 import { getAvailableTimes } from '@/lib/availability';
 import { useScrollToError } from '@/lib/form-utils';
 
@@ -66,6 +66,7 @@ interface AppointmentFormProps {
   professionals: Profissional[];
   allAppointments: Agendamento[];
   businessId: string;
+  businessSettings: ConfiguracoesNegocio | null;
   onSubmit: (data: AppointmentFormValues) => void;
   isSubmitting: boolean;
 }
@@ -97,6 +98,7 @@ export function AppointmentForm({
   professionals,
   allAppointments,
   businessId,
+  businessSettings,
   onSubmit,
   isSubmitting,
 }: AppointmentFormProps) {
@@ -233,7 +235,8 @@ export function AppointmentForm({
         setIsLoadingTimes(true);
         
         try {
-          // Gera horários 24h disponíveis de 30 em 30 minutos
+          // Gera TODOS os horários de 00:00 até 23:30 (sem restrições)
+          // Gestor pode registrar agendamentos passados
           const times: string[] = [];
           for (let hour = 0; hour < 24; hour++) {
             times.push(`${String(hour).padStart(2, '0')}:00`);
@@ -247,6 +250,19 @@ export function AppointmentForm({
           }
 
           setAvailableTimes(times);
+          
+          // Pré-selecionar horário de abertura do negócio se for novo agendamento
+          if (!appointment && !selectedTime && businessSettings?.horariosFuncionamento) {
+            const dayOfWeek = selectedDate.getDay(); // 0 = Domingo, 1 = Segunda, etc
+            const dayNames = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+            const dayName = dayNames[dayOfWeek];
+            
+            const horariosDay = businessSettings.horariosFuncionamento[dayName];
+            if (horariosDay && !horariosDay.fechado && horariosDay.abertura) {
+              // Setar horário de abertura como padrão
+              setValue('startTime', horariosDay.abertura);
+            }
+          }
           
           // Reset startTime se não estiver na nova lista de horários disponíveis
           // (exceto se for o horário do agendamento em edição)
@@ -269,7 +285,7 @@ export function AppointmentForm({
     };
     
     fetchAvailableTimes();
-  }, [selectedDate, selectedService, selectedProfessionalId, appointment, selectedTime, setValue]);
+  }, [selectedDate, selectedService, selectedProfessionalId, appointment, selectedTime, setValue, businessSettings]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
     if (conflictWarning) {

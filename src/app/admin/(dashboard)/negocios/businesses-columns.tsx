@@ -5,7 +5,7 @@ import type { ConfiguracoesNegocio } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, ArrowUpDown, AlertTriangle, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, AlertTriangle, Edit, Trash2, LogIn } from 'lucide-react';
 import { format, differenceInDays, isFuture } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getAccessStatus, formatPhoneNumber } from '@/lib/utils';
@@ -263,6 +263,33 @@ function BusinessActionsCell({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Ações</DropdownMenuLabel>
+        <DropdownMenuItem 
+          onClick={async () => {
+            try {
+              const { startImpersonation } = await import('@/app/(public)/login/session-actions');
+              await startImpersonation(business.id);
+              
+              toast({
+                title: "✅ Acesso Concedido!",
+                description: `Você está acessando como: ${business.nome}`,
+              });
+              
+              // Redirecionar para o dashboard do usuário
+              window.location.href = '/dashboard';
+            } catch (error) {
+              toast({
+                title: "❌ Erro ao Acessar",
+                description: "Não foi possível acessar como este usuário.",
+                variant: "destructive",
+              });
+            }
+          }}
+          className="cursor-pointer text-primary font-medium"
+        >
+          <LogIn className="mr-2 h-4 w-4" />
+          Acessar como Usuário
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => onEdit(business)} className="cursor-pointer">
           <Edit className="mr-2 h-4 w-4" />
           Editar Assinatura

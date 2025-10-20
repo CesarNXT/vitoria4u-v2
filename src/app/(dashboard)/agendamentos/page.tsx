@@ -230,6 +230,15 @@ export default function AgendamentosPage() {
         // Salvar o novo agendamento
         await saveOrUpdateDocument('agendamentos', newId, serializableAppointment, finalUserId);
         
+        // Atualização otimista: adiciona/atualiza no estado local imediatamente
+        if (isEditing) {
+            setAppointments(prev => prev.map(appt => 
+                appt.id === selectedAppointment.id ? appointmentData : appt
+            ));
+        } else {
+            setAppointments(prev => [appointmentData, ...prev]);
+        }
+        
         // Criar ou atualizar reminders
         if (data.status === 'Agendado') {
           try {
@@ -381,6 +390,11 @@ export default function AgendamentosPage() {
       // Salvar agendamento finalizado
       await saveOrUpdateDocument('agendamentos', appointment.id, serializableAppointment, finalUserId);
       
+      // Atualização otimista do estado local
+      setAppointments(prev => prev.map(appt => 
+        appt.id === appointment.id ? updatedAppointment : appt
+      ));
+      
       toast({ title: "Agendamento Finalizado" });
 
       // Verificar se deve enviar feedback
@@ -473,6 +487,9 @@ const handleDeleteConfirm = async () => {
         await sendDeletionHooks(serializableSettings, serializableAppointment as any);
 
         await deleteDocument('agendamentos', appointmentToDelete.id, finalUserId);
+        
+        // Atualização otimista do estado local
+        setAppointments(prev => prev.filter(appt => appt.id !== appointmentToDelete.id));
         
         toast({
             title: "Agendamento Excluído",
@@ -684,6 +701,7 @@ return (
                         professionals={professionals} 
                         allAppointments={appointments}
                         businessId={finalUserId!}
+                        businessSettings={businessSettings}
                         onSubmit={handleFormSubmit}
                         isSubmitting={isSubmitting}
                     />
