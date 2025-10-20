@@ -104,9 +104,17 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   
   const settings = settingsRaw;
   
+  // 🔥 FIX DEFINITIVO: Aguardar settings carregar OU confirmar que não existe
+  // Se businessSettingsRef existe MAS settings é null E não está loading = ainda não carregou
+  const isSettingsReallyReady = businessSettingsRef ? (settings !== null || !isSettingsLoading) : false;
+  const isReallyLoading = isUserLoading || !businessUserId || !firestore || !isSettingsReallyReady;
+  
   useEffect(() => {
-    // Aguardar carregamentos
-    if (isUserLoading || isSettingsLoading) return;
+    // 🔥 CRÍTICO: AGUARDAR carregamento COMPLETO antes de qualquer decisão
+    if (isReallyLoading) {
+      return; // ✅ PARA AQUI - NÃO EXECUTA NADA ABAIXO
+    }
+    
     if (!typedUser) {
       setIsRedirecting(true);
       window.location.href = '/login';
@@ -114,32 +122,47 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     }
 
     // ✅ APENAS admin IMPERSONANDO tem privilégios especiais
-    // Admin usando seu próprio negócio = mesma experiência de usuário comum
     const isImpersonating = isAdmin && impersonatedId;
     
     if (isImpersonating) {
-      setIsRedirecting(false); // Resetar flag
-      return; // Admin impersonando tem acesso total
+      setIsRedirecting(false);
+      return;
     }
 
-    // TODOS (incluindo admin usando como usuário normal) = mesma regra
-    // Considera completo se tem setupCompleted=true OU (nome E telefone preenchidos)
-    const hasBasicInfo = settings?.nome && settings?.telefone;
-    const isSetupComplete = settings?.setupCompleted === true;
-    const needsSetupRedirect = !settings || (!isSetupComplete && !hasBasicInfo);
+    // ✅ Se settings ainda é null, aguardar próxima execução do useEffect
+    if (!settings) {
+      // CANCELAR qualquer redirecionamento pendente
+      setIsRedirecting(false);
+      return;
+    }
+
+    // ✅ Settings existe - validar se está completo
+    const hasNome = Boolean(settings.nome && settings.nome.trim() !== '');
+    const hasTelefone = Boolean(settings.telefone && settings.telefone !== 0);
+    const hasBasicInfo = hasNome && hasTelefone;
+    const isSetupComplete = settings.setupCompleted === true;
     
-    if (needsSetupRedirect && pathname !== '/configuracoes') {
-      // ⚡ CRÍTICO: Bloquear renderização imediatamente e redirecionar
-      setIsRedirecting(true);
-      router.replace('/configuracoes'); // replace ao invés de push
-    } else if (pathname === '/configuracoes' || !needsSetupRedirect) {
-      // ✅ RESETAR flag quando chegar em configurações OU não precisar mais de setup
+    // Se tem dados básicos OU setupCompleted, considerar completo
+    const isActuallyComplete = isSetupComplete || hasBasicInfo;
+    const needsSetupRedirect = !isActuallyComplete;
+    
+    // 🔥 SE ESTÁ COMPLETO, CANCELAR QUALQUER REDIRECIONAMENTO PENDENTE
+    if (isActuallyComplete && pathname === '/dashboard') {
       setIsRedirecting(false);
     }
-  }, [isUserLoading, isSettingsLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
+    
+    if (needsSetupRedirect && pathname !== '/configuracoes') {
+      // Redirecionar para configurações
+      setIsRedirecting(true);
+      router.replace('/configuracoes');
+    } else if (pathname === '/configuracoes' || !needsSetupRedirect) {
+      // Resetar flag quando chegar em configurações OU não precisar mais de setup
+      setIsRedirecting(false);
+    }
+  }, [isReallyLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
   // ⏳ Loading: Aguardar tudo estar pronto OU se está redirecionando
-  if (isUserLoading || !typedUser || !impersonationChecked || isSettingsLoading || isRedirecting) {
+  if (isReallyLoading || !typedUser || !impersonationChecked || isRedirecting) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -151,9 +174,23 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   // Isso evita qualquer flash do conteúdo do painel
   // EXCEÇÃO: Admin impersonando não precisa desse bloqueio
   const isImpersonating = isAdmin && impersonatedId;
-  const hasBasicInfo = settings?.nome && settings?.telefone;
-  const isSetupComplete = settings?.setupCompleted === true;
-  const requiresSetup = !settings || (!isSetupComplete && !hasBasicInfo);
+  
+  // Se settings não carregou ou não existe, aguardar
+  if (!settings) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  const hasNome = Boolean(settings.nome && settings.nome.trim() !== '');
+  const hasTelefone = Boolean(settings.telefone && settings.telefone !== 0);
+  const hasBasicInfo = hasNome && hasTelefone;
+  const isSetupComplete = settings.setupCompleted === true;
+  const isActuallyComplete = isSetupComplete || hasBasicInfo;
+  const requiresSetup = !isActuallyComplete;
+  
   if (requiresSetup && pathname !== '/configuracoes' && !isImpersonating) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -164,7 +201,6 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   // ✅ APENAS admin IMPERSONANDO não precisa de setup
   // Admin usando seu próprio negócio = mesma regra que usuário comum
-  // Considera completo se tem setupCompleted=true OU (nome E telefone preenchidos)
   const needsSetup = isImpersonating ? false : requiresSetup;
 
   const handleLogout = async () => {

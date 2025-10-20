@@ -108,15 +108,12 @@ export default function SettingsPage() {
                     ...data,
                     access_expires_at: data.access_expires_at?.toDate ? data.access_expires_at.toDate() : data.access_expires_at,
                     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-                    setupCompleted: data.setupCompleted === true ? true : false,
+                    setupCompleted: data.setupCompleted === true,  // ✅ Manter o valor original
                     // Inclui o link de agendamento (gerado ou existente)
                     linkAgendamento: bookingLink,
                 } as ConfiguracoesNegocio;
                 
-                // Filtrar campos undefined antes de salvar
-                const filteredSettings = Object.fromEntries(Object.entries(updatedSettings).filter(([key, value]) => value !== undefined));
-                
-                setSettings(filteredSettings as ConfiguracoesNegocio);
+                setSettings(updatedSettings);
             } else {
                 // ✅ CRIAR documento no Firestore se não existir (evita loop de redirecionamento)
                 const initialSettings = {
@@ -219,10 +216,15 @@ export default function SettingsPage() {
             description: "Redirecionando para o dashboard...",
           });
           
-          // ⚡ Redirecionar APÓS salvar (garantido)
+          // ⚡ Redirecionar APÓS salvar usando window.location (hard refresh)
           setTimeout(() => {
             window.location.href = '/dashboard';
-          }, 1000);
+          }, 1500);
+        } else {
+          toast({
+            title: 'Sucesso!',
+            description: "Configurações salvas!",
+          });
         }
       } catch (error) {
         toast({
