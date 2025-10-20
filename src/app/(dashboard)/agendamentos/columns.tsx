@@ -67,14 +67,14 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
   {
     accessorKey: "servico",
     header: "Serviço",
-    size: 150,
+    size: 180,
     cell: ({ row }) => {
       const serviceName = row.original.servico.name;
       return (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate block cursor-help max-w-[150px]">{serviceName}</span>
+              <span className="truncate block cursor-help max-w-[200px]">{serviceName}</span>
             </TooltipTrigger>
             {serviceName.length > 30 && (
               <TooltipContent>
@@ -90,14 +90,14 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
   {
     accessorKey: "profissional",
     header: "Profissional",
-    size: 130,
+    size: 150,
     cell: ({ row }) => {
       const professionalName = row.original.profissional.name;
       return (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate block cursor-help max-w-[130px]">{professionalName}</span>
+              <span className="truncate block cursor-help max-w-[180px]">{professionalName}</span>
             </TooltipTrigger>
             {professionalName.length > 25 && (
               <TooltipContent>
@@ -141,16 +141,13 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
   {
     id: "actions",
     header: "Ações",
-    size: 140,
-    minSize: 140,
-    maxSize: 140,
     cell: ({ row }) => {
       const appointment = row.original
       const isAgendado = appointment.status === 'Agendado';
  
       return (
         <TooltipProvider>
-          <div className="grid grid-cols-3 gap-2 w-[140px]">
+          <div className="flex items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="icon" onClick={() => onEdit(appointment)}>
@@ -173,7 +170,7 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
                   <p>Excluir</p>
                 </TooltipContent>
               </Tooltip>
-              {isAgendado ? (
+              {isAgendado && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button 
@@ -190,8 +187,6 @@ export const getColumns = ({ onEdit, onDelete, onFinalize }: ColumnsProps): Colu
                     <p>Finalizar agendamento</p>
                   </TooltipContent>
                 </Tooltip>
-              ) : (
-                <div></div>
               )}
           </div>
         </TooltipProvider>
