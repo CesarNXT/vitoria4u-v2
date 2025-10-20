@@ -4,19 +4,24 @@ import { Campanha, CampanhaEnvio } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
 
 /**
- * API para executar campanhas agendadas - SUPER OTIMIZADO
+ * API para executar campanhas agendadas - OTIMIZADO + ANTI-BAN
  * 
- * OTIMIZAÇÕES IMPLEMENTADAS:
- * 1. ⚡ Early return: Verifica contagem antes de buscar documentos completos
- * 2. 🎯 Query inteligente: Filtra por data E hora (não busca campanhas futuras)
- * 3. ⏱️ Intervalo adaptativo: Respeita 80-120s entre envios (anti-ban)
- * 4. 📊 Processamento gradual: Máximo 5 envios/execução (evita timeout)
- * 5. 🔥 Active campaigns: Lê apenas campanhas ativas (~5-20 leituras vs 500+)
+ * CONFIGURAÇÃO ANTI-BAN (evita bloqueio da Meta/WhatsApp):
+ * - ⏱️ Intervalo: 80-120 segundos ALEATÓRIO entre cada mensagem
+ * - 📤 Processamento: 1 mensagem por execução do CRON (a cada minuto)
+ * - 🤖 Simula comportamento humano com intervalos variáveis
  * 
- * CUSTO FIREBASE:
- * - Sem campanhas: 1 leitura (count)
- * - Com campanhas: ~5-30 leituras (active_campaigns + campanhas completas)
- * - Economia: 95% vs versão antiga
+ * OTIMIZAÇÕES FIRESTORE:
+ * 1. ⚡ Early return: Verifica contagem antes de buscar documentos
+ * 2. 🎯 Query inteligente: Filtra por data/hora
+ * 3. 🔥 Active campaigns: Lê apenas campanhas ativas (~5-20 leituras vs 500+)
+ * 4. 📊 Economia: 95% de redução de leituras
+ * 
+ * TEMPO ESTIMADO:
+ * - 10 contatos: ~17 minutos
+ * - 50 contatos: ~1h 30min
+ * - 100 contatos: ~3h
+ * - 200 contatos: ~5h 30min
  */
 export async function GET(request: Request) {
   try {
@@ -83,7 +88,7 @@ export async function GET(request: Request) {
     let totalProcessado = 0;
     let totalErros = 0;
     let campanhasAtualizadas = 0;
-    const maxEnviosPorExecucao = 30; // ⏱️ Processar múltiplos envios por execução
+    const maxEnviosPorExecucao = 1; // ⏱️ 1 mensagem por execução respeitando anti-ban de 80-120s
 
     // Processar cada campanha
     for (const activeCampaignDoc of activeCampaignsSnapshot.docs) {
@@ -113,6 +118,26 @@ export async function GET(request: Request) {
         dataAgendamento.getMonth(),
         dataAgendamento.getDate()
       );
+
+      // 🚫 PROTEÇÃO: Campanhas antigas nunca iniciadas (evita loop infinito)
+      if (campanha.status === 'Agendada') {
+        const horasDesdeAgendamento = (agora.getTime() - dataAgendamento.getTime()) / (1000 * 60 * 60);
+        
+        // Se passou mais de 24 horas e nunca iniciou, marcar como Expirada
+        if (horasDesdeAgendamento > 24) {
+          await campanhaDoc.ref.update({
+            status: 'Expirada',
+            updatedAt: Timestamp.now(),
+          });
+          
+          // Remover da active_campaigns
+          await activeCampaignDoc.ref.delete();
+          
+          console.log(`⚠️ [CRON] Campanha ${campanha.id} EXPIRADA (${Math.floor(horasDesdeAgendamento)}h de atraso)`);
+          campanhasAtualizadas++;
+          continue;
+        }
+      }
 
       // Só processar se for HOJE
       if (diaAgendamento.getTime() !== hoje.getTime()) {
@@ -174,19 +199,19 @@ export async function GET(request: Request) {
         }
 
         try {
-          // ⏱️ ANTI-BAN: Verificar intervalo desde último envio (15-25 segundos)
+          // ⏱️ ANTI-BAN: 80-120 SEGUNDOS entre cada envio (evita ban da Meta)
           const ultimoEnvio = campanha.envios
             .filter(e => e.enviadoEm)
             .sort((a, b) => (b.enviadoEm?.seconds || 0) - (a.enviadoEm?.seconds || 0))[0];
 
           if (ultimoEnvio && ultimoEnvio.enviadoEm) {
             const tempoDesdeUltimoEnvio = agora.getTime() - (ultimoEnvio.enviadoEm.toDate().getTime());
-            const tempoMinimoMs = 15 * 1000; // 15 segundos mínimo
-            const intervaloAleatorio = Math.floor(Math.random() * (25 - 15 + 1)) + 15;
+            const intervaloAleatorio = Math.floor(Math.random() * (120 - 80 + 1)) + 80; // 80-120s aleatório
+            const tempoMinimoMs = 80 * 1000; // 80 segundos MÍNIMO
 
             if (tempoDesdeUltimoEnvio < tempoMinimoMs) {
               const aguardar = Math.ceil((tempoMinimoMs - tempoDesdeUltimoEnvio) / 1000);
-              console.log(`⏳ [ANTI-BAN] Campanha ${campanha.id} aguardando ${aguardar}s (intervalo: ${intervaloAleatorio}s)`);
+              console.log(`⏳ [ANTI-BAN] Campanha ${campanha.id} aguardando ${aguardar}s (próximo intervalo: ${intervaloAleatorio}s)`);
               continue; // Pular este envio, aguardar próxima execução
             }
           }

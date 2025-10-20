@@ -201,7 +201,7 @@ export interface SystemConfig {
 }
 
 export type CampanhaTipo = 'texto' | 'imagem' | 'audio' | 'video';
-export type CampanhaStatus = 'Agendada' | 'Em Andamento' | 'Concluída' | 'Cancelada' | 'Erro';
+export type CampanhaStatus = 'Agendada' | 'Em Andamento' | 'Concluída' | 'Cancelada' | 'Expirada' | 'Erro';
 
 export interface CampanhaContato {
   clienteId: string;

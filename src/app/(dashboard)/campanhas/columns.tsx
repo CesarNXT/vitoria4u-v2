@@ -21,6 +21,7 @@ const statusConfig: Record<CampanhaStatus, { label: string; variant: "default" |
   "Em Andamento": { label: "Em Andamento", variant: "default" },
   "Concluída": { label: "Concluída", variant: "outline" },
   "Cancelada": { label: "Cancelada", variant: "destructive" },
+  "Expirada": { label: "Expirada", variant: "outline" },
   "Erro": { label: "Erro", variant: "destructive" },
 };
 

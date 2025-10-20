@@ -132,8 +132,8 @@ export async function createCampanhaAction(data: {
       status: 'Pendente',
     }));
 
-    // Calcular tempo estimado de conclusão (média 20 segundos por mensagem)
-    const tempoMedioPorMensagem = 20; // segundos
+    // Calcular tempo estimado de conclusão (média 100 segundos - intervalo anti-ban 80-120s)
+    const tempoMedioPorMensagem = 100; // segundos
     const totalMinutos = (data.contatos.length * tempoMedioPorMensagem) / 60;
     const horas = Math.floor(totalMinutos / 60);
     const minutos = Math.floor(totalMinutos % 60);
