@@ -315,6 +315,14 @@ export default function AgendamentosPage() {
     }
   };
 
+  const handleFeedbackModalChange = (open: boolean) => {
+    setIsFeedbackConfirmOpen(open);
+    // Limpar estado pendente quando o modal fecha
+    if (!open) {
+      setPendingFeedbackPayload(null);
+    }
+  };
+
   const handleConfirmFeedbackSend = async () => {
     if (!pendingFeedbackPayload) return;
     setIsSubmitting(true);
@@ -324,15 +332,13 @@ export default function AgendamentosPage() {
     } catch (error) {
       // Silencioso: erros são logados no servidor
     } finally {
-      setPendingFeedbackPayload(null);
-      setIsFeedbackConfirmOpen(false);
+      setIsFeedbackConfirmOpen(false); // Vai limpar via handleFeedbackModalChange
       setIsSubmitting(false);
     }
   };
 
   const handleSkipFeedbackSend = () => {
-    setPendingFeedbackPayload(null);
-    setIsFeedbackConfirmOpen(false);
+    setIsFeedbackConfirmOpen(false); // Vai limpar via handleFeedbackModalChange
   };
 
   const handleFinalize = async (appointment: Agendamento) => {
@@ -388,6 +394,14 @@ export default function AgendamentosPage() {
     }
 };
 
+const handleClientConfirmModalChange = (open: boolean) => {
+    setIsClientConfirmOpen(open);
+    // Limpar estado pendente quando o modal fecha
+    if (!open) {
+        setPendingClientConfirm(null);
+    }
+};
+
 const handleSendClientConfirmation = async () => {
     if (!pendingClientConfirm) return;
     
@@ -407,6 +421,9 @@ const handleSendClientConfirmation = async () => {
             title: '❌ Erro ao Enviar',
             description: error.message || 'Não foi possível enviar a confirmação.',
         });
+    } finally {
+        // Fechar modal (que vai limpar o estado via handleClientConfirmModalChange)
+        setIsClientConfirmOpen(false);
     }
 };
 
@@ -689,13 +706,13 @@ return (
         {/* Modal de Confirmação para Cliente */}
         <AppointmentConfirmationModal
             open={isClientConfirmOpen}
-            onOpenChange={setIsClientConfirmOpen}
+            onOpenChange={handleClientConfirmModalChange}
             onConfirm={handleSendClientConfirmation}
             clientName={pendingClientConfirm?.appointment?.cliente?.name || ''}
         />
 
         {/* Alert Dialog for Feedback Confirmation */}
-        <AlertDialog open={isFeedbackConfirmOpen} onOpenChange={setIsFeedbackConfirmOpen}>
+        <AlertDialog open={isFeedbackConfirmOpen} onOpenChange={handleFeedbackModalChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Enviar feedback ao cliente?</AlertDialogTitle>
@@ -776,7 +793,7 @@ return (
             if (!open) setSelectedBlock(null);
             setIsNewBlockEntryDialogOpen(open);
           }}>
-            <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                 <DialogTitle>{selectedBlock ? 'Editar Bloqueio' : 'Criar Novo Bloqueio'}</DialogTitle>
                 <DialogDescription>

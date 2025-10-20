@@ -111,17 +111,28 @@ export async function GET(request: Request) {
 
       const campanha = { id: campanhaDoc.id, ...campanhaDoc.data() } as Campanha;
 
-      // 🎯 Verificar se é EXATAMENTE a hora de processar
+      // 🎯 DEBUG: Informações da campanha
+      console.log(`📋 [DEBUG] Campanha ${campanha.id} - Nome: ${campanha.nome}`);
+      console.log(`📋 [DEBUG] Status: ${campanha.status}`);
+      console.log(`📋 [DEBUG] Hora Início: ${campanha.horaInicio}`);
+      console.log(`📋 [DEBUG] Hora Atual: ${horaAtual}`);
+      
       const dataAgendamento = campanha.dataAgendamento.toDate();
       const diaAgendamento = new Date(
         dataAgendamento.getFullYear(),
         dataAgendamento.getMonth(),
         dataAgendamento.getDate()
       );
+      
+      console.log(`📋 [DEBUG] Data Agendamento: ${dataAgendamento.toISOString()}`);
+      console.log(`📋 [DEBUG] Dia Agendamento: ${diaAgendamento.toISOString()}`);
+      console.log(`📋 [DEBUG] Hoje: ${hoje.toISOString()}`);
 
       // 🚫 PROTEÇÃO: Campanhas antigas nunca iniciadas (evita loop infinito)
       if (campanha.status === 'Agendada') {
         const horasDesdeAgendamento = (agora.getTime() - dataAgendamento.getTime()) / (1000 * 60 * 60);
+        
+        console.log(`⏱️ [DEBUG] Horas desde agendamento: ${horasDesdeAgendamento.toFixed(2)}h`);
         
         // Se passou mais de 24 horas e nunca iniciou, marcar como Expirada
         if (horasDesdeAgendamento > 24) {
@@ -130,7 +141,6 @@ export async function GET(request: Request) {
             updatedAt: Timestamp.now(),
           });
           
-          // Remover da active_campaigns
           await activeCampaignDoc.ref.delete();
           
           console.log(`⚠️ [CRON] Campanha ${campanha.id} EXPIRADA (${Math.floor(horasDesdeAgendamento)}h de atraso)`);
@@ -139,16 +149,27 @@ export async function GET(request: Request) {
         }
       }
 
-      // Só processar se for HOJE
-      if (diaAgendamento.getTime() !== hoje.getTime()) {
-        console.log(`⏭️ [CRON] Campanha ${campanha.id} agendada para outro dia`);
+      // Só processar se for HOJE ou ANTES (se atrasou)
+      if (diaAgendamento.getTime() > hoje.getTime()) {
+        console.log(`⏭️ [CRON] Campanha ${campanha.id} agendada para o futuro (${diaAgendamento.toLocaleDateString('pt-BR')})`);
         continue;
       }
 
-      // Se está agendada, verificar se JÁ PASSOU da hora
-      if (horaAtual < campanha.horaInicio && campanha.status === 'Agendada') {
-        console.log(`⏰ [CRON] Campanha ${campanha.id} aguardando horário ${campanha.horaInicio}`);
-        continue;
+      // Se está agendada, verificar se JÁ CHEGOU a hora
+      if (campanha.status === 'Agendada') {
+        // Comparar horários corretamente
+        const [horaAtualH = 0, horaAtualM = 0] = horaAtual.split(':').map(Number);
+        const [horaInicioH = 0, horaInicioM = 0] = campanha.horaInicio.split(':').map(Number);
+        
+        const minutosAtual = horaAtualH * 60 + horaAtualM;
+        const minutosInicio = horaInicioH * 60 + horaInicioM;
+        
+        console.log(`⏰ [DEBUG] Minutos atual: ${minutosAtual}, Minutos início: ${minutosInicio}`);
+        
+        if (minutosAtual < minutosInicio) {
+          console.log(`⏰ [CRON] Campanha ${campanha.id} aguardando horário ${campanha.horaInicio} (faltam ${minutosInicio - minutosAtual} minutos)`);
+          continue;
+        }
       }
 
       // Buscar envios pendentes

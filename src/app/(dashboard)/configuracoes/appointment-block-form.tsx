@@ -137,7 +137,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pt-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5 pt-4">
         {isPastBlock && (
           <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
             <p className="text-sm text-blue-700 dark:text-blue-300">
@@ -165,94 +165,107 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
           )}
         />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Data e Hora de Início */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Início do Bloqueio</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
-            control={form.control}
-            name="startDate"
-            render={({ field }) => (
+              control={form.control}
+              name="startDate"
+              render={({ field }) => (
                 <FormItem className="flex flex-col">
-                    <FormLabel>Data de Início</FormLabel>
+                  <FormLabel>Data de Início</FormLabel>
+                  <FormControl>
+                    <StandardDatePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Escolha a data de início"
+                      isMobile={false}
+                      fromYear={new Date().getFullYear()}
+                      toYear={new Date().getFullYear() + 2}
+                      disabled={isPastBlock}
+                      minDate={!block ? new Date() : undefined}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="startTime"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Hora de Início</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
                     <FormControl>
-                        <StandardDatePicker
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Escolha a data de início"
-                            isMobile={false}
-                            fromYear={new Date().getFullYear()}
-                            toYear={new Date().getFullYear() + 2}
-                            disabled={isPastBlock}
-                            minDate={!block ? new Date() : undefined}
-                        />
+                      <SelectTrigger className="w-full">
+                        <SelectValue className="truncate" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
+                    <SelectContent>
+                      {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
                 </FormItem>
-            )}
+              )}
             />
+          </div>
+        </div>
+
+        {/* Data e Hora de Término */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Término do Bloqueio</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
-                control={form.control}
-                name="startTime"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Hora de Início</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
-                        <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue className="truncate" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-             <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
+              control={form.control}
+              name="endDate"
+              render={({ field }) => (
                 <FormItem className="flex flex-col">
-                    <FormLabel>Data de Término</FormLabel>
-                     <FormControl>
-                        <StandardDatePicker
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Escolha a data de término"
-                            isMobile={false}
-                            fromYear={new Date().getFullYear()}
-                            toYear={new Date().getFullYear() + 2}
-                            disabled={isPastBlock}
-                            minDate={!block ? new Date() : undefined}
-                        />
-                    </FormControl>
-                    <FormMessage />
+                  <FormLabel>Data de Término</FormLabel>
+                  <FormControl>
+                    <StandardDatePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Escolha a data de término"
+                      isMobile={false}
+                      fromYear={new Date().getFullYear()}
+                      toYear={new Date().getFullYear() + 2}
+                      disabled={isPastBlock}
+                      minDate={!block ? new Date() : undefined}
+                    />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-            )}
+              )}
             />
             <FormField
-                control={form.control}
-                name="endTime"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Hora de Término</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
-                        <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Selecione..." className="truncate" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
+              control={form.control}
+              name="endTime"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Hora de Término</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isPastBlock}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecione..." className="truncate" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
+          </div>
         </div>
         
-        <Button type="submit" className="w-full" disabled={isSubmitting}>Salvar Bloqueio</Button>
+        <div className="pt-2">
+          <Button type="submit" className="w-full" disabled={isSubmitting}>Salvar Bloqueio</Button>
+        </div>
       </form>
     </Form>
   );

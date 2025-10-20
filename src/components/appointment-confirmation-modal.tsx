@@ -32,7 +32,7 @@ export function AppointmentConfirmationModal({
     setIsSending(true)
     try {
       await onConfirm()
-      onOpenChange(false)
+      // onConfirm já fecha o modal, não precisa duplicar aqui
     } catch (error) {
       // Erro já tratado no onConfirm
     } finally {
