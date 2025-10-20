@@ -154,10 +154,29 @@ export async function POST(request: Request) {
 
                 if (userDoc.exists && planDoc.exists) {
                     const planData = planDoc.data() as Plano;
+                    const userData = userDoc.data();
                     const durationInDays = planData.durationInDays || 30; // Fallback para 30 dias
+                    
+                    // 🎯 SOMA DIAS RESTANTES DO PLANO ATUAL
+                    const now = new Date();
+                    let totalDaysToAdd = durationInDays;
+                    
+                    // Verifica se há plano ativo com dias restantes
+                    if (userData?.access_expires_at) {
+                        const currentExpiration = userData.access_expires_at.toDate ? 
+                            userData.access_expires_at.toDate() : 
+                            new Date(userData.access_expires_at);
+                        
+                        // Se a expiração atual é no futuro, calcular dias restantes
+                        if (currentExpiration > now) {
+                            const daysRemaining = Math.ceil((currentExpiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                            totalDaysToAdd += daysRemaining;
+                            logger.info(`📅 Dias restantes do plano atual: ${daysRemaining} | Novos dias: ${durationInDays} | Total: ${totalDaysToAdd}`, { userId });
+                        }
+                    }
 
                     const accessExpiresAt = new Date();
-                    accessExpiresAt.setDate(accessExpiresAt.getDate() + durationInDays);
+                    accessExpiresAt.setDate(accessExpiresAt.getDate() + totalDaysToAdd);
 
                     await userDocRef.update({
                         planId: planId, // Garante que o planId do usuário está atualizado
@@ -169,13 +188,17 @@ export async function POST(request: Request) {
                         },
                         access_expires_at: accessExpiresAt,
                     });
-                    logger.success(`Acesso liberado para o usuário por ${durationInDays} dias`, { userId, expiresAt: accessExpiresAt.toISOString() });
+                    logger.success(`✅ Acesso liberado por ${totalDaysToAdd} dias (${durationInDays} novos + dias restantes)`, { 
+                        userId, 
+                        expiresAt: accessExpiresAt.toISOString(),
+                        planId 
+                    });
                 } else {
-                    if (!userDoc.exists) logger.error(`Usuário não encontrado`, { userId });
-                    if (!planDoc.exists) logger.error(`Plano não encontrado`, { planId });
+                    if (!userDoc.exists) logger.error(`❌ Usuário não encontrado`, { userId });
+                    if (!planDoc.exists) logger.error(`❌ Plano não encontrado`, { planId });
                 }
             } else {
-                logger.error('Pagamento aprovado mas faltam dados', sanitizeForLog({ userId, planId }));
+                logger.error('❌ Pagamento aprovado mas faltam dados', sanitizeForLog({ userId, planId }));
             }
         } else {
             logger.info(`Pagamento com status não processado`, { status: paymentData.status });

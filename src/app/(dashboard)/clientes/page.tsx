@@ -5,6 +5,7 @@ import { getClientsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBusiness
 import { useFirebase } from '@/firebase'
 import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import type { Cliente, ConfiguracoesNegocio } from '@/lib/types'
+import { generateUUID } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, Loader2 } from 'lucide-react'
 import { getColumns } from './columns'
@@ -157,7 +158,7 @@ export default function ClientsPage() {
         return;
       }
 
-      const id = selectedClient ? selectedClient.id : `client-${Date.now()}`;
+      const id = selectedClient ? selectedClient.id : `client-${Date.now()}-${generateUUID().slice(0, 8)}`;
 
       // 🔥 OTIMIZAÇÃO: Extrair mês e dia para query eficiente de aniversários
       let birthMonth: number | null = null;

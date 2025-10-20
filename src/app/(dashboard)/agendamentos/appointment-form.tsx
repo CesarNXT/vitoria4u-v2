@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -114,6 +113,7 @@ export function AppointmentForm({
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pendingData, setPendingData] = useState<AppointmentFormValues | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
@@ -254,13 +254,15 @@ export function AppointmentForm({
           // Pré-selecionar horário de abertura do negócio se for novo agendamento
           if (!appointment && !selectedTime && businessSettings?.horariosFuncionamento) {
             const dayOfWeek = selectedDate.getDay(); // 0 = Domingo, 1 = Segunda, etc
-            const dayNames = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
-            const dayName = dayNames[dayOfWeek];
+            const dayNames = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
             
-            const horariosDay = businessSettings.horariosFuncionamento[dayName];
-            if (horariosDay && !horariosDay.fechado && horariosDay.abertura) {
-              // Setar horário de abertura como padrão
-              setValue('startTime', horariosDay.abertura);
+            if (dayOfWeek >= 0 && dayOfWeek < 7) {
+              const dayName = dayNames[dayOfWeek];
+              const horariosDay = businessSettings.horariosFuncionamento[dayName];
+              if (horariosDay && !horariosDay.fechado && horariosDay.abertura) {
+                // Setar horário de abertura como padrão
+                setValue('startTime', horariosDay.abertura);
+              }
             }
           }
           
@@ -288,23 +290,41 @@ export function AppointmentForm({
   }, [selectedDate, selectedService, selectedProfessionalId, appointment, selectedTime, setValue, businessSettings]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
+    // Proteção contra duplo clique
+    if (isSubmittingRef.current || isSubmitting) {
+      console.log('⚠️ Duplo clique detectado - ignorando submissão duplicada');
+      return;
+    }
+    
+    isSubmittingRef.current = true;
+    
     if (conflictWarning) {
       // Se há conflito, mostra o dialog
       setPendingData(data);
       setShowConflictDialog(true);
+      isSubmittingRef.current = false; // Libera se for apenas abrir dialog
     } else {
       // Sem conflito, envia direto
       onSubmit(data);
+      // isSubmittingRef será resetado quando o form fechar/reabrir
     }
   };
   
   const handleConfirmWithConflict = () => {
-    if (pendingData) {
+    if (pendingData && !isSubmittingRef.current) {
+      isSubmittingRef.current = true;
       onSubmit(pendingData);
-      setShowConflictDialog(false);
       setPendingData(null);
+      setShowConflictDialog(false);
     }
   };
+
+  // Reset do flag quando form é resetado (novo agendamento)
+  useEffect(() => {
+    if (!appointment) {
+      isSubmittingRef.current = false;
+    }
+  }, [appointment]);
 
   return (
     <Form {...form}>

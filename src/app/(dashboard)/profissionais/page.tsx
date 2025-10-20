@@ -5,6 +5,7 @@ import { getProfessionalsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBu
 import { useFirebase } from '@/firebase'
 import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import type { Profissional, ConfiguracoesNegocio } from '@/lib/types'
+import { generateUUID } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, Loader2 } from 'lucide-react'
 import { getColumns } from './columns'
@@ -165,7 +166,7 @@ export default function ProfessionalsPage() {
         return;
       }
 
-      const id = selectedProfessional ? selectedProfessional.id : `prof-${Date.now()}`;
+      const id = selectedProfessional ? selectedProfessional.id : `prof-${Date.now()}-${generateUUID().slice(0, 8)}`;
 
       const professionalData = {
         name: data.name,

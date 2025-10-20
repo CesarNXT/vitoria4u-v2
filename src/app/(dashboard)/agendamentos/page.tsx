@@ -48,6 +48,7 @@ import { getAppointmentsOnSnapshot, getClientsOnSnapshot, getProfessionalsOnSnap
 import { convertTimestamps, normalizePhoneNumber } from '@/lib/utils'
 import { AppointmentsFilter, type AppointmentFilters } from './appointments-filter'
 import { Timestamp } from 'firebase/firestore'
+import { generateUUID } from '@/lib/utils'
 
 // Utility function to serialize Firestore Timestamps to plain objects
 function serializeTimestamps<T>(obj: T): T {
@@ -189,13 +190,21 @@ export default function AgendamentosPage() {
     try {
         const isEditing = !!selectedAppointment;
         
+        // 🔍 DEBUG: Log de autenticação
+        console.log('🔐 DEBUG Agendamento:');
+        console.log('  - user.uid:', user?.uid);
+        console.log('  - businessUserId:', businessUserId);
+        console.log('  - finalUserId:', finalUserId);
+        console.log('  - user.email:', user?.email);
+        
         // Se for edição, deletar o agendamento antigo e criar novo ID
         if (isEditing) {
             await deleteDocument('agendamentos', selectedAppointment.id, finalUserId);
         }
         
         // Sempre gerar novo ID (edição ou criação)
-        const newId = `appt-${Date.now()}`;
+        // Usar generateUUID() para garantir unicidade absoluta (evita duplicatas em cliques rápidos)
+        const newId = `appt-${Date.now()}-${generateUUID().slice(0, 8)}`;
         
         const cliente = clients.find(c => c.id === data.clienteId);
         const servico = services.find(s => s.id === data.servicoId);
@@ -227,6 +236,9 @@ export default function AgendamentosPage() {
         
         const serializableSettings = JSON.parse(JSON.stringify(convertTimestamps(businessSettings)));
 
+        // 🔍 DEBUG: Log do path que será usado
+        console.log('  - Path Firestore:', `negocios/${finalUserId}/agendamentos/${newId}`);
+        
         // Salvar o novo agendamento
         await saveOrUpdateDocument('agendamentos', newId, serializableAppointment, finalUserId);
         
@@ -236,7 +248,14 @@ export default function AgendamentosPage() {
                 appt.id === selectedAppointment.id ? appointmentData : appt
             ));
         } else {
-            setAppointments(prev => [appointmentData, ...prev]);
+            // Verifica se já existe antes de adicionar (evita duplicatas)
+            setAppointments(prev => {
+                const exists = prev.some(appt => appt.id === appointmentData.id);
+                if (exists) {
+                    return prev; // Já existe, não adiciona
+                }
+                return [appointmentData, ...prev]; // Adiciona no início
+            });
         }
         
         // Criar ou atualizar reminders
@@ -323,8 +342,19 @@ export default function AgendamentosPage() {
         toast({ title: isEditing ? "Agendamento Atualizado" : "Agendamento Criado" });
         setIsFormModalOpen(false);
 
-    } catch (error) {
-        toast({ variant: "destructive", title: "Erro ao Salvar" });
+    } catch (error: any) {
+        // 🔴 DEBUG: Log detalhado do erro
+        console.error('❌ ERRO AO SALVAR AGENDAMENTO:');
+        console.error('  - Erro completo:', error);
+        console.error('  - Mensagem:', error?.message);
+        console.error('  - Code:', error?.code);
+        console.error('  - Stack:', error?.stack);
+        
+        toast({ 
+            variant: "destructive", 
+            title: "Erro ao Salvar",
+            description: error?.message || "Verifique o console para mais detalhes"
+        });
     } finally {
         setIsSubmitting(false);
     }
@@ -517,7 +547,7 @@ const handleBlockFormSubmit = async (data: Omit<DataBloqueada, 'id'>) => {
     if (!finalUserId) return;
     setIsSubmittingBlock(true);
     try {
-        const id = selectedBlock ? selectedBlock.id : `block-${Date.now()}`;
+        const id = selectedBlock ? selectedBlock.id : `block-${Date.now()}-${generateUUID().slice(0, 8)}`;
         const blockToSave = {
             reason: data.reason,
             startDate: new Date(data.startDate).toISOString(),

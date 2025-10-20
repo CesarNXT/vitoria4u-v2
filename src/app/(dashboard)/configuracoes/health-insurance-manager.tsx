@@ -11,6 +11,7 @@ import type { PlanoSaude } from '@/lib/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { isCategoriaClinica } from '@/lib/categoria-utils';
 import { useToast } from '@/hooks/use-toast';
+import { generateUUID } from '@/lib/utils';
 
 interface HealthInsuranceManagerProps {
   categoria?: string;
@@ -46,7 +47,7 @@ export default function HealthInsuranceManager({ categoria }: HealthInsuranceMan
     }
 
     const novoPlano: PlanoSaude = {
-      id: `plano_${Date.now()}`,
+      id: `plano_${Date.now()}-${generateUUID().slice(0, 8)}`,
       nome: nomeTrimmed,
     };
 

@@ -6,6 +6,7 @@ import { useFirebase } from '@/firebase';
 import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import type { Servico, Profissional, User, ConfiguracoesNegocio, PlanoSaude } from '@/lib/types';
 import { handleError } from '@/lib/error-handler';
+import { generateUUID } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2, Users } from 'lucide-react';
 import { getColumns } from './columns';
@@ -147,7 +148,7 @@ export default function ServicesPage() {
     setIsSubmitting(true);
 
     try {
-        const id = selectedService ? selectedService.id : `serv-${Date.now()}`;
+        const id = selectedService ? selectedService.id : `serv-${Date.now()}-${generateUUID().slice(0, 8)}`;
         
         const professionalData = data.professionals.map(profId => {
             const prof = professionals.find(p => p.id === profId);

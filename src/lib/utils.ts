@@ -364,3 +364,27 @@ export const formatServicePrice = (price: number, priceType: 'fixed' | 'on_reque
       return formattedPrice;
   }
 }
+
+/**
+ * ✅ Função compatível para gerar UUID (funciona em todos os navegadores)
+ * Tenta usar crypto.randomUUID() se disponível, caso contrário gera UUID v4
+ * 
+ * @returns UUID string (formato: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx)
+ */
+export function generateUUID(): string {
+  // Tenta usar crypto.randomUUID se disponível (navegadores modernos)
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch (e) {
+      // Se falhar, usa fallback
+    }
+  }
+  
+  // Fallback: gera UUID v4 compatível com todos os navegadores
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
