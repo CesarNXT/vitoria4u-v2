@@ -156,31 +156,27 @@ Digite "DELETAR" para confirmar:`;
   };
 
   const handleSave = async (businessId: string, updates: { planId?: string; access_expires_at?: Date }) => {
-    if (!firestore) return;
+    if (!user?.email) return;
 
     try {
-      const businessRef = doc(firestore, 'negocios', businessId);
-      const updateData: any = {};
+      // Importar action server-side
+      const { updateBusiness } = await import('./actions');
+      
+      const result = await updateBusiness(businessId, updates, user.email);
 
-      if (updates.planId) {
-        updateData.planId = updates.planId;
+      if (result.success) {
+        toast({
+          title: 'Negócio Atualizado!',
+          description: 'As alterações foram salvas com sucesso.',
+        });
+        setEditingBusiness(null);
+      } else {
+        throw new Error(result.error);
       }
-
-      if (updates.access_expires_at) {
-        updateData.access_expires_at = Timestamp.fromDate(updates.access_expires_at);
-      }
-
-      await updateDoc(businessRef, updateData);
-
-      toast({
-        title: 'Negócio Atualizado!',
-        description: 'As alterações foram salvas com sucesso.',
-      });
-      setEditingBusiness(null);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Erro ao Salvar',
-        description: 'Não foi possível atualizar o negócio. Tente novamente.',
+        description: error.message || 'Não foi possível atualizar o negócio. Tente novamente.',
         variant: 'destructive',
       });
     }

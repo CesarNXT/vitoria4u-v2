@@ -19,17 +19,7 @@ export const ADMIN_EMAILS: string[] = [
  * Verifica se email é admin
  */
 export function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) {
-    console.log('🔴 isAdminEmail: Email vazio ou null');
-    return false;
-  }
-  
+  if (!email) return false;
   const normalized = email.trim().toLowerCase();
-  console.log('🔍 isAdminEmail: Verificando email:', normalized);
-  console.log('🔍 Lista de admins:', ADMIN_EMAILS);
-  
-  const isAdmin = ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === normalized);
-  console.log('🔍 Resultado:', isAdmin ? '✅ É ADMIN' : '❌ NÃO É ADMIN');
-  
-  return isAdmin;
+  return ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === normalized);
 }
