@@ -689,8 +689,17 @@ return (
                 <AlertDialogHeader>
                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o agendamento do cliente
-                        <span className="font-bold"> {appointmentToDelete?.cliente.name}</span>.
+                        <div className="space-y-2">
+                            <p>Essa ação não pode ser desfeita. Isso excluirá permanentemente o agendamento do cliente:</p>
+                            <div className="max-w-full overflow-hidden">
+                                <p 
+                                    className="font-bold truncate cursor-help" 
+                                    title={appointmentToDelete?.cliente.name}
+                                >
+                                    {appointmentToDelete?.cliente.name}
+                                </p>
+                            </div>
+                        </div>
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

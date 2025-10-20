@@ -50,9 +50,13 @@ export function AppointmentConfirmationModal({
         <AlertDialogHeader>
           <AlertDialogTitle>📱 Enviar confirmação para o cliente?</AlertDialogTitle>
           <AlertDialogDescription>
-            Deseja enviar uma mensagem de confirmação via WhatsApp para <strong>{clientName}</strong>?
-            <br /><br />
-            A mensagem incluirá os detalhes do agendamento (data, horário, serviço e profissional).
+            <div className="space-y-2">
+              <p>Deseja enviar uma mensagem de confirmação via WhatsApp para:</p>
+              <div className="max-w-full overflow-hidden">
+                <p className="font-bold truncate cursor-help" title={clientName}>{clientName}</p>
+              </div>
+              <p className="pt-2">A mensagem incluirá os detalhes do agendamento (data, horário, serviço e profissional).</p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
