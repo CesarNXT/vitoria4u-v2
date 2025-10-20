@@ -168,7 +168,11 @@ export default function CampanhasPage() {
 
   // Deletar campanha
   const handleDeleteCampanha = async (campanha: Campanha) => {
-    if (!confirm(`Deseja realmente deletar a campanha "${campanha.nome}"? Esta ação não pode ser desfeita.`)) {
+    const message = campanha.status === 'Em Andamento' 
+      ? `A campanha "${campanha.nome}" está EM ANDAMENTO. Deletar irá CANCELAR todos os envios pendentes. Deseja continuar?`
+      : `Deseja realmente deletar a campanha "${campanha.nome}"? Esta ação não pode ser desfeita.`;
+
+    if (!confirm(message)) {
       return;
     }
 

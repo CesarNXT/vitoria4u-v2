@@ -78,12 +78,20 @@ export async function getClientesAction() {
       .sort((a, b) => a.name.localeCompare(b.name)); // Ordena no código
 
     return { success: true, clientes };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao buscar clientes:', error);
+    
+    let errorMessage = 'Erro ao buscar clientes';
+    if (error?.message?.includes('Não autenticado')) {
+      errorMessage = 'Sessão expirada. Faça login novamente.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erro desconhecido',
-      clientes: []
+      clientes: [], 
+      error: errorMessage
     };
   }
 }
@@ -104,25 +112,37 @@ export async function createCampanhaAction(data: {
     const userId = await validateSession();
     const businessId = await getBusinessId(userId);
 
+    // Validar limite de contatos PRIMEIRO (mais rápido)
+    if (data.contatos.length === 0) {
+      return {
+        success: false,
+        error: 'Você precisa selecionar pelo menos 1 contato para criar a campanha.'
+      };
+    }
+
+    if (data.contatos.length > 200) {
+      return {
+        success: false,
+        error: `Você selecionou ${data.contatos.length} contatos. O limite é de 200 contatos por campanha.`
+      };
+    }
+
     // Buscar configurações do WhatsApp
     const businessDoc = await adminDb.collection('negocios').doc(businessId).get();
     const businessData = businessDoc.data();
 
     if (!businessData?.whatsappConectado) {
-      throw new Error('WhatsApp não conectado');
+      return {
+        success: false,
+        error: 'WhatsApp não conectado. Conecte seu WhatsApp em Configurações antes de criar campanhas.'
+      };
     }
 
     if (!businessData.tokenInstancia) {
-      throw new Error('Token do WhatsApp não encontrado');
-    }
-
-    // Validar limite de contatos
-    if (data.contatos.length === 0) {
-      throw new Error('Nenhum contato selecionado');
-    }
-
-    if (data.contatos.length > 200) {
-      throw new Error('Limite máximo de 200 contatos por campanha');
+      return {
+        success: false,
+        error: 'Configuração do WhatsApp incompleta. Reconecte seu WhatsApp em Configurações.'
+      };
     }
 
     // Criar envios pendentes
@@ -183,11 +203,27 @@ export async function createCampanhaAction(data: {
       campanhaId: campanhaRef.id,
       message: 'Campanha agendada com sucesso!' 
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erro ao criar campanha:', error);
+    
+    let errorMessage = 'Erro ao criar campanha';
+    if (error?.message?.includes('Não autenticado')) {
+      errorMessage = 'Sessão expirada. Faça login novamente.';
+    } else if (error?.message?.includes('Sessão inválida')) {
+      errorMessage = 'Sessão inválida. Faça login novamente.';
+    } else if (error?.message?.includes('Negócio não encontrado')) {
+      errorMessage = 'Configuração do negócio não encontrada. Entre em contato com o suporte.';
+    } else if (error?.code === 'permission-denied') {
+      errorMessage = 'Você não tem permissão para criar campanhas.';
+    } else if (error?.code === 'unavailable') {
+      errorMessage = 'Serviço temporariamente indisponível. Tente novamente em alguns instantes.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erro ao criar campanha' 
+      error: errorMessage
     };
   }
 }
@@ -228,12 +264,20 @@ export async function getCampanhasAction() {
     });
 
     return { success: true, campanhas };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao buscar campanhas:', error);
+    
+    let errorMessage = 'Erro ao buscar campanhas';
+    if (error?.message?.includes('Não autenticado')) {
+      errorMessage = 'Sessão expirada. Faça login novamente.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erro desconhecido',
-      campanhas: []
+      campanhas: [], 
+      error: errorMessage
     };
   }
 }
@@ -276,11 +320,19 @@ export async function getCampanhaDetailsAction(campanhaId: string) {
     } as Campanha;
 
     return { success: true, campanha };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao buscar campanha:', error);
+    
+    let errorMessage = 'Erro ao buscar campanha';
+    if (error?.message?.includes('Não autenticado')) {
+      errorMessage = 'Sessão expirada. Faça login novamente.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erro desconhecido'
+      error: errorMessage
     };
   }
 }
@@ -327,11 +379,19 @@ export async function cancelCampanhaAction(campanhaId: string) {
       success: true, 
       message: 'Campanha cancelada com sucesso' 
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao cancelar campanha:', error);
+    
+    let errorMessage = 'Erro ao cancelar campanha';
+    if (error?.message?.includes('Não autenticado')) {
+      errorMessage = 'Sessão expirada. Faça login novamente.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erro ao cancelar campanha' 
+      error: errorMessage
     };
   }
 }
@@ -358,9 +418,12 @@ export async function deleteCampanhaAction(campanhaId: string) {
 
     const campanhaData = campanhaDoc.data() as Campanha;
 
-    // Não pode deletar campanhas em andamento (precisa cancelar primeiro)
+    // Se estiver em andamento, cancelar automaticamente antes de deletar
     if (campanhaData.status === 'Em Andamento') {
-      throw new Error('Não é possível deletar uma campanha em andamento. Cancele-a primeiro.');
+      await campanhaRef.update({
+        status: 'Cancelada',
+        canceledAt: Timestamp.now(),
+      });
     }
 
     await campanhaRef.delete();
@@ -376,11 +439,21 @@ export async function deleteCampanhaAction(campanhaId: string) {
       success: true, 
       message: 'Campanha deletada com sucesso' 
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao deletar campanha:', error);
+    
+    let errorMessage = 'Erro ao deletar campanha';
+    if (error?.message?.includes('Não autenticado')) {
+      errorMessage = 'Sessão expirada. Faça login novamente.';
+    } else if (error?.code === 'permission-denied') {
+      errorMessage = 'Você não tem permissão para deletar esta campanha.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erro ao deletar campanha' 
+      error: errorMessage
     };
   }
 }

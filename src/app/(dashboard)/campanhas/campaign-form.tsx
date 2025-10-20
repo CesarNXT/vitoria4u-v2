@@ -38,6 +38,7 @@ import {
   XCircle,
   Info
 } from 'lucide-react';
+import { useScrollToError } from '@/lib/form-utils';
 
 const campaignSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -84,6 +85,9 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
       horaInicio: '08:00',
     },
   });
+
+  // Scroll automático para o primeiro erro
+  useScrollToError(form.formState.errors);
 
   // Inicializar contatos baseado nos clientes
   useEffect(() => {
