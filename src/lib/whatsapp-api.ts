@@ -76,7 +76,7 @@ export class WhatsAppAPIClient {
     options: RequestInit = {}
   ): Promise<T> {
     let url = `${API_BASE_URL}${endpoint}`;
-    let headers: Record<string, string> = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
     

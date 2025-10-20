@@ -19,7 +19,7 @@ export function validarCPF(cpf: string): boolean {
     soma += parseInt(cleaned.charAt(i)) * (10 - i);
   }
   let resto = 11 - (soma % 11);
-  let digito1 = resto >= 10 ? 0 : resto;
+  const digito1 = resto >= 10 ? 0 : resto;
   
   if (digito1 !== parseInt(cleaned.charAt(9))) return false;
   
@@ -29,7 +29,7 @@ export function validarCPF(cpf: string): boolean {
     soma += parseInt(cleaned.charAt(i)) * (11 - i);
   }
   resto = 11 - (soma % 11);
-  let digito2 = resto >= 10 ? 0 : resto;
+  const digito2 = resto >= 10 ? 0 : resto;
   
   return digito2 === parseInt(cleaned.charAt(10));
 }
