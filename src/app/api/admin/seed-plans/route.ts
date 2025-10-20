@@ -29,7 +29,7 @@ const plansToCreate: Omit<Plano, 'id'>[] = [
     price: 179.90,
     durationInDays: 30,
     status: 'Ativo',
-    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'lembrete_aniversario', 'lembrete_profissional', 'disparo_de_mensagens', 'retorno_manutencao', 'notificacao_gestor_agendamento', 'atendimento_whatsapp_ia', 'atendimento_manual_ou_automatizado'],
+    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'lembrete_aniversario', 'lembrete_profissional', 'disparo_de_mensagens', 'retorno_manutencao', 'notificacao_gestor_agendamento', 'atendimento_whatsapp_ia', 'notificacao_cliente_agendamento', 'escalonamento_humano'],
     isFeatured: false,
   },
   {
