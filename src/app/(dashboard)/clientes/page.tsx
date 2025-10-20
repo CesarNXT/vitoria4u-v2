@@ -249,13 +249,13 @@ export default function ClientsPage() {
           <CardTitle>Todos os Clientes</CardTitle>
         </CardHeader>
         <CardContent>
+            <Input
+              placeholder="Filtrar por nome ou telefone..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="mb-4"
+            />
             <div className="block md:hidden">
-              <Input
-                placeholder="Filtrar por nome ou telefone..."
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="mb-4"
-              />
               <div className="space-y-4">
                 {filteredClients.length > 0 ? (
                     filteredClients.map(client => (
@@ -274,11 +274,7 @@ export default function ClientsPage() {
             <div className='hidden md:block'>
                 <DataTable 
                 columns={dynamicColumns} 
-                data={clients}
-                filterColumn={{
-                    id: "name",
-                    placeholder: "Filtrar por nome..."
-                }}
+                data={filteredClients}
                 />
             </div>
         </CardContent>

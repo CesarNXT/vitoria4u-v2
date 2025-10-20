@@ -561,7 +561,9 @@ const filteredAppointments = useMemo(() => {
         const dateObj = appointment.date?.toDate ? appointment.date.toDate() : new Date(appointment.date);
 
         const appointmentClientName = String(appointment.cliente.name || '').toLowerCase();
-        if (clientName && !appointmentClientName.includes(clientName.toLowerCase())) return false;
+        const appointmentClientPhone = String(appointment.cliente.phone || '');
+        const searchTerm = clientName.toLowerCase();
+        if (clientName && !appointmentClientName.includes(searchTerm) && !appointmentClientPhone.includes(clientName)) return false;
         if (professionalId && appointment.profissional.id !== professionalId) return false;
         if (serviceId && appointment.servico.id !== serviceId) return false;
         if (status && appointment.status !== status) return false;

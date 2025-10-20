@@ -110,9 +110,6 @@ const businessSettingsSchema = z.object({
   habilitarLembrete24h: z.boolean().optional(),
   habilitarLembrete2h: z.boolean().optional(),
   habilitarAniversario: z.boolean().optional(),
-  habilitarFeedback: z.boolean().optional(),
-  feedbackPlatform: z.enum(['google', 'instagram']).optional(),
-  feedbackLink: z.string().optional(),
   habilitarEscalonamento: z.boolean().optional(),
   numeroEscalonamento: z.string().optional(),
   nomeIa: z.string().optional(),
@@ -141,27 +138,6 @@ const businessSettingsSchema = z.object({
         message: "O número para escalonamento é obrigatório.",
         path: ["numeroEscalonamento"],
       });
-    }
-    // Feedback validation
-    if (data.habilitarFeedback) {
-      // Validar plataforma
-      if (!data.feedbackPlatform) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Selecione a plataforma de feedback (Google ou Instagram).",
-          path: ["feedbackPlatform"],
-        });
-      }
-      // Validar link/usuário
-      if (!data.feedbackLink || data.feedbackLink.trim() === '') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: data.feedbackPlatform === 'instagram' 
-            ? "O usuário do Instagram é obrigatório (ex: @seu_negocio)." 
-            : "O link de avaliação do Google é obrigatório.",
-          path: ["feedbackLink"],
-        });
-      }
     }
 });
 
@@ -245,11 +221,8 @@ export default function BusinessSettingsForm({
       habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
       habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
       habilitarAniversario: settings?.habilitarAniversario ?? false,
-      habilitarFeedback: settings?.habilitarFeedback ?? false,
       notificarClienteAgendamento: settings?.notificarClienteAgendamento ?? false,
       notificarGestorAgendamento: settings?.notificarGestorAgendamento ?? true,
-      feedbackPlatform: settings?.feedbackPlatform ?? 'google',
-      feedbackLink: settings?.feedbackLink || "",
       habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
       numeroEscalonamento: formatPhoneNumber(settings?.numeroEscalonamento ? String(settings.numeroEscalonamento) : ""),
       nomeIa: settings?.nomeIa || 'Vitoria',
@@ -298,7 +271,7 @@ export default function BusinessSettingsForm({
 
     const clinicSetupStep = { title: "Planos de Saúde", fields: ["planosSaudeAceitos"] };
     
-    const notificationsStep = { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] };
+    const notificationsStep = { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarEscalonamento", "numeroEscalonamento"] };
 
     // Se for clínica, adiciona passo de planos de saúde antes das notificações
     return isClinica 
@@ -426,7 +399,6 @@ export default function BusinessSettingsForm({
             cep: String(data.endereco.cep).replace(/\D/g, ""),
         },
         numeroEscalonamento: data.numeroEscalonamento ? parseInt(`55${String(data.numeroEscalonamento).replace(/\D/g, "")}`.slice(-13), 10) : null,
-        feedbackLink: data.habilitarFeedback ? data.feedbackLink : "",
     };
     
     // 🗑️ Limpar progresso salvo do localStorage quando concluir setup
@@ -449,10 +421,7 @@ export default function BusinessSettingsForm({
     }
   });
 
-  const habilitarFeedback = watch('habilitarFeedback');
   const habilitarEscalonamento = watch('habilitarEscalonamento');
-  const feedbackPlatform = watch('feedbackPlatform');
-  const feedbackLinkValue = watch('feedbackLink');
 
 
   const renderStepContent = (stepIndex: number) => {
@@ -815,96 +784,6 @@ export default function BusinessSettingsForm({
                   </FormItem>
                 )}
               />
-               <div className="space-y-4 rounded-lg border p-4">
-                  <FormField
-                    control={control}
-                    name="habilitarFeedback"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="space-y-0.5 flex-1">
-                          <FormLabel>⭐ Feedback Pós-Serviço</FormLabel>
-                          <FormDescription>
-                            <strong>Como funciona:</strong> Após finalizar o atendimento, envia link para cliente avaliar.<br/>
-                            <strong>Para que serve:</strong> Aumenta avaliações online e melhora reputação no Google/Instagram.
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  {habilitarFeedback && (
-                      <div className="space-y-4 pt-4 border-t">
-                        <FormField
-                            control={control}
-                            name="feedbackPlatform"
-                            render={({ field }) => (
-                                <FormItem className="space-y-3">
-                                <FormLabel>Plataforma de Feedback *</FormLabel>
-                                <FormControl>
-                                    <RadioGroup
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                    className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
-                                    >
-                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                        <RadioGroupItem value="google" />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">Google Maps</FormLabel>
-                                    </FormItem>
-                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                        <RadioGroupItem value="instagram" />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">Instagram</FormLabel>
-                                    </FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={control}
-                            name="feedbackLink"
-                            render={({ field }) => {
-                              const showError = habilitarFeedback && (!feedbackLinkValue || feedbackLinkValue.trim() === '');
-                              return (
-                                <FormItem>
-                                    <FormLabel>
-                                      {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
-                                    </FormLabel>
-                                    <FormControl>
-                                    <Input
-                                        placeholder={
-                                          feedbackPlatform === 'google'
-                                          ? 'https://maps.app.goo.gl/seu-link'
-                                          : '@seu_negocio'
-                                        }
-                                        {...field}
-                                        value={field.value || ""}
-                                    />
-                                    </FormControl>
-                                    {showError && (
-                                      <p className="text-sm text-red-500">
-                                        {feedbackPlatform === 'instagram' 
-                                          ? 'O usuário do Instagram é obrigatório (ex: @seu_negocio).' 
-                                          : 'O link de avaliação do Google é obrigatório.'}
-                                      </p>
-                                    )}
-                                    <FormMessage />
-                                </FormItem>
-                              );
-                            }}
-                        />
-                      </div>
-                  )}
-               </div>
                 <div className="space-y-4 rounded-lg border p-4">
                   <FormField
                     control={control}
@@ -1010,96 +889,6 @@ export default function BusinessSettingsForm({
                   </FormItem>
                 )}
               />
-              <div className="space-y-4 rounded-lg border p-4">
-                <FormField
-                  control={control}
-                  name="habilitarFeedback"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="space-y-0.5 flex-1">
-                        <FormLabel>⭐ Feedback Pós-Serviço</FormLabel>
-                        <FormDescription>
-                          <strong>Como funciona:</strong> Após finalizar o atendimento, envia link para cliente avaliar.<br/>
-                          <strong>Para que serve:</strong> Aumenta avaliações online e melhora reputação no Google/Instagram.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                {habilitarFeedback && (
-                  <div className="space-y-4 pt-4 border-t">
-                    <FormField
-                      control={control}
-                      name="feedbackPlatform"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel>Plataforma de Feedback *</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
-                            >
-                              <FormItem className="flex items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="google" />
-                                </FormControl>
-                                <FormLabel className="font-normal">Google Maps</FormLabel>
-                              </FormItem>
-                              <FormItem className="flex items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="instagram" />
-                                </FormControl>
-                                <FormLabel className="font-normal">Instagram</FormLabel>
-                              </FormItem>
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={control}
-                      name="feedbackLink"
-                      render={({ field }) => {
-                        const showError = habilitarFeedback && (!feedbackLinkValue || feedbackLinkValue.trim() === '');
-                        return (
-                          <FormItem>
-                            <FormLabel>
-                              {feedbackPlatform === 'google' ? 'Link de Avaliação do Google *' : 'Usuário do Instagram *'}
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={
-                                  feedbackPlatform === 'google'
-                                    ? 'https://maps.app.goo.gl/seu-link'
-                                    : '@seu_negocio'
-                                }
-                                {...field}
-                                value={field.value || ""}
-                              />
-                            </FormControl>
-                            {showError && (
-                              <p className="text-sm text-red-500">
-                                {feedbackPlatform === 'instagram' 
-                                  ? 'O usuário do Instagram é obrigatório (ex: @seu_negocio).' 
-                                  : 'O link de avaliação do Google é obrigatório.'}
-                              </p>
-                            )}
-                            <FormMessage />
-                          </FormItem>
-                        );
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
               <FormField
                 control={control}
                 name="notificarClienteAgendamento"

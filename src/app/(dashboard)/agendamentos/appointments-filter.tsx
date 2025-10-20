@@ -47,7 +47,7 @@ export function AppointmentsFilter({ filters, onFiltersChange, services, profess
     <div className="p-4 mb-4 rounded-lg border bg-card text-card-foreground shadow-sm">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
             <Input
-                placeholder="Filtrar por cliente..."
+                placeholder="Filtrar por nome ou telefone..."
                 value={filters.clientName}
                 onChange={(e) => handleFilterChange('clientName', e.target.value)}
                 className="lg:col-span-2"
