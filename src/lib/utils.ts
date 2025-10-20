@@ -149,6 +149,9 @@ export const formatPhoneNumber = (phone: string | null | undefined): string => {
     numberWithoutCountryCode = cleaned.substring(2); // Remove DDI 55 (fixo)
   }
   
+  // ⚠️ LIMITAR A EXATAMENTE 11 DÍGITOS (DDD + 9 + número)
+  numberWithoutCountryCode = numberWithoutCountryCode.slice(0, 11);
+  
   // Formatar 11 dígitos (DDD + 9 + número)
   if (numberWithoutCountryCode.length === 11) {
     const match = numberWithoutCountryCode.match(/^(\d{2})(\d{5})(\d{4})$/);

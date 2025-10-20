@@ -30,6 +30,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from '@/components/ui/input'
 import { format, isSameDay, isDate, startOfDay } from 'date-fns'
@@ -684,27 +690,45 @@ return (
         </Dialog>
 
         {/* Alert Dialog for Delete Confirmation */}
-        <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-            <AlertDialogContent>
+        <AlertDialog open={isAlertDialogOpen} onOpenChange={(open) => {
+            setIsAlertDialogOpen(open);
+            // Limpar estado quando modal fecha (ESC ou clique fora)
+            if (!open) setAppointmentToDelete(null);
+        }}>
+            <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
                 <AlertDialogHeader>
                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        <div className="space-y-2">
-                            <p>Essa ação não pode ser desfeita. Isso excluirá permanentemente o agendamento do cliente:</p>
-                            <div className="max-w-full overflow-hidden">
-                                <p 
-                                    className="font-bold truncate cursor-help" 
-                                    title={appointmentToDelete?.cliente.name}
-                                >
-                                    {appointmentToDelete?.cliente.name}
-                                </p>
+                    <AlertDialogDescription asChild>
+                        <div className="space-y-3">
+                            <p className="break-words">
+                                Essa ação não pode ser desfeita. Isso excluirá permanentemente o agendamento do cliente:
+                            </p>
+                            <div className="min-w-0 flex-1">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <p className="font-bold truncate cursor-help break-words">
+                                                {appointmentToDelete?.cliente.name}
+                                            </p>
+                                        </TooltipTrigger>
+                                        {appointmentToDelete && appointmentToDelete.cliente.name.length > 25 && (
+                                            <TooltipContent side="bottom">
+                                                <p>{appointmentToDelete.cliente.name}</p>
+                                            </TooltipContent>
+                                        )}
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90" disabled={isSubmitting}>
+                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                    <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={handleDeleteConfirm} 
+                        className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto" 
+                        disabled={isSubmitting}
+                    >
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Excluir
                     </AlertDialogAction>

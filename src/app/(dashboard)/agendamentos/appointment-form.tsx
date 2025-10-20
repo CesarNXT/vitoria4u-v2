@@ -312,12 +312,12 @@ export function AppointmentForm({
                             variant="outline"
                             onClick={() => setClientPopoverOpen(true)}
                             className={cn(
-                              "w-full justify-between",
+                              "w-full justify-between min-w-0",
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            <span className="truncate">{selectedClient ? selectedClient.name : "Selecione o cliente"}</span>
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            <span className="truncate block min-w-0 flex-1 text-left">{selectedClient ? selectedClient.name : "Selecione o cliente"}</span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
                           </Button>
                         </TooltipTrigger>
                         {selectedClient && selectedClient.name.length > 30 && (
@@ -357,7 +357,7 @@ export function AppointmentForm({
                                 {field.value === client.id && (
                                   <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                <span className="truncate">{client.name}</span>
+                                <span className="truncate block min-w-0">{client.name}</span>
                               </Button>
                             ))
                           ) : (
@@ -391,12 +391,12 @@ export function AppointmentForm({
                       variant="outline"
                       onClick={() => setServiceDialogOpen(true)}
                       className={cn(
-                        "w-full justify-between",
+                        "w-full justify-between min-w-0",
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      <span className="truncate">{selectedService ? selectedService.name : "Selecione o serviço"}</span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      <span className="truncate block min-w-0 flex-1 text-left">{selectedService ? selectedService.name : "Selecione o serviço"}</span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
                     </Button>
                   </FormControl>
                   
@@ -429,7 +429,7 @@ export function AppointmentForm({
                                 {field.value === service.id && (
                                   <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                <span className="truncate">{service.name}</span>
+                                <span className="truncate block min-w-0">{service.name}</span>
                               </Button>
                             ))
                           ) : (
@@ -464,13 +464,13 @@ export function AppointmentForm({
                       onClick={() => setProfessionalDialogOpen(true)}
                       disabled={!selectedServiceId || availableProfessionals.length === 0}
                       className={cn(
-                        "w-full justify-between",
+                        "w-full justify-between min-w-0",
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      <span className="truncate">{selectedProfessional ? selectedProfessional.name : 
+                      <span className="truncate block min-w-0 flex-1 text-left">{selectedProfessional ? selectedProfessional.name : 
                        !selectedServiceId ? "Escolha um serviço" : "Selecione o profissional"}</span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      <ChevronsUpDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
                     </Button>
                   </FormControl>
                   
@@ -502,7 +502,7 @@ export function AppointmentForm({
                                 {field.value === professional.id && (
                                   <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                <span className="truncate">{professional.name}</span>
+                                <span className="truncate block min-w-0">{professional.name}</span>
                               </Button>
                             ))
                           ) : (

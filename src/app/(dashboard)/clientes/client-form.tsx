@@ -350,6 +350,7 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
                   <Input
                     type="tel"
                     placeholder="(99) 99999-9999"
+                    maxLength={15}
                     {...field}
                     onChange={(e) => {
                       const formatted = formatPhoneNumber(e.target.value);
