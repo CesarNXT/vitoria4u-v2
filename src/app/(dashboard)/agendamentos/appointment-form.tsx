@@ -592,11 +592,6 @@ export function AppointmentForm({
                       )}
                     </SelectContent>
                   </Select>
-                  {selectedDate && selectedService && selectedProfessionalId && availableTimes.length > 0 && !isLoadingTimes && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {availableTimes.length} horários disponíveis
-                    </p>
-                  )}
                   <FormMessage />
                 </FormItem>
               )}

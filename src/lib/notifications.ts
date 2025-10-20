@@ -87,7 +87,7 @@ export async function notifyNewAppointment(data: {
 
 *📅 Data e hora:* ${data.dataHoraAtendimento}
 
-*👤 Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n*📱 Telefone:* ${data.telefoneCliente}` : ''}
+*👤 Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n*📱 Telefone:* ${formatPhoneForDisplay(data.telefoneCliente)}` : ''}
 *💼 Procedimento:* ${data.nomeServico}${data.criadoPor ? `\n\n*📋 Agendado por:* ${data.criadoPor}` : ''}`
 
   await sendSMS(data.telefoneEmpresa, message)
@@ -242,7 +242,7 @@ export async function notifyProfessionalNewAppointment(data: {
 ${data.dataHoraAtendimento}
 
 👤 *Cliente*
-${data.nomeCliente}${data.telefoneCliente ? `\n📱 ${data.telefoneCliente}` : ''}
+${data.nomeCliente}${data.telefoneCliente ? `\n📱 ${formatPhoneForDisplay(data.telefoneCliente)}` : ''}
 
 💼 *Procedimento*
 ${data.nomeServico}${data.criadoPor ? `\n\n📝 *Agendado por:* ${data.criadoPor}` : ''}
@@ -692,6 +692,29 @@ _${data.nomeEmpresa}_`
 // ==========================================
 // HELPER: FORMATAR TELEFONE
 // ==========================================
+
+/**
+ * Formata telefone para EXIBIÇÃO em mensagens (remove DDI 55)
+ * Retorna apenas os 11 dígitos: (99) 99999-9999
+ */
+function formatPhoneForDisplay(phone: string | number): string {
+  let clean = phone.toString().replace(/\D/g, '')
+  
+  // Remover DDI 55 se presente
+  if (clean.length === 13 && clean.startsWith('55')) {
+    clean = clean.substring(2)
+  }
+  
+  // Limitar a 11 dígitos
+  clean = clean.slice(0, 11)
+  
+  // Formatar: (99) 99999-9999
+  if (clean.length === 11) {
+    return `(${clean.substring(0, 2)}) ${clean.substring(2, 7)}-${clean.substring(7)}`
+  }
+  
+  return clean
+}
 
 /**
  * Formata telefone para envio (remove caracteres, ajusta 9 extra, etc)

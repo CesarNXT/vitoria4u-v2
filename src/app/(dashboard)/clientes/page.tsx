@@ -290,7 +290,7 @@ export default function ClientsPage() {
         }
         setIsFormModalOpen(open);
       }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{selectedClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             <DialogDescription>

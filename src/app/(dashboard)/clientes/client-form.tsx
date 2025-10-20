@@ -367,7 +367,7 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
             control={form.control}
             name="birthDate"
             render={({ field }) => (
-                <FormItem className="flex flex-col">
+                <FormItem>
                 <FormLabel>Data de Nascimento</FormLabel>
                  <FormControl>
                     <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
