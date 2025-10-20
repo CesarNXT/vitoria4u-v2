@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { doc, onSnapshot, collection } from 'firebase/firestore';
 import { isFuture } from 'date-fns';
 import { useBusinessUser } from '@/contexts/BusinessUserContext';
+import { FEATURE_LABELS } from '@/hooks/use-plan-features';
 
 function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -32,31 +33,9 @@ function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-const allFeatures: PlanFeature[] = [
-    'lembrete_24h',
-    'lembrete_2h',
-    'feedback_pos_atendimento',
-    'lembrete_aniversario',
-    'lembrete_profissional',
-    'disparo_de_mensagens',
-    'retorno_manutencao',
-    'notificacao_gestor_agendamento',
-    'atendimento_whatsapp_ia',
-    'atendimento_manual_ou_automatizado'
-];
-
-const featureLabels: Record<PlanFeature, string> = {
-    'lembrete_24h': 'Lembrete 24h',
-    'lembrete_2h': 'Lembrete 2h',
-    'feedback_pos_atendimento': 'Feedback Pós-Atendimento',
-    'lembrete_aniversario': 'Lembrete de Aniversário',
-    'lembrete_profissional': 'Lembrete para Profissional',
-    'disparo_de_mensagens': 'Disparo de Mensagens em Massa',
-    'retorno_manutencao': 'Lembrete de Retorno',
-    'notificacao_gestor_agendamento': 'Aviso de Agendamento/Cancelamento',
-    'atendimento_whatsapp_ia': 'Atendimento com IA',
-    'atendimento_manual_ou_automatizado': 'Atendimento Híbrido (IA + Manual)',
-};
+// ✅ FEATURES CORRETAS - mesmas do admin
+// Removido: 'atendimento_manual_ou_automatizado' (não existe mais)
+// Adicionado: 'notificacao_cliente_agendamento', 'escalonamento_humano'
 
 
 
@@ -219,8 +198,8 @@ export default function PlanosPage() {
                                 <ul className="mt-6 space-y-3">
                                     {plan.features.map((feature) => (
                                         <li key={feature} className="flex items-center gap-3 text-sm text-foreground">
-                                            <Check className="h-5 w-5 text-green-500" />
-                                            <span>{featureLabels[feature]}</span>
+                                            <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                                            <span>{FEATURE_LABELS[feature] || feature}</span>
                                         </li>
                                     ))}
                                 </ul>
