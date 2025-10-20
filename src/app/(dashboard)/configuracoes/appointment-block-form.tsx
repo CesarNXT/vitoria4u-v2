@@ -93,11 +93,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
   const startTimeValue = watch('startTime');
 
   // Scroll automático para primeiro erro
-  useEffect(() => {
-    if (Object.keys(formState.errors).length > 0) {
-      useScrollToError(formState.errors);
-    }
-  }, [formState.errors]);
+  useScrollToError(formState.errors);
 
   // Auto-update endDate when startDate changes (apenas para novos bloqueios)
   useEffect(() => {

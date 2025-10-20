@@ -134,11 +134,7 @@ export function AppointmentForm({
   const selectedService = services.find((s) => s.id === selectedServiceId);
   
   // Scroll automático para primeiro erro
-  useEffect(() => {
-    if (Object.keys(formState.errors).length > 0) {
-      useScrollToError(formState.errors);
-    }
-  }, [formState.errors]);
+  useScrollToError(formState.errors);
   
   // Verifica conflitos de horário
   useEffect(() => {

@@ -137,11 +137,7 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
   }, [professional?.id]);
 
   // Scroll automático para primeiro erro
-  useEffect(() => {
-    if (Object.keys(form.formState.errors).length > 0) {
-      useScrollToError(form.formState.errors);
-    }
-  }, [form.formState.errors]);
+  useScrollToError(form.formState.errors);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

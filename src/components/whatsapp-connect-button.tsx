@@ -347,8 +347,10 @@ export function WhatsAppConnectButton({
         setPairCode(paircode)
       }
       
-      // 6. Configurar webhook
-      const webhookUrl = `${window.location.origin}/api/whatsapp/webhook`
+      // 6. Configurar webhook do N8N (apenas se plano tiver IA)
+      // NOTA: A verificação de IA é feita nas server actions
+      // Este componente está DEPRECATED - usar whatsapp-actions.ts
+      const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
       await client.setWebhook(webhookUrl, ['messages'], ['wasSentByApi', 'isGroupYes'])
       
       // 9. Iniciar timeout (se não conectar em 90s, deleta)

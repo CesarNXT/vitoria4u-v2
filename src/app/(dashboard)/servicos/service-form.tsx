@@ -94,11 +94,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
   const selectedPlanosIds = form.watch("planosAceitos")
   
   // Scroll automático para primeiro erro
-  useEffect(() => {
-    if (Object.keys(form.formState.errors).length > 0) {
-      useScrollToError(form.formState.errors);
-    }
-  }, [form.formState.errors]);
+  useScrollToError(form.formState.errors);
   
   const filteredProfessionals = useMemo(() => {
     if (!professionalSearchTerm) return professionals;

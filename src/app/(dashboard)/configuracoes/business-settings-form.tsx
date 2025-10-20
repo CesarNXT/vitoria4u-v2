@@ -310,11 +310,7 @@ export default function BusinessSettingsForm({
   const steps = isSetupMode ? setupSteps : allSteps;
 
   // Scroll automático para primeiro erro
-  useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      useScrollToError(errors);
-    }
-  }, [errors]);
+  useScrollToError(errors);
 
   /* --- CEP lookup via ViaCEP (API confiável) --- */
   const fetchAddressFromCep = useCallback(
