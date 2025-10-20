@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { WhatsAppAPI } from '@/lib/whatsapp-api-simple';
+import { checkFeatureAccess } from '@/lib/server-utils';
+import { ConfiguracoesNegocio } from '@/lib/types';
 
 /**
- * Rota temporária para corrigir webhook do WhatsApp
- * Configura a URL correta do N8N
+ * API para corrigir/configurar webhook do WhatsApp
+ * - SE o plano TEM IA → Configura webhook do N8N
+ * - SE o plano NÃO TEM IA → Remove webhook
  */
 export async function GET(request: Request) {
   try {
@@ -18,7 +21,7 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log('🔧 Corrigindo webhook para:', businessId);
+    console.log('🔧 Verificando/corrigindo webhook para:', businessId);
 
     // 1. Buscar configurações do negócio
     const businessDoc = await adminDb.collection('negocios').doc(businessId).get();
@@ -30,7 +33,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const businessData = businessDoc.data();
+    const businessData = businessDoc.data() as ConfiguracoesNegocio;
 
     if (!businessData?.whatsappConectado || !businessData?.tokenInstancia) {
       return NextResponse.json(
@@ -39,23 +42,42 @@ export async function GET(request: Request) {
       );
     }
 
-    // 2. Configurar webhook correta
+    // 2. Verificar se plano tem feature de IA
+    const hasIAFeature = await checkFeatureAccess(businessData, 'atendimento_whatsapp_ia');
+    console.log('🤖 Feature de IA disponível:', hasIAFeature);
+
+    // 3. Configurar webhook baseado na feature
     const api = new WhatsAppAPI(businessId, businessData.tokenInstancia);
     
-    // URL FIXA E CORRETA da webhook N8N
-    const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da';
-    
-    console.log('🤖 Configurando webhook N8N:', webhookUrl);
-    await api.setupWebhook(webhookUrl);
+    if (hasIAFeature) {
+      // URL FIXA E CORRETA da webhook N8N
+      const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da';
+      
+      console.log('🤖 Configurando webhook N8N:', webhookUrl);
+      await api.setupWebhook(webhookUrl);
+      console.log('✅ Webhook configurada com sucesso!');
 
-    console.log('✅ Webhook corrigida com sucesso!');
+      return NextResponse.json({
+        success: true,
+        message: 'Webhook do N8N configurada com sucesso (IA ativa)',
+        webhookUrl,
+        hasIA: true,
+        businessId
+      });
+    } else {
+      // Plano SEM IA - remover webhook
+      console.log('⏭️ Plano sem IA - removendo webhook');
+      await api.setupWebhook('');
+      console.log('✅ Webhook removida!');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Webhook configurada com sucesso',
-      webhookUrl,
-      businessId
-    });
+      return NextResponse.json({
+        success: true,
+        message: 'Webhook removida (plano sem IA)',
+        webhookUrl: null,
+        hasIA: false,
+        businessId
+      });
+    }
 
   } catch (error) {
     console.error('❌ Erro ao corrigir webhook:', error);
