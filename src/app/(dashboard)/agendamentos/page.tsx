@@ -186,6 +186,7 @@ export default function AgendamentosPage() {
   const handleFormSubmit = async (data: any) => {
     if (!finalUserId || !businessSettings) return;
     setIsSubmitting(true);
+    console.log('🚀 Iniciando submit do agendamento...');
     
     try {
         const isEditing = !!selectedAppointment;
@@ -240,7 +241,9 @@ export default function AgendamentosPage() {
         console.log('  - Path Firestore:', `negocios/${finalUserId}/agendamentos/${newId}`);
         
         // Salvar o novo agendamento
+        console.log('💾 Salvando no Firestore...');
         await saveOrUpdateDocument('agendamentos', newId, serializableAppointment, finalUserId);
+        console.log('✅ Salvo no Firestore com sucesso!');
         
         // Atualização otimista: adiciona/atualiza no estado local imediatamente
         if (isEditing) {
@@ -299,8 +302,15 @@ export default function AgendamentosPage() {
         // Send creation hooks only if it's a NEW appointment (not editing)
         if (!isEditing && data.status === 'Agendado') {
             try {
-                await sendCreationHooks(serializableSettings, serializableAppointment as any, 'Gestor (Painel)', true); // isFromPanel: true
-            } catch (error) {
+                console.log('📲 Enviando notificações de criação...');
+                const creationPromise = sendCreationHooks(serializableSettings, serializableAppointment as any, 'Gestor (Painel)', true);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Timeout ao enviar notificações')), 10000)
+                );
+                await Promise.race([creationPromise, timeoutPromise]);
+                console.log('✅ Notificações enviadas!');
+            } catch (error: any) {
+                console.warn('⚠️ Erro ao enviar notificações (continuando):', error.message);
                 // Erro silencioso - logar apenas no servidor
             }
             
@@ -339,8 +349,10 @@ export default function AgendamentosPage() {
             }
         }
         
+        console.log('🎉 Agendamento salvo com sucesso!');
         toast({ title: isEditing ? "Agendamento Atualizado" : "Agendamento Criado" });
         setIsFormModalOpen(false);
+        console.log('✅ Modal fechado');
 
     } catch (error: any) {
         // 🔴 DEBUG: Log detalhado do erro
@@ -356,6 +368,7 @@ export default function AgendamentosPage() {
             description: error?.message || "Verifique o console para mais detalhes"
         });
     } finally {
+        console.log('🏁 Finalizando submit (setIsSubmitting = false)');
         setIsSubmitting(false);
     }
   };
