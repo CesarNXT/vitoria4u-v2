@@ -7,8 +7,9 @@ import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import type { Cliente, ConfiguracoesNegocio } from '@/lib/types'
 import { generateUUID } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { PlusCircle, Loader2 } from 'lucide-react'
+import { PlusCircle, Loader2, Upload } from 'lucide-react'
 import { getColumns } from './columns'
+import { ImportClientsDialog } from './import-clients-dialog'
 import { DataTable } from '@/components/data-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -75,6 +76,7 @@ export default function ClientsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null)
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null)
   const [filter, setFilter] = useState('')
@@ -207,6 +209,43 @@ export default function ClientsPage() {
     }
   }
 
+  const handleImportClients = async (importedClients: Array<{ name: string; phone: number }>) => {
+    if (!finalUserId || !businessSettings) return
+
+    let successCount = 0
+    let errorCount = 0
+
+    for (const clientData of importedClients) {
+      try {
+        const id = `client-${Date.now()}-${generateUUID().slice(0, 8)}`
+
+        await saveOrUpdateDocument('clientes', id, {
+          name: clientData.name,
+          phone: clientData.phone,
+          birthDate: null,
+          birthMonth: null,
+          birthDay: null,
+          status: 'Ativo',
+          avatarUrl: null,
+          observacoes: null,
+          instanciaWhatsapp: businessSettings.id,
+          planoSaude: null,
+          id: id,
+        }, finalUserId)
+
+        successCount++
+      } catch (error) {
+        errorCount++
+        handleError(error, { context: 'Import client' })
+      }
+    }
+
+    toast({
+      title: 'Importação Concluída',
+      description: `${successCount} cliente(s) importado(s) com sucesso${errorCount > 0 ? `. ${errorCount} erro(s).` : '.'}`,
+    })
+  }
+
   const dynamicColumns = useMemo(
     () => getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest }),
     []
@@ -237,10 +276,20 @@ export default function ClientsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground">Gerencie sua base de clientes.</p>
         </div>
-        <Button onClick={handleCreateNew} className="w-full sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Novo Cliente
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button 
+            onClick={() => setIsImportDialogOpen(true)} 
+            variant="outline"
+            className="w-full sm:w-auto"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Importar Clientes
+          </Button>
+          <Button onClick={handleCreateNew} className="w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Novo Cliente
+          </Button>
+        </div>
       </div>
 
       <ClientStatsCards clients={clients} />
@@ -323,6 +372,13 @@ export default function ClientsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportClientsDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        onImport={handleImportClients}
+        existingPhones={clients.map(c => c.phone)}
+      />
     </div>
   )
 }
