@@ -71,9 +71,9 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
       </CardHeader>
       {client.observacoes && (
         <CardContent className="pb-3 pt-0">
-          <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+          <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-md min-w-0">
             <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <p className="line-clamp-2">{client.observacoes}</p>
+            <p className="line-clamp-2 break-words hyphens-auto min-w-0 flex-1" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{client.observacoes}</p>
           </div>
         </CardContent>
       )}

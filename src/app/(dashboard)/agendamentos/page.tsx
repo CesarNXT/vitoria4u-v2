@@ -49,6 +49,7 @@ import { convertTimestamps, normalizePhoneNumber } from '@/lib/utils'
 import { AppointmentsFilter, type AppointmentFilters } from './appointments-filter'
 import { Timestamp } from 'firebase/firestore'
 import { generateUUID } from '@/lib/utils'
+import { FirestoreConnectionMonitor } from '@/components/FirestoreConnectionMonitor'
 
 // Utility function to serialize Firestore Timestamps to plain objects
 function serializeTimestamps<T>(obj: T): T {
@@ -120,23 +121,78 @@ export default function AgendamentosPage() {
     if (!finalUserId || !firestore) return;
     
     setIsLoading(true);
+    console.log('🔌 Conectando listeners do Firestore...');
 
-    const unsubAppointments = getAppointmentsOnSnapshot(finalUserId, (data) => {
-      setAppointments(serializeTimestamps(data));
-    });
-    const unsubClients = getClientsOnSnapshot(finalUserId, (data) => {
-      setClients(serializeTimestamps(data));
-    });
-    const unsubServices = getServicesOnSnapshot(finalUserId, setServices);
-    const unsubProfessionals = getProfessionalsOnSnapshot(finalUserId, setProfessionals);
-    const unsubBlockedDates = getBlockedDatesOnSnapshot(finalUserId, (data) => {
-      setBlockedDates(serializeTimestamps(data));
-    });
+    // Wrapper para capturar erros nos listeners
+    const safeListener = (listenerFn: any, name: string) => {
+      try {
+        return listenerFn;
+      } catch (error) {
+        console.error(`❌ Erro no listener ${name}:`, error);
+        toast({
+          variant: 'destructive',
+          title: 'Erro de Conexão',
+          description: `Falha ao carregar ${name}. Recarregue a página.`,
+        });
+        return () => {};
+      }
+    };
 
-    getBusinessConfig(finalUserId).then(settings => {
-      setBusinessSettings(serializeTimestamps(settings));
-      setIsLoading(false); // Mover para cá: só desliga loading após carregar settings
-    });
+    const unsubAppointments = safeListener(
+      getAppointmentsOnSnapshot(finalUserId, (data) => {
+        setAppointments(serializeTimestamps(data));
+        console.log('✅ Agendamentos carregados:', data.length);
+      }),
+      'Agendamentos'
+    );
+    
+    const unsubClients = safeListener(
+      getClientsOnSnapshot(finalUserId, (data) => {
+        setClients(serializeTimestamps(data));
+        console.log('✅ Clientes carregados:', data.length);
+      }),
+      'Clientes'
+    );
+    
+    const unsubServices = safeListener(
+      getServicesOnSnapshot(finalUserId, (services) => {
+        setServices(services);
+        console.log('✅ Serviços carregados:', services.length);
+      }),
+      'Serviços'
+    );
+    
+    const unsubProfessionals = safeListener(
+      getProfessionalsOnSnapshot(finalUserId, (profs) => {
+        setProfessionals(profs);
+        console.log('✅ Profissionais carregados:', profs.length);
+      }),
+      'Profissionais'
+    );
+    
+    const unsubBlockedDates = safeListener(
+      getBlockedDatesOnSnapshot(finalUserId, (data) => {
+        setBlockedDates(serializeTimestamps(data));
+        console.log('✅ Datas bloqueadas carregadas:', data.length);
+      }),
+      'Datas Bloqueadas'
+    );
+
+    getBusinessConfig(finalUserId)
+      .then(settings => {
+        setBusinessSettings(serializeTimestamps(settings));
+        console.log('✅ Configurações carregadas');
+        setIsLoading(false);
+      })
+      .catch(error => {
+        console.error('❌ Erro ao carregar configurações:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao Carregar Configurações',
+          description: 'Recarregue a página. Se persistir, faça logout e login novamente.',
+        });
+        setIsLoading(false);
+      });
 
     return () => {
         unsubAppointments();
@@ -646,8 +702,10 @@ if (isLoading) {
 }
 
 return (
-    <div className="flex flex-col gap-8 p-4 md:p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <>
+        <FirestoreConnectionMonitor />
+        <div className="flex flex-col gap-8 p-4 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Agendamentos</h1>
                 <p className="text-muted-foreground">Gerencie os horários dos seus clientes.</p>
@@ -907,6 +965,7 @@ return (
           </div>
             </DialogContent>
         </Dialog>
-    </div>
+        </div>
+    </>
   );
 }

@@ -130,9 +130,9 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-start gap-2 max-w-[200px] cursor-help">
+              <div className="flex items-start gap-2 max-w-[200px] cursor-help min-w-0">
                 <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <span className="text-sm line-clamp-2">{truncated}</span>
+                <span className="text-sm line-clamp-2 break-words min-w-0 flex-1" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{truncated}</span>
               </div>
             </TooltipTrigger>
             <TooltipContent className="max-w-sm">
