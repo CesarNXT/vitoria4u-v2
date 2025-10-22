@@ -116,10 +116,10 @@ function LoginPageContent() {
                     description: "Redirecionando para o dashboard...",
                 });
                 router.push('/dashboard');
-                // Mantém loading até a navegação ser concluída
-                return;
+                
             } catch (firebaseError: any) {
                 handleFirebaseAuthError(firebaseError, setError);
+            } finally {
                 setIsLoading(false);
             }
         } else {
@@ -172,10 +172,10 @@ function LoginPageContent() {
 
                 toast({ title: "Conta criada com sucesso!", description: "Você será redirecionado para a configuração inicial." });
                 router.push('/configuracoes');
-                // Mantém loading até a navegação ser concluída
-                return;
+                
             } catch (firebaseError: any) {
                 handleFirebaseAuthError(firebaseError, setError);
+            } finally {
                 setIsLoading(false);
             }
         }
