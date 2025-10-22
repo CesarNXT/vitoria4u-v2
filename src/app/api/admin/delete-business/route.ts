@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
+import { logger } from '@/lib/logger';
+import { isServerAdmin } from '@/lib/server-admin-utils';
+
 
 /**
  * DELETE - Excluir negócio completamente
@@ -8,7 +11,17 @@ import { getAuth } from 'firebase-admin/auth';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { businessId, adminUid } = await request.json();
+    const body = await request.json();
+    const { businessId, adminUid } = body;
+
+    // Segurança: Verificar se quem está requisitando é admin
+    const user = await adminAuth.getUser(adminUid);
+    const isAdmin = await isServerAdmin(user.email);
+
+    if (!isAdmin) {
+      logger.warn('Tentativa não autorizada de exclusão', { adminUid, businessId });
+      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+    }
 
     if (!businessId || !adminUid) {
       return NextResponse.json(
@@ -17,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`🗑️ Iniciando exclusão total do negócio: ${businessId}`);
+    logger.info(`🗑️ Iniciando exclusão total do negócio: ${businessId}`);
 
     // 1. Deletar todas as subcoleções
     const subCollections = [
@@ -26,7 +39,8 @@ export async function POST(request: NextRequest) {
       'servicos',
       'profissionais',
       'campanhas',
-      'mensagens'
+      'mensagens',
+      'datasBloqueadas'
     ];
 
     for (const collectionName of subCollections) {
@@ -43,33 +57,33 @@ export async function POST(request: NextRequest) {
 
       if (snapshot.docs.length > 0) {
         await batch.commit();
-        console.log(`✅ ${snapshot.docs.length} documentos deletados de ${collectionName}`);
+        logger.debug(`✅ ${snapshot.docs.length} documentos deletados de ${collectionName}`);
       }
     }
 
     // 2. Deletar documento principal do negócio
     await adminDb.collection('negocios').doc(businessId).delete();
-    console.log('✅ Documento do negócio deletado');
+    logger.debug('✅ Documento do negócio deletado');
 
     // 3. Deletar usuário da autenticação
     try {
       await adminAuth.deleteUser(businessId);
-      console.log('✅ Usuário deletado do Firebase Auth');
+      logger.debug('✅ Usuário deletado do Firebase Auth');
     } catch (authError: any) {
       // Se o usuário não existir mais, tudo bem
       if (authError.code !== 'auth/user-not-found') {
-        console.error('⚠️ Erro ao deletar usuário:', authError);
+        logger.error('⚠️ Erro ao deletar usuário:', authError);
       }
     }
 
-    console.log(`✅ Negócio ${businessId} completamente deletado`);
+    logger.success(`✅ Negócio ${businessId} completamente deletado por ${user.email}`);
 
     return NextResponse.json({ 
       success: true, 
       message: 'Negócio deletado completamente'
     });
   } catch (error) {
-    console.error('❌ Erro ao deletar negócio:', error);
+    logger.error('❌ Erro ao deletar negócio:', error);
     return NextResponse.json(
       { error: 'Erro ao deletar negócio' },
       { status: 500 }
