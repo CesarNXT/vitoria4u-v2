@@ -239,7 +239,6 @@ export default function AgendamentosPage() {
     const unsubProfessionals = safeListener(
       getProfessionalsOnSnapshot(finalUserId, (profs) => {
         setProfessionals(profs);
-        console.log('✅ Profissionais carregados:', profs.length);
       }),
       'Profissionais'
     );
@@ -247,7 +246,6 @@ export default function AgendamentosPage() {
     const unsubBlockedDates = safeListener(
       getBlockedDatesOnSnapshot(finalUserId, (data) => {
         setBlockedDates(serializeTimestamps(data));
-        console.log('✅ Datas bloqueadas carregadas:', data.length);
       }),
       'Datas Bloqueadas'
     );

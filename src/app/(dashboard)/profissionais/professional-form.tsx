@@ -279,7 +279,7 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
                   <FormItem className="sm:col-span-2">
                       <FormLabel>Nome</FormLabel>
                       <FormControl>
-                      <Input placeholder="Nome do profissional" {...field} />
+                      <Input placeholder="Nome do profissional" maxLength={120} {...field} />
                       </FormControl>
                       <FormMessage />
                   </FormItem>

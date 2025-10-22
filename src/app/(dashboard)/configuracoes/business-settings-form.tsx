@@ -1016,13 +1016,13 @@ export default function BusinessSettingsForm({
                     <FormControl>
                       <Textarea
                         placeholder="Ex: Temos espaço kids, nosso diferencial é o atendimento a todas as idades..."
-                        maxLength={2000}
+                        maxLength={4000}
                         {...field}
                         value={field.value || ""}
                         className="min-h-32"
                       />
                     </FormControl>
-                    <p className="text-sm text-muted-foreground text-right">{(field.value || "").length} / 2000</p>
+                    <p className="text-sm text-muted-foreground text-right">{(field.value || "").length} / 4000</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1308,18 +1308,39 @@ export default function BusinessSettingsForm({
                                 name="feedbackLink"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Link para Avaliação *</FormLabel>
+                                    <FormLabel>
+                                      {watch('feedbackPlatform') === 'google' ? 'Link para Avaliação *' : 'Instagram *'}
+                                    </FormLabel>
                                     <FormControl>
-                                      <Input 
-                                        placeholder={watch('feedbackPlatform') === 'google' ? 'https://g.page/r/...' : 'https://instagram.com/...'}
-                                        {...field}
-                                        value={field.value || ''}
-                                      />
+                                      {watch('feedbackPlatform') === 'instagram' ? (
+                                        <div className="flex items-center">
+                                          <span className="flex items-center justify-center px-3 py-2 bg-muted border border-r-0 rounded-l-md text-muted-foreground">
+                                            @
+                                          </span>
+                                          <Input 
+                                            placeholder="seunegocio"
+                                            maxLength={32}
+                                            {...field}
+                                            value={field.value?.replace(/^@/, '') || ''}
+                                            onChange={(e) => {
+                                              const value = e.target.value.replace(/^@/, '');
+                                              field.onChange(value ? `@${value}` : '');
+                                            }}
+                                            className="rounded-l-none"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <Input 
+                                          placeholder="https://g.page/r/..."
+                                          {...field}
+                                          value={field.value || ''}
+                                        />
+                                      )}
                                     </FormControl>
                                     <p className="text-xs text-muted-foreground">
                                       {watch('feedbackPlatform') === 'google' 
                                         ? '💡 Cole o link da sua página do Google Meu Negócio'
-                                        : '💡 Cole o link do seu perfil do Instagram'}
+                                        : '💡 Digite apenas o nome de usuário (máx. 32 caracteres)'}
                                     </p>
                                     <FormMessage />
                                   </FormItem>
