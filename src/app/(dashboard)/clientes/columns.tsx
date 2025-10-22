@@ -1,4 +1,9 @@
 
+/**
+ * 👥 Clientes Columns - REFATORADO COMPLETAMENTE
+ * Usa os novos value objects para formatação padronizada
+ */
+
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
@@ -8,9 +13,13 @@ import { ArrowUpDown, Pencil, Trash2, FileText } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { formatPhoneNumber } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
-import { format } from 'date-fns'
+import { formatPhoneNumber } from "@/lib/utils"
+import { format } from "date-fns"
+
+// ✅ NOVOS IMPORTS - Value Objects
+import { DateTime } from "@/core/value-objects/date-time"
+import { Phone } from "@/core/value-objects/phone"
 
 // Ícone do WhatsApp
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -24,9 +33,12 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// ✅ Props tipadas e limpas
 type ColumnsProps = {
   onEdit: (client: Cliente) => void;
-  onDelete: (client: Cliente) => void;
+  onDelete: (clientId: string) => void;
+  formatDate?: (date: any) => string;
+  formatPhone?: (phone: any) => string;
 }
 
 const statusVariantMap: { [key in Cliente['status']]: 'default' | 'destructive' } = {
@@ -193,7 +205,7 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(client)}>
+                <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(client.id)}>
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Excluir</span>
                 </Button>

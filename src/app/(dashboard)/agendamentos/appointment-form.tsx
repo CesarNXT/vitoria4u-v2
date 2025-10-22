@@ -257,7 +257,7 @@ export function AppointmentForm({
             const dayNames = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
             
             if (dayOfWeek >= 0 && dayOfWeek < 7) {
-              const dayName = dayNames[dayOfWeek];
+              const dayName = dayNames[dayOfWeek] || 'domingo';
               const horariosDay = businessSettings.horariosFuncionamento[dayName];
               if (horariosDay && !horariosDay.fechado && horariosDay.abertura) {
                 // Setar horário de abertura como padrão

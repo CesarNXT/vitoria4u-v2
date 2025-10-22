@@ -1,3 +1,8 @@
+/**
+ * 💼 Serviços Page - REFATORADO COMPLETAMENTE
+ * Usa as novas entidades de domínio e value objects
+ */
+
 "use client"
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,6 +12,11 @@ import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import type { Servico, Profissional, User, ConfiguracoesNegocio, PlanoSaude } from '@/lib/types';
 import { handleError } from '@/lib/error-handler';
 import { generateUUID } from '@/lib/utils';
+
+// ✅ NOVOS IMPORTS - Entidades e Value Objects
+import { Service, ServiceId, ServiceStatus, PriceType } from '@/core/entities/service';
+import { Money } from '@/core/value-objects/money';
+import { Duration } from '@/core/entities/appointment';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2, Users } from 'lucide-react';
 import { getColumns } from './columns';

@@ -45,6 +45,7 @@ import HealthInsuranceManager from './health-insurance-manager';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn, formatPhoneNumber } from '@/lib/utils';
+import { PhoneInput, usePhoneInput } from '@/components/ui/phone-input';
 import { isCategoriaClinica } from '@/lib/categoria-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -82,10 +83,10 @@ const daySchema = z.object({
 const businessSettingsSchema = z.object({
   nome: z.string().min(2, { message: 'O nome do negócio deve ter pelo menos 2 caracteres.' }).max(64, { message: 'Nome muito longo (máx. 64 caracteres).' }),
   telefone: z.string().refine(v => {
-    const digits = String(v).replace(/\D/g, "").length;
-    return digits === 11;
+    const digits = String(v).replace(/\D/g, "");
+    return digits.length === 10 || digits.length === 11;
   }, {
-    message: "O WhatsApp deve ter 11 dígitos (DDD + 9 + número). Exemplo: 11999887766"
+    message: "Telefone deve ter 10 ou 11 dígitos (DDD + número)"
   }),
   categoria: z.string().min(1, { message: 'A categoria é obrigatória.' }),
   endereco: z.object({
@@ -186,6 +187,7 @@ export default function BusinessSettingsForm({
   
   // Hook para verificar features do plano
   const { hasFeature } = usePlanFeatures(settings, userPlan);
+  const phoneInput = usePhoneInput('BR');
   
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -210,7 +212,7 @@ export default function BusinessSettingsForm({
   const getDefaultValues = (): Partial<FormData> => {
     const baseValues = {
       nome: settings?.nome || "",
-      telefone: formatPhoneNumber(settings?.telefone ? String(settings.telefone) : ""),
+      telefone: phoneInput.fromBackend(settings?.telefone || ""),
       categoria: settings?.categoria || "",
       endereco: settings?.endereco || {
           cep: "", logradouro: "", numero: "", bairro: "", cidade: "", estado: ""
@@ -224,7 +226,7 @@ export default function BusinessSettingsForm({
       notificarClienteAgendamento: settings?.notificarClienteAgendamento ?? false,
       notificarGestorAgendamento: settings?.notificarGestorAgendamento ?? true,
       habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
-      numeroEscalonamento: formatPhoneNumber(settings?.numeroEscalonamento ? String(settings.numeroEscalonamento) : ""),
+      numeroEscalonamento: phoneInput.fromBackend(settings?.numeroEscalonamento || ""),
       nomeIa: settings?.nomeIa || 'Vitoria',
       instrucoesIa: settings?.instrucoesIa || '',
       iaAtiva: settings?.iaAtiva ?? true,
@@ -393,12 +395,14 @@ export default function BusinessSettingsForm({
     
     const dataToSave = {
         ...data,
-        telefone: parseInt(`55${String(data.telefone).replace(/\D/g, "")}`.slice(-13), 10),
+        telefone: parseInt(phoneInput.toBackend(data.telefone), 10),
         endereco: {
             ...data.endereco,
             cep: String(data.endereco.cep).replace(/\D/g, ""),
         },
-        numeroEscalonamento: data.numeroEscalonamento ? parseInt(`55${String(data.numeroEscalonamento).replace(/\D/g, "")}`.slice(-13), 10) : null,
+        // Converter numeroEscalonamento também
+        numeroEscalonamento: data.numeroEscalonamento ? parseInt(phoneInput.toBackend(data.numeroEscalonamento), 10) : undefined,
+        setupCompleted: true,
     };
     
     // 🗑️ Limpar progresso salvo do localStorage quando concluir setup
@@ -450,16 +454,16 @@ export default function BusinessSettingsForm({
                     <FormItem>
                       <FormLabel>WhatsApp da Empresa</FormLabel>
                       <FormControl>
-                        <Input
-                          inputMode="tel"
-                          placeholder="(XX) XXXXX-XXXX"
-                          maxLength={15}
+                        <PhoneInput
                           value={field.value}
-                          onChange={(e) => {
-                             field.onChange(formatPhoneNumber(e.target.value));
-                          }}
+                          onChange={field.onChange}
+                          country="BR"
+                          showCountryCode={false}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Formato: (XX) XXXXX-XXXX
+                      </FormDescription>
                       <FormMessage/>
                     </FormItem>
                   )}

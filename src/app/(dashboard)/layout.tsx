@@ -40,6 +40,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
   
   // ⚡ IMPERSONAÇÃO PRIMEIRO (antes de tudo)
   const [impersonatedId, setImpersonatedId] = useState<string | null>(null);
@@ -53,6 +54,8 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => setMounted(true), []);
+
+  // Mover timeout para depois das declarações
 
   useEffect(() => {
     if (user && !isUserLoading && !impersonatedId) {
@@ -112,8 +115,20 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   
   // 🔥 FIX DEFINITIVO: Aguardar settings carregar OU confirmar que não existe
   // Se businessSettingsRef existe MAS settings é null E não está loading = ainda não carregou
-  const isSettingsReallyReady = businessSettingsRef ? (settings !== null || !isSettingsLoading) : false;
-  const isReallyLoading = isUserLoading || !businessUserId || !firestore || !isSettingsReallyReady;
+  const isSettingsReallyReady = businessSettingsRef ? (settings !== null || !isSettingsLoading) : true;
+  const isReallyLoading = isUserLoading || !businessUserId || !firestore || (businessSettingsRef && !isSettingsReallyReady);
+  
+  // Timeout de segurança para evitar carregamento infinito
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isReallyLoading && !isRedirecting && !loadingTimeout) {
+        console.warn('⚠️ Timeout de carregamento atingido, forçando continuação');
+        setLoadingTimeout(true);
+      }
+    }, 8000); // 8 segundos
+
+    return () => clearTimeout(timer);
+  }, [isReallyLoading, isRedirecting, loadingTimeout]);
   
   useEffect(() => {
     // 🔥 CRÍTICO: AGUARDAR carregamento COMPLETO antes de qualquer decisão
@@ -167,8 +182,8 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     }
   }, [isReallyLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
 
-  // ⏳ Loading: Aguardar tudo estar pronto OU se está redirecionando
-  if (isReallyLoading || !typedUser || !impersonationChecked || isRedirecting) {
+  // ⏳ Loading: Aguardar tudo estar pronto OU se está redirecionando (com timeout de segurança)
+  if ((isReallyLoading && !loadingTimeout) || !typedUser || !impersonationChecked || isRedirecting) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

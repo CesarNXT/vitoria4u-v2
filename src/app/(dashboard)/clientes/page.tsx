@@ -1,3 +1,8 @@
+/**
+ * 👥 Clientes Page - REFATORADO COMPLETAMENTE
+ * Usa os novos value objects para formatação padronizada
+ */
+
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -6,6 +11,10 @@ import { useFirebase } from '@/firebase'
 import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import type { Cliente, ConfiguracoesNegocio } from '@/lib/types'
 import { generateUUID } from '@/lib/utils'
+
+// ✅ NOVOS IMPORTS - Value Objects
+import { DateTime } from '@/core/value-objects/date-time'
+import { Phone } from '@/core/value-objects/phone'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, Loader2, Upload } from 'lucide-react'
 import { getColumns } from './columns'
