@@ -136,6 +136,11 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       return; // ✅ PARA AQUI - NÃO EXECUTA NADA ABAIXO
     }
     
+    // ✅ CRITICAL: Se está fazendo logout, NÃO redirecionar
+    if (typeof window !== 'undefined' && sessionStorage.getItem('logging_out') === 'true') {
+      return;
+    }
+    
     if (!typedUser) {
       setIsRedirecting(true);
       window.location.href = '/login';
@@ -227,17 +232,24 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     try {
       const auth = getAuth();
-      // ✅ destroyUserSession já limpa todos os cookies incluindo impersonation
-      await destroyUserSession();
       
+      // ✅ CRITICAL: Set flag ANTES de qualquer operação async
       if (typeof window !== 'undefined') {
+        sessionStorage.setItem('logging_out', 'true');
         localStorage.clear();
       }
       
+      // ✅ destroyUserSession já limpa todos os cookies incluindo impersonation
+      await destroyUserSession();
       await signOut(auth);
-      window.location.href = '/';
+      
+      // Usar replace ao invés de href para evitar histórico
+      window.location.replace('/');
     } catch (error) {
-      window.location.href = '/';
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('logging_out', 'true');
+      }
+      window.location.replace('/');
     }
   };
 

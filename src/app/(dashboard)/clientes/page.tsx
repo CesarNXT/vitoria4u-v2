@@ -96,11 +96,9 @@ export default function ClientsPage() {
     if (!finalUserId || !firestore) return
     
     const unsubscribe = getClientsOnSnapshot(finalUserId, (data) => {
-      const clientsWithDates = data.map(client => ({
-        ...client,
-        birthDate: client.birthDate?.toDate ? client.birthDate.toDate() : (client.birthDate ? new Date(client.birthDate) : undefined),
-      }));
-      setClients(clientsWithDates)
+      // ✅ CRITICAL: Serializar TODOS os timestamps antes de setar no state
+      const serializedClients = data.map(client => serializeTimestamps(client));
+      setClients(serializedClients)
       setIsLoading(false)
     })
     

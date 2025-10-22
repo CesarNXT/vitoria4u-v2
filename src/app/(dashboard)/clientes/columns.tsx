@@ -104,8 +104,8 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
         const date = row.original.birthDate;
         try {
             if (date) {
-                // Assuming date is a Firestore Timestamp or a string that can be converted to Date
-                const dateObj = date.toDate ? date.toDate() : new Date(date);
+                // Date já vem serializado como Date object do useEffect
+                const dateObj = date instanceof Date ? date : new Date(date);
                 if (!isNaN(dateObj.getTime())) {
                     return format(dateObj, 'dd/MM/yyyy');
                 }

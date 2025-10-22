@@ -51,6 +51,11 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
     // Aguardar user carregar
     if (isUserLoading) return;
     
+    // ✅ CRITICAL: Se está fazendo logout, NÃO redirecionar
+    if (typeof window !== 'undefined' && sessionStorage.getItem('logging_out') === 'true') {
+      return;
+    }
+    
     // Se não tem usuário, redirecionar para login
     if (!typedUser) {
       window.location.href = '/admin';
@@ -74,17 +79,24 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     try {
       const auth = getAuth();
-      // ✅ destroyUserSession já limpa todos os cookies incluindo impersonation
-      await destroyUserSession();
       
+      // ✅ CRITICAL: Set flag ANTES de qualquer operação async
       if (typeof window !== 'undefined') {
+        sessionStorage.setItem('logging_out', 'true');
         localStorage.clear();
       }
       
+      // ✅ destroyUserSession já limpa todos os cookies incluindo impersonation
+      await destroyUserSession();
       await signOut(auth);
-      window.location.href = '/';
+      
+      // Usar replace ao invés de href para evitar histórico
+      window.location.replace('/');
     } catch (error) {
-      window.location.href = '/';
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('logging_out', 'true');
+      }
+      window.location.replace('/');
     }
   };
 
