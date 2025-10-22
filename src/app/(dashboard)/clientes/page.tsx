@@ -130,15 +130,35 @@ export default function ClientsPage() {
   }, [clients])
 
   const handleDeleteConfirm = async () => {
-    if (clientToDelete && finalUserId) {
-      await deleteDocument('clientes', clientToDelete.id, finalUserId)
+    if (!clientToDelete || !finalUserId) {
+      setIsAlertDialogOpen(false);
+      return;
+    }
+
+    try {
+      console.log('🗑️ Tentando excluir cliente:', clientToDelete.id);
+      console.log('📍 Path:', `negocios/${finalUserId}/clientes/${clientToDelete.id}`);
+      
+      await deleteDocument('clientes', clientToDelete.id, finalUserId);
+      
+      console.log('✅ Cliente excluído com sucesso!');
+      
       toast({
         title: "Cliente Excluído",
         description: `O cliente "${clientToDelete.name}" foi excluído com sucesso.`,
-      })
-      setClientToDelete(null)
+      });
+      
+      setClientToDelete(null);
+      setIsAlertDialogOpen(false);
+    } catch (error) {
+      console.error('❌ Erro ao excluir cliente:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao Excluir",
+        description: "Não foi possível excluir o cliente. Tente novamente.",
+      });
+      setIsAlertDialogOpen(false);
     }
-    setIsAlertDialogOpen(false)
   }
 
   const handleFormSubmit = async (data: any) => {
@@ -415,9 +435,13 @@ export default function ClientsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto">
-              Excluir
-            </AlertDialogAction>
+            <Button 
+              onClick={handleDeleteConfirm} 
+              className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Excluindo...' : 'Excluir'}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

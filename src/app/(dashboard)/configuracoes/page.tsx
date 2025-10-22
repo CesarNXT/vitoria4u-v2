@@ -135,6 +135,8 @@ export default function SettingsPage() {
                     planId: 'plano_gratis', // Plano gratuito por padrão
                     access_expires_at: null, // Plano grátis nunca expira
                     whatsappConectado: false,
+                    iaAtiva: true, // ✅ IA sempre ativa por padrão
+                    nomeIa: 'Vitoria', // Nome padrão da IA
                 };
                 
                 // Criar documento no Firestore
