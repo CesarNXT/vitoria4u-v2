@@ -71,16 +71,6 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
         
     const hasActiveAccess = dateToCompare ? isFuture(dateToCompare) : false;
     
-    const [showTutorial, setShowTutorial] = useState(false);
-    const [localSettings, setLocalSettings] = useState<ConfiguracoesNegocio>(safeSettings);
-
-    // Atualizar local settings quando props mudar
-    useEffect(() => {
-        if (settings) {
-            setLocalSettings(settings);
-        }
-    }, [settings]);
-    
     return (
          <Card>
             <CardHeader className="pb-2">
@@ -107,11 +97,11 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
                     <div className="flex flex-col items-center justify-center space-y-3 rounded-lg border-2 border-dashed p-4 text-center">
                         <div className="w-full">
                             <WhatsAppConnectButton
-                                instanceId={localSettings.id || user?.uid || ''}
-                                isConnected={localSettings.whatsappConectado || false}
-                                businessName={localSettings.nome || 'Negócio'}
-                                businessPhone={localSettings.telefone?.toString() || ''}
-                                instanceToken={localSettings.tokenInstancia || ''}
+                                instanceId={safeSettings.id || user?.uid || ''}
+                                isConnected={safeSettings.whatsappConectado || false}
+                                businessName={safeSettings.nome || 'Negócio'}
+                                businessPhone={safeSettings.telefone?.toString() || ''}
+                                instanceToken={safeSettings.tokenInstancia || ''}
                                 onStatusChange={async (connected, instanceToken) => {
                                         try {
                                             if (!user || !firestore) return;
@@ -131,13 +121,6 @@ export function WhatsappStatus({ settings }: WhatsappStatusProps) {
                                             }
                                             
                                             await updateDoc(settingsRef, updateData);
-                                            
-                                            // Atualizar estado local
-                                            if (instanceToken) {
-                                                setLocalSettings(prev => ({...prev, tokenInstancia: instanceToken}));
-                                            } else {
-                                                setLocalSettings(prev => ({...prev, whatsappConectado: connected}));
-                                            }
                                             
                                             if (instanceToken) {
                                                 toast({

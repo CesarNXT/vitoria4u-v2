@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     console.log(`🏪 Found ${businessesSnapshot.size} businesses to check`);
     
     let updatedCount = 0;
-    let totalReads = businessesSnapshot.size;
+    const totalReads = businessesSnapshot.size;
 
     // 🔥 OTIMIZAÇÃO 2: Processar em paralelo (lotes de 30)
     const BATCH_SIZE = 30;

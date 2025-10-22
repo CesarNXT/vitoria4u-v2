@@ -54,7 +54,7 @@ export function DailyPhrase() {
             </div>
           ) : phraseData && (
             <>
-              <p className="text-sm font-medium italic">"{phraseData.phrase}"</p>
+              <p className="text-sm font-medium italic">&quot;{phraseData.phrase}&quot;</p>
             </>
           )}
         </div>

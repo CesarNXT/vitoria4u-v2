@@ -340,7 +340,7 @@ export default function CampanhasPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 Você precisa ter clientes cadastrados para criar uma campanha.
-                Cadastre clientes primeiro na aba "Clientes".
+                Cadastre clientes primeiro na aba &quot;Clientes&quot;.
               </AlertDescription>
             </Alert>
           ) : (

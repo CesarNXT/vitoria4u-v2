@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const configRef = adminDb.collection('configuracoes_sistema').doc('global')
     const configSnap = await configRef.get()
     
-    let config = configSnap.exists ? configSnap.data() : {
+    const config = configSnap.exists ? configSnap.data() : {
       id: 'global',
       trial: { enabled: true, days: 3, planId: 'plano_premium' }
     }

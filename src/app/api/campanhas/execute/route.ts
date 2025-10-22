@@ -239,7 +239,7 @@ export async function GET(request: Request) {
 
           // Enviar mensagem
           let success = false;
-          let erro = '';
+          const erro = '';
 
           if (campanha.tipo === 'texto') {
             success = await enviarTexto(

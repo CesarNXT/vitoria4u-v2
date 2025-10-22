@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
             }
         }
         
-        let clientData: any = {
+        const clientData: any = {
             name,
             phone: numericPhone, // Salvar como número
             birthDate: birthDate || null, // String ISO ou null

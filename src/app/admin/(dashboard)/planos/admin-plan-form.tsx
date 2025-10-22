@@ -118,7 +118,7 @@ export function AdminPlanForm({ plan, onSave, onCancel }: AdminPlanFormProps) {
                 target: { name: 'isFeatured', checked: !!checked, type: 'checkbox' }
               } as any)}
             />
-            <Label htmlFor="isFeatured" className="font-normal">Marcar como "Mais Popular" (destaque visual)</Label>
+            <Label htmlFor="isFeatured" className="font-normal">Marcar como &quot;Mais Popular&quot; (destaque visual)</Label>
           </div>
           
           <div>

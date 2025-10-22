@@ -359,7 +359,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                   </FormControl>
                   {priceType === 'on_request' && (
                     <FormDescription className="text-xs">
-                      Campo desabilitado para "Sob Orçamento"
+                      Campo desabilitado para &quot;Sob Orçamento&quot;
                     </FormDescription>
                   )}
                   <FormMessage />

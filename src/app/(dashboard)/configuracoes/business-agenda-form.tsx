@@ -108,7 +108,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
             return allTimeOptions;
         }
 
-        let options: string[] = [];
+        const options: string[] = [];
         businessDaySchedule.slots.forEach(slot => {
             const startIndex = allTimeOptions.indexOf(slot.start);
             const endIndex = allTimeOptions.indexOf(slot.end);

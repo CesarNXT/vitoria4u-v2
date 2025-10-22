@@ -122,7 +122,7 @@ export default function TermosUsoPage() {
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold">8. Limitação de Responsabilidade</h2>
               <p className="text-muted-foreground leading-relaxed">
-                O Vitoria4u é fornecido "como está" sem garantias de qualquer tipo. Não garantimos que o serviço 
+                O Vitoria4u é fornecido &quot;como está&quot; sem garantias de qualquer tipo. Não garantimos que o serviço 
                 será ininterrupto, livre de erros ou seguro. Em nenhuma circunstância seremos responsáveis por 
                 danos diretos, indiretos, incidentais, especiais ou consequenciais resultantes do uso ou 
                 incapacidade de usar nossos serviços.
