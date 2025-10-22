@@ -18,29 +18,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Resolver polyfills para Node.js modules no browser
-  // OBS: Configuração para Webpack (quando não usar --turbopack)
-  ...(process.env.TURBOPACK === undefined && {
-    webpack: (config, { isServer }) => {
-      if (!isServer) {
-        config.resolve.fallback = {
-          ...config.resolve.fallback,
-          buffer: false,
-          crypto: false,
-          stream: false,
-          util: false,
-        };
-        
-        // ✅ Configurar watchOptions para evitar erros de WebSocket HMR
-        config.watchOptions = {
-          poll: 1000, // Check for changes every second
-          aggregateTimeout: 300, // Delay before rebuilding
-          ignored: ['**/node_modules', '**/.git', '**/.next'],
-        };
-      }
-      return config;
-    },
-  }),
   images: {
     remotePatterns: [
       {
