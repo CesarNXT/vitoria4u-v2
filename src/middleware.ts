@@ -57,7 +57,12 @@ export function middleware(request: NextRequest) {
     const sessionCookie = request.cookies.get('session')?.value;
     
     if (!sessionCookie) {
-      return NextResponse.redirect(new URL('/admin', request.url));
+      // 🔥 Sem cookie de sessão - limpar todos os cookies e redirecionar
+      const response = NextResponse.redirect(new URL('/admin', request.url));
+      response.cookies.delete('session');
+      response.cookies.delete('admin-session');
+      response.cookies.delete('impersonating');
+      return response;
     }
     
     // Cookie existe - layout fará validação JWT completa com custom claims
@@ -82,7 +87,12 @@ export function middleware(request: NextRequest) {
     const sessionCookie = request.cookies.get('session')?.value;
     
     if (!sessionCookie) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      // 🔥 Sem cookie de sessão - limpar todos os cookies e redirecionar
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('session');
+      response.cookies.delete('admin-session');
+      response.cookies.delete('impersonating');
+      return response;
     }
     
     // Cookie existe - layout fará validação JWT completa

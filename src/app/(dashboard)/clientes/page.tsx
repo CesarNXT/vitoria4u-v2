@@ -121,10 +121,13 @@ export default function ClientsPage() {
     setIsFormModalOpen(true)
   }, [])
 
-  const handleDeleteRequest = useCallback((client: Cliente) => {
-    setClientToDelete(client)
-    setIsAlertDialogOpen(true)
-  }, [])
+  const handleDeleteRequest = useCallback((clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      setClientToDelete(client)
+      setIsAlertDialogOpen(true)
+    }
+  }, [clients])
 
   const handleDeleteConfirm = async () => {
     if (clientToDelete && finalUserId) {
@@ -219,45 +222,74 @@ export default function ClientsPage() {
   }
 
   const handleImportClients = async (importedClients: Array<{ name: string; phone: number }>) => {
-    if (!finalUserId || !businessSettings) return
+    if (!finalUserId || !businessSettings || !firestore) return
 
-    let successCount = 0
-    let errorCount = 0
-
-    for (const clientData of importedClients) {
-      try {
-        const id = `client-${Date.now()}-${generateUUID().slice(0, 8)}`
-
-        await saveOrUpdateDocument('clientes', id, {
-          name: clientData.name,
-          phone: clientData.phone,
-          birthDate: null,
-          birthMonth: null,
-          birthDay: null,
-          status: 'Ativo',
-          avatarUrl: null,
-          observacoes: null,
-          instanciaWhatsapp: businessSettings.id,
-          planoSaude: null,
-          id: id,
-        }, finalUserId)
-
-        successCount++
-      } catch (error) {
-        errorCount++
-        handleError(error, { context: 'Import client' })
+    try {
+      // 🚀 OTIMIZAÇÃO: Usar batch para importar múltiplos clientes de uma vez
+      const { writeBatch, doc, collection } = await import('firebase/firestore')
+      
+      // Firestore limita batch a 500 operações, então dividimos em chunks
+      const BATCH_SIZE = 500
+      const chunks = []
+      
+      for (let i = 0; i < importedClients.length; i += BATCH_SIZE) {
+        chunks.push(importedClients.slice(i, i + BATCH_SIZE))
       }
-    }
 
-    toast({
-      title: 'Importação Concluída',
-      description: `${successCount} cliente(s) importado(s) com sucesso${errorCount > 0 ? `. ${errorCount} erro(s).` : '.'}`,
-    })
+      let successCount = 0
+      let errorCount = 0
+
+      // Processar cada chunk
+      for (const chunk of chunks) {
+        const batch = writeBatch(firestore)
+        
+        for (const clientData of chunk) {
+          try {
+            const id = `client-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`
+            const clientRef = doc(collection(firestore, `usuarios/${finalUserId}/clientes`), id)
+            
+            batch.set(clientRef, {
+              name: clientData.name,
+              phone: clientData.phone,
+              birthDate: null,
+              birthMonth: null,
+              birthDay: null,
+              status: 'Ativo',
+              avatarUrl: null,
+              observacoes: null,
+              instanciaWhatsapp: businessSettings.id,
+              planoSaude: null,
+              id: id,
+            })
+            
+            successCount++
+          } catch (error) {
+            errorCount++
+            handleError(error, { context: 'Prepare import client' })
+          }
+        }
+        
+        // Executar o batch de uma vez
+        await batch.commit()
+      }
+
+      toast({
+        title: 'Importação Concluída! 🎉',
+        description: `${successCount} cliente(s) importado(s) com sucesso${errorCount > 0 ? `. ${errorCount} erro(s).` : '.'}`,
+      })
+    } catch (error) {
+      handleError(error, { context: 'Import clients batch' })
+      toast({
+        variant: 'destructive',
+        title: 'Erro na Importação',
+        description: 'Ocorreu um erro ao importar os clientes. Tente novamente.',
+      })
+    }
   }
 
   const dynamicColumns = useMemo(
     () => getColumns({ onEdit: handleEdit, onDelete: handleDeleteRequest }),
-    []
+    [handleEdit, handleDeleteRequest]
   );
   
   const filteredClients = useMemo(() => 
@@ -365,17 +397,25 @@ export default function ClientsPage() {
       </Dialog>
 
       <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente
-              <span className="font-bold"> {clientToDelete?.name}</span>.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="break-words text-sm sm:text-base">
+                  Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente:
+                </p>
+                <div className="min-w-0 w-full">
+                  <p className="font-bold break-all text-sm sm:text-base" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {clientToDelete?.name}
+                  </p>
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

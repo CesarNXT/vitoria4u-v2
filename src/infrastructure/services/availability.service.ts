@@ -7,7 +7,9 @@ import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  doc,
+  getDoc
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { DateTime } from '@/core/value-objects/date-time';
@@ -140,12 +142,10 @@ export class FirebaseAvailabilityService implements AvailabilityService {
   ): Promise<{ available: boolean; reason?: string }> {
     try {
       // Buscar dados do profissional
-      const professionalDoc = await this.firestore
-        .collection('profissionais')
-        .doc(professionalId)
-        .get();
+      const professionalRef = doc(this.firestore, `negocios/${businessId}/profissionais/${professionalId}`);
+      const professionalDoc = await getDoc(professionalRef);
 
-      if (!professionalDoc.exists) {
+      if (!professionalDoc.exists()) {
         return {
           available: false,
           reason: 'Profissional não encontrado'
@@ -162,6 +162,14 @@ export class FirebaseAvailabilityService implements AvailabilityService {
       const dayOfWeek = dateTime.getWeekday();
       const dayNames = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
       const dayKey = dayNames[dayOfWeek];
+      
+      if (!dayKey) {
+        return {
+          available: false,
+          reason: 'Dia da semana inválido'
+        };
+      }
+      
       const daySchedule = professionalData.workHours[dayKey];
 
       // Se não trabalha neste dia

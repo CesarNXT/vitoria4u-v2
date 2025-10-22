@@ -111,7 +111,7 @@ export async function getAvailableTimes({
     const startMinute = startParts[1] || 0;
     current.setHours(startHour, startMinute);
 
-    let endSlotTime = startOfDay(date);
+    const endSlotTime = startOfDay(date);
     const endParts = slot.end.split(':').map(Number);
     const endHour = endParts[0] || 0;
     const endMinute = endParts[1] || 0;
@@ -178,7 +178,7 @@ export async function getAvailableTimes({
     }
     
     // Check if the entire duration of the service is free
-    let current = new Date(`${format(date, 'yyyy-MM-dd')}T${time}`);
+    const current = new Date(`${format(date, 'yyyy-MM-dd')}T${time}`);
     const serviceEndTime = addMinutes(current, serviceDuration);
     
     // NOVO: Verificar se o horário já passou (para o dia atual)

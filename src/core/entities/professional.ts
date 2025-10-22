@@ -442,8 +442,9 @@ export class Professional {
     const workingDays: string[] = [];
 
     for (let i = 0; i < 7; i++) {
-      if (this.isWorkingOn(i)) {
-        workingDays.push(dayNames[i]);
+      const dayName = dayNames[i];
+      if (this.isWorkingOn(i) && dayName) {
+        workingDays.push(dayName);
       }
     }
 

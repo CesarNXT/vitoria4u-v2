@@ -275,8 +275,8 @@ export class Client {
       this.name.toLowerCase().includes(term) ||
       this.phone.format().includes(term) ||
       this.phone.raw.includes(term) ||
-      (this.email && this.email.value.toLowerCase().includes(term)) ||
-      (this.notes && this.notes.toLowerCase().includes(term))
+      !!(this.email && this.email.value.toLowerCase().includes(term)) ||
+      !!(this.notes && this.notes.toLowerCase().includes(term))
     );
   }
 

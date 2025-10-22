@@ -210,7 +210,8 @@ export async function GET() {
           db.collection(`negocios/${testUserId}/clientes`).limit(1).get()
         ]);
         
-        if (!servicesSnap.empty && !profsSnap.empty && !clientsSnap.empty) {
+        if (!servicesSnap.empty && !profsSnap.empty && !clientsSnap.empty && 
+            servicesSnap.docs[0] && profsSnap.docs[0] && clientsSnap.docs[0]) {
           const serviceId = servicesSnap.docs[0].id;
           const profId = profsSnap.docs[0].id;
           const clientId = clientsSnap.docs[0].id;

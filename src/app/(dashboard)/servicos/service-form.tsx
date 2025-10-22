@@ -544,12 +544,12 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
               </FormControl>
               
               <Dialog open={professionalsDialogOpen} onOpenChange={setProfessionalsDialogOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="max-w-[90vw] sm:max-w-[425px] overflow-hidden">
                   <VisuallyHidden>
                     <DialogTitle>Selecione os profissionais</DialogTitle>
                     <DialogDescription>Escolha os profissionais que executarão este serviço</DialogDescription>
                   </VisuallyHidden>
-                  <div className="space-y-4">
+                  <div className="space-y-4 min-w-0">
                     <Input
                       placeholder="Buscar profissional..."
                       value={professionalSearchTerm}
@@ -565,7 +565,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                               key={prof.id}
                               variant={isSelected ? "secondary" : "ghost"}
                               className={cn(
-                                "w-full justify-start",
+                                "w-full justify-start min-w-0",
                                 isInactive && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
                               )}
                               onClick={() => {
@@ -586,11 +586,11 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                               disabled={isInactive}
                             >
                               {isSelected && (
-                                <Check className="mr-2 h-4 w-4" />
+                                <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                               )}
-                              <span className="flex-1 text-left">{prof.name}</span>
+                              <span className="truncate block min-w-0 flex-1 text-left">{prof.name}</span>
                               {isInactive && (
-                                <span className="text-xs text-muted-foreground ml-2">(Inativo)</span>
+                                <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">(Inativo)</span>
                               )}
                             </Button>
                           );
@@ -708,12 +708,12 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                 </FormControl>
                 
                 <Dialog open={planosDialogOpen} onOpenChange={setPlanosDialogOpen}>
-                  <DialogContent className="sm:max-w-[425px]">
+                  <DialogContent className="max-w-[90vw] sm:max-w-[425px] overflow-hidden">
                     <VisuallyHidden>
                       <DialogTitle>Selecione os planos de saúde</DialogTitle>
                       <DialogDescription>Escolha os planos de saúde aceitos para este serviço</DialogDescription>
                     </VisuallyHidden>
-                    <div className="space-y-4">
+                    <div className="space-y-4 min-w-0">
                       <Input
                         placeholder="Buscar plano..."
                         value={planoSearchTerm}
@@ -727,7 +727,7 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                               <Button
                                 key={plano.id}
                                 variant={isSelected ? "secondary" : "ghost"}
-                                className="w-full justify-start"
+                                className="w-full justify-start min-w-0"
                                 onClick={() => {
                                   const currentIds = field.value || [];
                                   const newIds = currentIds.includes(plano.id)
@@ -737,9 +737,9 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                                 }}
                               >
                                 {isSelected && (
-                                  <Check className="mr-2 h-4 w-4" />
+                                  <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                <span className="flex-1 text-left">{plano.nome}</span>
+                                <span className="truncate block min-w-0 flex-1 text-left">{plano.nome}</span>
                               </Button>
                             );
                           })

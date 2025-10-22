@@ -657,7 +657,7 @@ const handleCancelAppointment = async (appointmentId: string) => {
                                                 </FormControl>
                                                 <SelectContent>
                                                     {businessSettings.planosSaudeAceitos?.map((plano) => (
-                                                        <SelectItem key={plano.id} value={plano.id}>
+                                                        <SelectItem key={plano.id} value={plano.id} className="truncate">
                                                             {plano.nome}
                                                         </SelectItem>
                                                     ))}
@@ -1264,13 +1264,13 @@ const handleCancelAppointment = async (appointmentId: string) => {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     )}
-                    <CardTitle className="text-2xl font-headline pt-2 px-12">{getStepTitle()}</CardTitle>
+                    <CardTitle className="text-2xl font-headline pt-2 px-12 break-words">{getStepTitle()}</CardTitle>
                     {step === 'SERVICE' && currentUser?.name && (
                       <p className="text-base text-muted-foreground mt-2 px-4 truncate">
                         Olá, {currentUser.name.split(' ')[0]}!
                       </p>
                     )}
-                    <CardDescription>{getStepDescription()}</CardDescription>
+                    <CardDescription className="break-words px-4">{getStepDescription()}</CardDescription>
                 </CardHeader>
                 <CardContent className="animate-fade-in-up">
                     {renderStep()}

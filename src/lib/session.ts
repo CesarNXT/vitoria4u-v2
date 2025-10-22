@@ -117,7 +117,8 @@ export async function getImpersonationId(): Promise<string | null> {
     const cookieStore = await cookies();
     const impersonationId = cookieStore.get(IMPERSONATION_COOKIE)?.value;
     return impersonationId || null;
-  } catch {
+  } catch (error) {
+    console.error('[getImpersonationId] Error:', error);
     return null;
   }
 }

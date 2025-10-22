@@ -48,12 +48,12 @@ const clientFormSchema = z.object({
   birthDate: z.date().optional().refine((date) => {
     // Se não forneceu data, tudo ok (campo opcional)
     if (!date) return true;
-    // Se forneceu, validar que tem pelo menos 1 ano de idade
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    return date <= oneYearAgo;
+    // Se forneceu, validar que a data não é futura
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Fim do dia
+    return date <= today;
   }, {
-    message: "Selecione uma data válida.",
+    message: "A data de nascimento não pode ser futura.",
   }),
   status: z.boolean().default(true), // true = Ativo, false = Inativo
   avatarUrl: z.string().optional(),
@@ -495,7 +495,7 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
                       </FormControl>
                       <SelectContent>
                         {planosSaudeDisponiveis.map((plano) => (
-                          <SelectItem key={plano.id} value={plano.id}>
+                          <SelectItem key={plano.id} value={plano.id} className="truncate">
                             {plano.nome}
                           </SelectItem>
                         ))}

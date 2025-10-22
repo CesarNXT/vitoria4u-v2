@@ -351,7 +351,8 @@ class SystemTester {
         collection(this.firestore, `negocios/${this.currentUser.uid}/clientes`)
       );
       
-      if (servicesSnapshot.empty || profSnapshot.empty || clientSnapshot.empty) {
+      if (servicesSnapshot.empty || profSnapshot.empty || clientSnapshot.empty ||
+          !servicesSnapshot.docs[0] || !profSnapshot.docs[0] || !clientSnapshot.docs[0]) {
         throw new Error('Dados necessários não encontrados');
       }
       

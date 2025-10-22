@@ -29,6 +29,7 @@ import { BusinessUserProvider } from '@/contexts/BusinessUserContext';
 import { PlanProvider } from '@/contexts/PlanContext';
 import { destroyUserSession, stopImpersonation, getCurrentImpersonation } from '@/app/(public)/login/session-actions';
 import { checkAndUpdateExpiration } from '@/lib/check-expiration';
+import { isServerRestartError, handleServerRestartError } from '@/lib/server-error-handler';
 
 
 function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
@@ -82,10 +83,23 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const [impersonationChecked, setImpersonationChecked] = useState(false);
   
   useEffect(() => {
-    getCurrentImpersonation().then(id => {
-      setImpersonatedId(id);
-      setImpersonationChecked(true);
-    });
+    getCurrentImpersonation()
+      .then(id => {
+        setImpersonatedId(id);
+        setImpersonationChecked(true);
+      })
+      .catch(error => {
+        console.error('Error checking impersonation:', error);
+        
+        // 🔥 Se servidor reiniciou, limpar tudo e redirecionar para login
+        if (isServerRestartError(error)) {
+          handleServerRestartError();
+        } else {
+          // Erro normal - apenas continuar sem impersonation
+          setImpersonatedId(null);
+          setImpersonationChecked(true);
+        }
+      });
   }, []);
 
   useEffect(() => setMounted(true), []);
@@ -94,19 +108,28 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user && !isUserLoading && !impersonatedId) {
-      checkAndUpdateExpiration().then((result) => {
-        if (result.expired) {
-          toast({
-            title: "✨ Adquira um Plano Premium",
-            description: "Continue usando o sistema gratuitamente! Para ter automações no WhatsApp e IA, escolha um plano que cabe no seu bolso.",
-            variant: "default",
-            duration: 8000,
-          });
-          router.refresh();
-        }
-      });
+      checkAndUpdateExpiration()
+        .then((result) => {
+          if (result.expired) {
+            toast({
+              title: "✨ Adquira um Plano Premium",
+              description: "Continue usando o sistema gratuitamente! Para ter automações no WhatsApp e IA, escolha um plano que cabe no seu bolso.",
+              variant: "default",
+              duration: 8000,
+            });
+            router.refresh();
+          }
+        })
+        .catch(error => {
+          console.error('Error checking expiration:', error);
+          
+          // 🔥 Se servidor reiniciou, redirecionar para login
+          if (isServerRestartError(error)) {
+            handleServerRestartError();
+          }
+        });
     }
-  }, [user, isUserLoading, impersonatedId]);
+  }, [user, isUserLoading, impersonatedId, toast, router]);
 
   const clearImpersonation = async () => {
     await stopImpersonation();

@@ -259,9 +259,9 @@ export function AppointmentForm({
             if (dayOfWeek >= 0 && dayOfWeek < 7) {
               const dayName = dayNames[dayOfWeek] || 'domingo';
               const horariosDay = businessSettings.horariosFuncionamento[dayName];
-              if (horariosDay && !horariosDay.fechado && horariosDay.abertura) {
+              if (horariosDay && horariosDay.enabled && horariosDay.slots.length > 0 && horariosDay.slots[0]) {
                 // Setar horário de abertura como padrão
-                setValue('startTime', horariosDay.abertura);
+                setValue('startTime', horariosDay.slots[0].start);
               }
             }
           }

@@ -9,14 +9,13 @@ const nextConfig = {
   },
   // Otimizações de produção
   productionBrowserSourceMaps: false,
-  reactStrictMode: false, // Desabilitar warnings duplicados do React
-  // ⚠️ TEMPORÁRIO: Ignorar erros de lint para deploy inicial
-  // TODO: Corrigir erros de ESLint/TypeScript antes de produção
+  reactStrictMode: true, // ✅ Habilitar para detectar problemas em desenvolvimento
+  // ✅ CORRIGIDO: Validação TypeScript/ESLint ativa
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [

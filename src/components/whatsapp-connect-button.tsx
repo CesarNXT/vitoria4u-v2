@@ -610,7 +610,7 @@ export function WhatsAppConnectButton({
                     <ol className="ml-4 list-decimal space-y-1">
                       <li>Abra WhatsApp no celular</li>
                       <li>Menu → Aparelhos conectados</li>
-                      <li>Toque em "Conectar um aparelho"</li>
+                      <li>Toque em &quot;Conectar um aparelho&quot;</li>
                       <li>Aponte a câmera para o QR Code</li>
                     </ol>
                   </AlertDescription>

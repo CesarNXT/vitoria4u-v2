@@ -35,7 +35,7 @@ const statusTraducao: { [key in Cliente['status']]: string } = {
 interface ClientCardProps {
   client: Cliente;
   onEdit: (client: Cliente) => void;
-  onDelete: (client: Cliente) => void;
+  onDelete: (clientId: string) => void;
 }
 
 export const ClientCard = ({ client, onEdit, onDelete }: ClientCardProps) => {
@@ -102,7 +102,7 @@ export const ClientCard = ({ client, onEdit, onDelete }: ClientCardProps) => {
           <Pencil className="h-4 w-4 mr-2" />
           Editar
         </Button>
-        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50 flex-shrink-0" onClick={() => onDelete(client)}>
+        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50 flex-shrink-0" onClick={() => onDelete(client.id)}>
           <Trash2 className="h-4 w-4 mr-2" />
           Excluir
         </Button>

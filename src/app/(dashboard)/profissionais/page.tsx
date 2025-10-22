@@ -297,17 +297,25 @@ export default function ProfessionalsPage() {
       </Dialog>
 
       <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente o profissional
-              <span className="font-bold"> {professionalToDelete?.name}</span>.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="break-words text-sm sm:text-base">
+                  Essa ação não pode ser desfeita. Isso excluirá permanentemente o profissional:
+                </p>
+                <div className="min-w-0 w-full">
+                  <p className="font-bold break-all text-sm sm:text-base" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {professionalToDelete?.name}
+                  </p>
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

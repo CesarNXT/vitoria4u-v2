@@ -83,30 +83,37 @@ export default function HealthInsuranceManager({ categoria }: HealthInsuranceMan
         <div className="space-y-2">
           <Label htmlFor="novo-plano">Adicionar Plano de Saúde</Label>
           <p className="text-sm text-muted-foreground">
-            Digite o nome do plano de saúde ou convênio que sua clínica aceita
+            Digite o nome do plano de saúde ou convênio que sua clínica aceita (máx. 50 caracteres)
           </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            ref={inputRef}
-            id="novo-plano"
-            placeholder="Ex: Unimed, Amil, SulAmérica..."
-            value={novoPlanoNome}
-            onChange={(e) => setNovoPlanoNome(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                adicionarPlano();
-              }
-            }}
-            className="flex-1"
-            maxLength={50}
-          />
-          <Button type="button" onClick={adicionarPlano} disabled={!novoPlanoNome.trim()} className="w-full sm:w-auto">
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Adicionar
-          </Button>
+        <div className="space-y-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              ref={inputRef}
+              id="novo-plano"
+              placeholder="Ex: Unimed, Amil, SulAmérica..."
+              value={novoPlanoNome}
+              onChange={(e) => setNovoPlanoNome(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  adicionarPlano();
+                }
+              }}
+              className="flex-1"
+              maxLength={50}
+            />
+            <Button type="button" onClick={adicionarPlano} disabled={!novoPlanoNome.trim()} className="w-full sm:w-auto">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Adicionar
+            </Button>
+          </div>
+          {novoPlanoNome && (
+            <p className="text-xs text-muted-foreground text-right">
+              {novoPlanoNome.length}/50 caracteres
+            </p>
+          )}
         </div>
       </div>
 
@@ -116,18 +123,18 @@ export default function HealthInsuranceManager({ categoria }: HealthInsuranceMan
           <Label>Planos Aceitos ({planosSaudeAceitos.length})</Label>
           <div className="space-y-2">
             {planosSaudeAceitos.map((plano: PlanoSaude) => (
-              <Card key={plano.id}>
-                <CardContent className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Heart className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-medium">{plano.nome}</p>
+              <Card key={plano.id} className="overflow-hidden">
+                <CardContent className="p-3 flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                    <Heart className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <p className="font-medium truncate break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{plano.nome}</p>
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => removerPlano(plano.id)}
-                    className="text-destructive"
+                    className="text-destructive flex-shrink-0"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

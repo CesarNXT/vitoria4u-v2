@@ -65,13 +65,13 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
         </Button>
       )
     },
-    size: 250, // Largura máxima da coluna
+    size: 200, // Largura máxima da coluna (igual a profissionais)
     cell: ({ row }) => {
       const client = row.original;
       const clientName = String(client.name || 'Cliente');
       const initials = clientName.charAt(0).toUpperCase();
       return (
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 max-w-[200px]">
           <Avatar className="h-8 w-8 flex-shrink-0">
             <AvatarImage src={client.avatarUrl || undefined} alt={clientName} />
             <AvatarFallback>{initials}</AvatarFallback>
@@ -79,11 +79,11 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="font-medium line-clamp-1 break-all cursor-help" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', maxWidth: '200px' }}>{clientName}</span>
+                <span className="font-medium truncate cursor-help block" style={{ maxWidth: '150px' }}>{clientName}</span>
               </TooltipTrigger>
-              {clientName.length > 30 && (
+              {clientName.length > 25 && (
                 <TooltipContent>
-                  <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{clientName}</p>
+                  <p className="max-w-xs break-words">{clientName}</p>
                 </TooltipContent>
               )}
             </Tooltip>
@@ -196,9 +196,16 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
             </TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={() => onEdit(client)}>
-                    <Pencil className="h-4 w-4" />
-                    <span className="sr-only">Editar</span>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(client);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                  <span className="sr-only">Editar</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -207,9 +214,17 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Client
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(client.id)}>
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Excluir</span>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(client.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Excluir</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>

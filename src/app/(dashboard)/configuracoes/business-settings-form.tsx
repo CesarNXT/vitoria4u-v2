@@ -528,14 +528,14 @@ export default function BusinessSettingsForm({
                       </FormItem>
 
                       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-                        <DialogContent className="sm:max-w-md">
+                        <DialogContent className="max-w-[90vw] sm:max-w-md overflow-hidden">
                           <DialogHeader>
                             <DialogTitle>Selecione a Categoria</DialogTitle>
                             <DialogDescription>
                               Escolha a categoria que melhor representa seu negócio
                             </DialogDescription>
                           </DialogHeader>
-                          <div className="space-y-4">
+                          <div className="space-y-4 min-w-0">
                             <div className="relative">
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
@@ -552,14 +552,14 @@ export default function BusinessSettingsForm({
                                     key={category.value}
                                     type="button"
                                     variant={field.value === category.value ? "secondary" : "ghost"}
-                                    className="w-full justify-start text-left h-auto py-3"
+                                    className="w-full justify-start text-left h-auto py-3 min-w-0"
                                     onClick={() => {
                                       field.onChange(category.value);
                                       setIsCategoryDialogOpen(false);
                                       setCategorySearch('');
                                     }}
                                   >
-                                    <span className="text-base">{category.label}</span>
+                                    <span className="text-base truncate block min-w-0">{category.label}</span>
                                   </Button>
                                 ))
                               ) : (
