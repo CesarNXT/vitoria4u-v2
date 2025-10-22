@@ -43,40 +43,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   
-  // 🚪 Logout automático ao sair do painel
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Fazer logout quando fechar a aba/janela
-      const auth = getAuth();
-      
-      try {
-        // Limpar localStorage de forma síncrona (mais confiável no beforeunload)
-        if (typeof window !== 'undefined') {
-          localStorage.clear();
-          sessionStorage.clear();
-        }
-        
-        // Fazer logout do Firebase de forma síncrona
-        signOut(auth).catch(() => {
-          // Silencioso - a sessão será limpa de qualquer forma
-        });
-        
-        // Limpar cookies usando sendBeacon para garantir envio
-        const logoutUrl = '/api/auth/logout';
-        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
-        navigator.sendBeacon(logoutUrl, blob);
-      } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-      }
-    };
-    
-    // Adicionar listener
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
+  // ⚠️ REMOVIDO: beforeunload estava desconectando no F5
+  // O Firebase mantém a sessão automaticamente via tokens
+  // Logout deve ser apenas via botão de logout explícito
   
   // ⚡ IMPERSONAÇÃO PRIMEIRO (antes de tudo)
   const [impersonatedId, setImpersonatedId] = useState<string | null>(null);
@@ -195,7 +164,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
         console.warn('⚠️ Timeout de carregamento atingido, forçando continuação');
         setLoadingTimeout(true);
       }
-    }, 8000); // 8 segundos
+    }, 15000); // 15 segundos para conexões lentas
 
     return () => clearTimeout(timer);
   }, [isReallyLoading, isRedirecting, loadingTimeout]);
