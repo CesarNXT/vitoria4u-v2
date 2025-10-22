@@ -257,11 +257,18 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     const auth = getAuth();
+    
+    // ✅ CRITICAL: Set flag ANTES de qualquer operação async
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('logging_out', 'true');
+    }
+    
     // 🔒 SEGURANÇA: Destruir session cookie
     await destroyUserSession();
     await signOut(auth);
-    // Usar window.location para forçar navegação completa para página principal
-    window.location.href = '/';
+    
+    // Usar window.location.replace para forçar navegação sem histórico
+    window.location.replace('/');
   }
 
   if (isLoading) {

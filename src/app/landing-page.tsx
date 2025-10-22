@@ -23,6 +23,13 @@ export default function LandingPage() {
   const [plans, setPlans] = useState<Plano[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Limpar flag de logout quando chegar na landing page
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('logging_out');
+    }
+  }, []);
+
   useEffect(() => {
     const { firestore } = initializeFirebase();
     const plansRef = collection(firestore, 'planos');
@@ -42,7 +49,7 @@ export default function LandingPage() {
     return () => unsubscribe();
   }, []);
 
-  const whatsappNumber = "553197922538";
+  const whatsappNumber = "5531997922538"; // ✅ Formato: 55 + DDD + 9 dígitos
   const whatsappMessage = "Olá! Tenho interesse em conhecer mais sobre a IA e o sistema da Vitoria4u.";
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
 

@@ -14,15 +14,17 @@ export function FirestoreConnectionMonitor() {
   const { toast } = useToast()
 
   useEffect(() => {
-    if (!firestore || !user) return
+    // Only monitor if user is fully authenticated
+    if (!firestore || !user?.uid) return
 
     let errorCount = 0
     let lastErrorTime = 0
     const ERROR_THRESHOLD = 3 // 3 erros em sequência
     const ERROR_WINDOW = 5000 // dentro de 5 segundos
 
-    // Cria um listener dummy para detectar problemas de conexão
-    const monitorRef = doc(firestore, '_monitor', 'health')
+    // Use a collection the user has access to instead of _monitor
+    // This uses the user's own business document which they have permission to read
+    const monitorRef = doc(firestore, 'negocios', user.uid)
     
     const unsubscribe = onSnapshot(
       monitorRef,

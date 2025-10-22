@@ -84,6 +84,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
+    // ✅ Monitor Collection - For connection health checks (public read)
+    match /_monitor/{document=**} {
+      allow read: if true; // Allow public read for health monitoring
+      allow write: if false; // No writes needed
+    }
+    
     // 🔒 Outras collections - Bloqueadas por padrão
     // Admin sempre tem acesso através das regras específicas acima
   }

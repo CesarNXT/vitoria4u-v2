@@ -1,7 +1,9 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { ConfiguracoesNegocio, PlanFeature, Plano, HorarioSlot, Profissional, Servico, Agendamento, DataBloqueada, HorarioTrabalho } from "./types"
-import { isFuture, differenceInDays, getDay, isWithinInterval as isWithinFnsInterval } from 'date-fns';
+import { DateTime } from "@/core/value-objects/date-time"
+import { Phone } from "@/core/value-objects/phone"
+import { Money } from "@/core/value-objects/money"
 
 /**
  * ✅ FUNÇÃO SEGURA: Verifica se usuário tem custom claim de admin
@@ -37,14 +39,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * ✅ REFATORADO: Converte dados do Firestore usando DateTime
+ * Substitui a gambiarra anterior que misturava Date e Timestamp
+ */
 export function convertTimestamps(obj: any): any {
   if (obj === null || typeof obj !== 'object') {
     return obj;
   }
 
-  // Firestore Timestamp
-  if (obj.toDate) {
-    return obj.toDate();
+  // Usar DateTime value object para conversão padronizada
+  if (obj.toDate || typeof obj === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(obj)) {
+    try {
+      return DateTime.fromFirestoreData(obj).toDate();
+    } catch {
+      return obj;
+    }
   }
 
   if (Array.isArray(obj)) {
@@ -54,14 +64,7 @@ export function convertTimestamps(obj: any): any {
   const newObj: { [key: string]: any } = {};
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const value = obj[key];
-      
-      // Se é uma string ISO de data, converte para Date
-      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-        newObj[key] = new Date(value);
-      } else {
-        newObj[key] = convertTimestamps(value);
-      }
+      newObj[key] = convertTimestamps(obj[key]);
     }
   }
   return newObj;
@@ -71,16 +74,26 @@ export type AccessStatus = 'pago' | 'ativo' | 'expirado' | 'pendente' | 'cancela
 export type StatusVariant = 'default' | 'secondary' | 'destructive' | 'outline';
 
 
+/**
+ * ✅ REFATORADO: Usa DateTime para verificar status
+ */
 export const getAccessStatus = (settings: ConfiguracoesNegocio): { text: string; variant: StatusVariant } => {
-    const hasActivePlan = settings?.access_expires_at ? isFuture(new Date(settings.access_expires_at)) : false;
-
-    if (!hasActivePlan) {
+    if (!settings?.access_expires_at) {
         return { text: 'Expirado', variant: 'destructive' };
     }
 
-    // Since it's all manual, if the access is not expired, we consider it 'Active'.
-    // The "Pago" status could be used if you manually set a flag after payment, but "Ativo" is clearer for manual management.
-    return { text: 'Ativo', variant: 'default' };
+    try {
+        const expirationDate = DateTime.fromFirestoreData(settings.access_expires_at);
+        const hasActivePlan = expirationDate.isFuture();
+
+        if (!hasActivePlan) {
+            return { text: 'Expirado', variant: 'destructive' };
+        }
+
+        return { text: 'Ativo', variant: 'default' };
+    } catch {
+        return { text: 'Expirado', variant: 'destructive' };
+    }
 };
 
 
@@ -131,70 +144,36 @@ export const CORE_FEATURES = {
  */
 // A função hasFeatureAccess foi removida para dar lugar à checkFeatureAccess, que busca os dados do plano dinamicamente.
 
-export const formatPhoneNumber = (phone: string | null | undefined): string => {
+/**
+ * ✅ REFATORADO: Usa Phone value object
+ * Substitui TODA a gambiarra de formatação de telefone
+ */
+export const formatPhoneNumber = (phone: string | number | null | undefined): string => {
   if (!phone) return '';
-
-  // Ensure phone is a string before calling replace
-  const phoneStr = String(phone);
   
-  // Remove non-digit characters
-  const cleaned = phoneStr.replace(/\D/g, '');
-  
-  // Remover DDI "55" APENAS se tiver 13 dígitos (DDI + DDD + número)
-  // Se tiver 11 dígitos e começar com 55, é DDD de Santa Catarina, NÃO remover!
-  let numberWithoutCountryCode = cleaned;
-  if (cleaned.length === 13 && cleaned.startsWith('55')) {
-    numberWithoutCountryCode = cleaned.substring(2); // Remove DDI 55
-  } else if (cleaned.length === 12 && cleaned.startsWith('55')) {
-    numberWithoutCountryCode = cleaned.substring(2); // Remove DDI 55 (fixo)
+  try {
+    return Phone.create(phone).format();
+  } catch {
+    // Fallback para valores inválidos
+    return String(phone);
   }
-  
-  // ⚠️ LIMITAR A EXATAMENTE 11 DÍGITOS (DDD + 9 + número)
-  numberWithoutCountryCode = numberWithoutCountryCode.slice(0, 11);
-  
-  // Formatar 11 dígitos (DDD + 9 + número)
-  if (numberWithoutCountryCode.length === 11) {
-    const match = numberWithoutCountryCode.match(/^(\d{2})(\d{5})(\d{4})$/);
-    if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
-  }
-  
-  // Fallback: retornar o que foi digitado (sem formatação)
-  return numberWithoutCountryCode; 
 };
 
 
-export const normalizePhoneNumber = (phone: string) => {
+/**
+ * ✅ REFATORADO: Usa Phone value object para normalização
+ */
+export const normalizePhoneNumber = (phone: string | number): string => {
   if (!phone) return '';
-  // Remove all non-digit characters
-  const cleaned = phone.replace(/\D/g, '');
   
-  // Se já tem 13 dígitos e começa com 55, retorna como está (DDI + DDD + celular)
-  if (cleaned.length === 13 && cleaned.startsWith('55')) {
-    return cleaned;
+  try {
+    return Phone.create(phone).formatForWhatsApp();
+  } catch {
+    // Fallback para valores inválidos
+    const cleaned = String(phone).replace(/\D/g, '');
+    return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
   }
-  
-  // Se tem 12 dígitos e começa com 55, retorna como está (DDI + DDD + fixo)
-  if (cleaned.length === 12 && cleaned.startsWith('55')) {
-    return cleaned;
-  }
-  
-  // Se tem 11 dígitos (DDD + celular), SEMPRE adiciona DDI 55 na frente
-  // Exemplo: 55995207521 → 5555995207521 (13 dígitos)
-  // Exemplo: 95995207521 → 5595995207521 (13 dígitos)
-  if (cleaned.length === 11) {
-    return `55${cleaned}`;
-  }
-  
-  // Se tem 10 dígitos (DDD + fixo), SEMPRE adiciona DDI 55 na frente
-  // Exemplo: 5595207521 → 555595207521 (12 dígitos)
-  // Exemplo: 9532075210 → 559532075210 (12 dígitos)
-  if (cleaned.length === 10) {
-    return `55${cleaned}`;
-  }
-
-  // Fallback: adiciona 55 na frente para qualquer outro tamanho
-  return `55${cleaned}`; 
-}
+};
 
 
 export const capitalizeWords = (str: string) => {
@@ -235,6 +214,9 @@ const getIntersection = (slot1: HorarioSlot, slot2: HorarioSlot): HorarioSlot | 
 };
 
 
+/**
+ * ✅ REFATORADO: Usa DateTime para cálculos de disponibilidade
+ */
 export const calculateAvailableTimesForDate = (
   date: Date,
   professional: Profissional,
@@ -243,7 +225,8 @@ export const calculateAvailableTimesForDate = (
   businessSettings: ConfiguracoesNegocio,
   blockedDates: DataBloqueada[]
 ): string[] => {
-  const dayOfWeek = getDay(date);
+  const dateTime = DateTime.fromDate(date);
+  const dayOfWeek = dateTime.getWeekday();
   const dayNames: (keyof HorarioTrabalho)[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
   const dayKey = dayNames[dayOfWeek] as keyof HorarioTrabalho;
 
@@ -284,9 +267,16 @@ export const calculateAvailableTimesForDate = (
     }
   }
   
-  const appointmentsForDay = allAppointments.filter(
-    (appt) => new Date(appt.date).toDateString() === date.toDateString() && appt.profissional.id === professional.id && appt.status === 'Agendado'
-  );
+  const appointmentsForDay = allAppointments.filter((appt) => {
+    try {
+      const apptDate = DateTime.fromFirestoreData(appt.date);
+      return apptDate.isSameDay(dateTime) && 
+             appt.profissional.id === professional.id && 
+             appt.status === 'Agendado';
+    } catch {
+      return false;
+    }
+  });
 
   // Usa um Set para performance
   const blockedMinutes = new Set<number>();
@@ -302,15 +292,21 @@ export const calculateAvailableTimesForDate = (
 
   // Adiciona horários de bloqueios globais
   for (const block of blockedDates) {
-    const blockStart = new Date(block.startDate);
-    const blockEnd = new Date(block.endDate);
-    
-    if (isWithinFnsInterval(date, { start: blockStart, end: blockEnd })) {
-        const start = timeToMinutes(blockStart.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        const end = timeToMinutes(blockEnd.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    try {
+      const blockStart = DateTime.fromFirestoreData(block.startDate);
+      const blockEnd = DateTime.fromFirestoreData(block.endDate);
+      
+      // Verifica se a data está dentro do período bloqueado
+      if (dateTime.isAfter(blockStart.startOfDay()) && dateTime.isBefore(blockEnd.endOfDay())) {
+        const start = timeToMinutes(blockStart.formatTime());
+        const end = timeToMinutes(blockEnd.formatTime());
         for (let i = start; i < end; i++) {
-            blockedMinutes.add(i);
+          blockedMinutes.add(i);
         }
+      }
+    } catch {
+      // Ignora bloqueios com datas inválidas
+      continue;
     }
   }
 
@@ -318,16 +314,14 @@ export const calculateAvailableTimesForDate = (
     const start = timeToMinutes(time);
     const end = start + serviceDuration;
     
-    // NOVO: Verificar se o horário já passou (para o dia atual)
-    const now = new Date();
-    if (date.toDateString() === now.toDateString()) {
+    // Verificar se o horário já passou (para o dia atual)
+    if (dateTime.isToday()) {
       const timeParts = time.split(':').map(Number);
       const hours = timeParts[0] || 0;
       const minutes = timeParts[1] || 0;
-      const timeDate = new Date(date);
-      timeDate.setHours(hours, minutes, 0, 0);
+      const timeSlot = dateTime.startOfDay().addHours(hours).addMinutes(minutes);
       
-      if (timeDate <= now) {
+      if (timeSlot.isPast()) {
         return false;
       }
     }
@@ -343,25 +337,25 @@ export const calculateAvailableTimesForDate = (
 }
 
 /**
- * Formata o preço de um serviço baseado no tipo de precificação
- * @param price - Valor do serviço
- * @param priceType - Tipo de precificação ('fixed', 'on_request', 'starting_from')
- * @returns String formatada com o preço
+ * ✅ REFATORADO: Usa Money value object para formatação
  */
 export const formatServicePrice = (price: number, priceType: 'fixed' | 'on_request' | 'starting_from' = 'fixed'): string => {
-  const formattedPrice = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(price);
+  try {
+    const money = Money.create(price);
+    const formattedPrice = money.format();
 
-  switch (priceType) {
-    case 'on_request':
-      return 'Sob orçamento';
-    case 'starting_from':
-      return `A partir de ${formattedPrice}`;
-    case 'fixed':
-    default:
-      return formattedPrice;
+    switch (priceType) {
+      case 'on_request':
+        return 'Sob orçamento';
+      case 'starting_from':
+        return `A partir de ${formattedPrice}`;
+      case 'fixed':
+      default:
+        return formattedPrice;
+    }
+  } catch {
+    // Fallback para valores inválidos
+    return 'Valor inválido';
   }
 }
 

@@ -69,7 +69,10 @@ export async function getClientesAction() {
           phone: data.phone,
           status: data.status,
           avatarUrl: data.avatarUrl,
-          birthDate: data.birthDate,
+          // ✅ CRITICAL: Converter Timestamp para Date serializável
+          birthDate: data.birthDate instanceof Timestamp 
+            ? data.birthDate.toDate() 
+            : data.birthDate,
           observacoes: data.observacoes,
           planoSaude: data.planoSaude,
           instanciaWhatsapp: data.instanciaWhatsapp,
