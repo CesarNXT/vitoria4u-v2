@@ -37,6 +37,41 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const { setOpenMobile } = useSidebar();
   const [adminVerified, setAdminVerified] = useState(false);
   
+  // 🚪 Logout automático ao sair do painel admin
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Fazer logout quando fechar a aba/janela
+      const auth = getAuth();
+      
+      try {
+        // Limpar localStorage de forma síncrona (mais confiável no beforeunload)
+        if (typeof window !== 'undefined') {
+          localStorage.clear();
+          sessionStorage.clear();
+        }
+        
+        // Fazer logout do Firebase de forma síncrona
+        signOut(auth).catch(() => {
+          // Silencioso - a sessão será limpa de qualquer forma
+        });
+        
+        // Limpar cookies usando sendBeacon para garantir envio
+        const logoutUrl = '/api/auth/logout';
+        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+        navigator.sendBeacon(logoutUrl, blob);
+      } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+      }
+    };
+    
+    // Adicionar listener
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+  
   // 🔥 Sincronizar documento admin automaticamente
   useAdminSync();
   
