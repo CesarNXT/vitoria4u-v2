@@ -1,11 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
-  allowedDevOrigins: [
-    '172.28.124.126',
-    '172.22.26.77',
-    '172.22.28.97', // ✅ IP adicionado para evitar erro de WebSocket
-  ],
   // Suprimir warnings desnecessários durante build e desenvolvimento
   logging: {
     fetches: {
