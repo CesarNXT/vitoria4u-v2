@@ -46,11 +46,11 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Servic
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="font-medium truncate cursor-help">{serviceName}</span>
+                <span className="font-medium line-clamp-1 break-all cursor-help" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', maxWidth: '200px' }}>{serviceName}</span>
               </TooltipTrigger>
               {serviceName.length > 30 && (
                 <TooltipContent>
-                  <p>{serviceName}</p>
+                  <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{serviceName}</p>
                 </TooltipContent>
               )}
             </Tooltip>

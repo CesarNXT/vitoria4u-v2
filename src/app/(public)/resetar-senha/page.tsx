@@ -188,7 +188,7 @@ function ResetPasswordContent() {
                 {renderContent()}
                 <div className="mt-6 text-center text-sm text-gray-600">
                     Precisa de ajuda?{' '}
-                    <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-purple-700 underline hover:text-purple-800">
+                    <a href={`https://api.whatsapp.com/send?phone=${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-purple-700 underline hover:text-purple-800">
                         Falar com suporte
                     </a>
                 </div>

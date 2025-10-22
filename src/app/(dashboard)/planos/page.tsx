@@ -49,7 +49,7 @@ export default function PlanosPage() {
 
     const whatsappNumber = "81979123125";
     const whatsappMessage = "Olá! Preciso de ajuda com meu plano de assinatura ou tenho uma dúvida sobre o pagamento.";
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(whatsappMessage)}`;
 
     const [isCreatingSession, setIsCreatingSession] = useState(false);
     

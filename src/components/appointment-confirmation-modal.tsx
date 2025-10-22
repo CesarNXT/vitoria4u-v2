@@ -46,22 +46,30 @@ export function AppointmentConfirmationModal({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>📱 Enviar confirmação para o cliente?</AlertDialogTitle>
+          <AlertDialogTitle className="text-base sm:text-lg">📱 Enviar confirmação para o cliente?</AlertDialogTitle>
           <AlertDialogDescription asChild>
-            <div className="space-y-2">
-              <p>Deseja enviar uma mensagem de confirmação via WhatsApp para:</p>
-              <p className="font-bold truncate cursor-help" title={clientName}>{clientName}</p>
-              <p className="pt-2">A mensagem incluirá os detalhes do agendamento (data, horário, serviço e profissional).</p>
+            <div className="space-y-3">
+              <p className="text-sm">Deseja enviar uma mensagem de confirmação via WhatsApp para:</p>
+              <div className="min-w-0 overflow-hidden">
+                <p 
+                  className="font-bold line-clamp-2 break-all text-sm sm:text-base cursor-help" 
+                  title={clientName}
+                  style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                >
+                  {clientName}
+                </p>
+              </div>
+              <p className="pt-2 text-sm text-muted-foreground">A mensagem incluirá os detalhes do agendamento (data, horário, serviço e profissional).</p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleCancel} disabled={isSending}>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel onClick={handleCancel} disabled={isSending} className="w-full sm:w-auto">
             Não enviar
           </AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirm} disabled={isSending}>
+          <AlertDialogAction onClick={handleConfirm} disabled={isSending} className="w-full sm:w-auto">
             {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSending ? 'Enviando...' : 'Sim, enviar'}
           </AlertDialogAction>

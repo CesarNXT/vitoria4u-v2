@@ -121,6 +121,7 @@ export type PlanFeature =
   | 'lembrete_24h'
   | 'lembrete_2h'
   | 'feedback_pos_atendimento'
+  | 'solicitacao_feedback'
   | 'lembrete_aniversario'
   | 'lembrete_profissional'
   | 'disparo_de_mensagens'

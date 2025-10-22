@@ -65,11 +65,11 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Profis
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="font-medium truncate cursor-help">{profName}</span>
+                <span className="font-medium line-clamp-1 break-all cursor-help" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', maxWidth: '200px' }}>{profName}</span>
               </TooltipTrigger>
               {profName.length > 30 && (
                 <TooltipContent>
-                  <p>{profName}</p>
+                  <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{profName}</p>
                 </TooltipContent>
               )}
             </Tooltip>
@@ -129,7 +129,8 @@ export const getColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Profis
         const phoneWithCountryCode = cleanPhone.length === 13 ? cleanPhone : 
                                      cleanPhone.length === 11 ? `55${cleanPhone}` :
                                      cleanPhone;
-        window.open(`https://wa.me/${phoneWithCountryCode}`, '_blank');
+        const message = encodeURIComponent(`Olá! Como posso ajudar?`);
+        window.open(`https://api.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${message}`, '_blank');
       };
  
       return (

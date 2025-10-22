@@ -84,11 +84,19 @@ const sendCancellationHooks = async (settings: any, appointment: any, source: st
 };
 
 const sendCompletionHooks = async (settings: any, appointment: any) => {
-  console.log('sendCompletionHooks called - stub function');
+  console.log('📲 sendCompletionHooks: Importando função real...');
+  const { sendCompletionHooks: realSendCompletionHooks } = await import('./actions');
+  console.log('📲 Chamando função real de feedback...');
+  await realSendCompletionHooks(settings, appointment);
+  console.log('✅ Feedback enviado com sucesso!');
 };
 
 const sendClientConfirmation = async (settings: any, appointment: any) => {
-  console.log('sendClientConfirmation called - stub function');
+  console.log('📲 sendClientConfirmation: Importando função real...');
+  const { sendClientConfirmation: realSendClientConfirmation } = await import('./actions');
+  console.log('📲 Enviando confirmação para o cliente...');
+  await realSendClientConfirmation(settings, appointment);
+  console.log('✅ Confirmação enviada com sucesso!');
 };
 
 const sendDeletionHooks = async (settings: any, appointment: any) => {
@@ -119,6 +127,28 @@ function serializeTimestamps<T>(obj: T): T {
     return serialized;
   }
   
+  return obj;
+}
+
+// 🔄 Serialização profunda para Server Functions (converte Timestamps para strings ISO)
+function deepSerializeForServerFunction(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (obj instanceof Date) return obj.toISOString();
+  if (obj?.toDate) return obj.toDate().toISOString(); // Firestore Timestamp
+  if (obj?.seconds !== undefined && obj?.nanoseconds !== undefined) {
+    // Timestamp object literal
+    return new Date(obj.seconds * 1000).toISOString();
+  }
+  if (Array.isArray(obj)) return obj.map(deepSerializeForServerFunction);
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        serialized[key] = deepSerializeForServerFunction(obj[key]);
+      }
+    }
+    return serialized;
+  }
   return obj;
 }
 
@@ -307,12 +337,34 @@ export default function AgendamentosPage() {
         // Usar generateUUID() para garantir unicidade absoluta (evita duplicatas em cliques rápidos)
         const newId = `appt-${Date.now()}-${generateUUID().slice(0, 8)}`;
         
+        // 🔍 DEBUG: Verificar dados antes de buscar
+        console.log('📋 Dados recebidos do formulário:');
+        console.log('  - clienteId:', data.clienteId);
+        console.log('  - servicoId:', data.servicoId);
+        console.log('  - profissionalId:', data.profissionalId);
+        console.log('📦 Estados atuais:');
+        console.log('  - clients disponíveis:', clients.length, clients.map(c => ({ id: c.id, name: c.name })));
+        console.log('  - services disponíveis:', services.length, services.map(s => ({ id: s.id, name: s.name })));
+        console.log('  - professionals disponíveis:', professionals.length, professionals.map(p => ({ id: p.id, name: p.name })));
+        
         const cliente = clients.find(c => c.id === data.clienteId);
         const servico = services.find(s => s.id === data.servicoId);
         const profissional = professionals.find(p => p.id === data.profissionalId);
 
+        console.log('🔍 Resultados da busca:');
+        console.log('  - cliente encontrado:', cliente ? `✅ ${cliente.name}` : '❌ NÃO ENCONTRADO');
+        console.log('  - servico encontrado:', servico ? `✅ ${servico.name}` : '❌ NÃO ENCONTRADO');
+        console.log('  - profissional encontrado:', profissional ? `✅ ${profissional.name}` : '❌ NÃO ENCONTRADO');
+
         if (!cliente || !servico || !profissional) {
-            throw new Error("Dados inválidos para o agendamento.");
+            const erroDetalhes = [];
+            if (!cliente) erroDetalhes.push(`Cliente ID "${data.clienteId}" não encontrado na lista de ${clients.length} clientes`);
+            if (!servico) erroDetalhes.push(`Serviço ID "${data.servicoId}" não encontrado na lista de ${services.length} serviços`);
+            if (!profissional) erroDetalhes.push(`Profissional ID "${data.profissionalId}" não encontrado na lista de ${professionals.length} profissionais`);
+            
+            const errorMsg = `Dados inválidos:\n${erroDetalhes.join('\n')}`;
+            console.error('❌ VALIDAÇÃO FALHOU:', errorMsg);
+            throw new Error(errorMsg);
         }
 
         const appointmentData: Agendamento = {
@@ -325,17 +377,13 @@ export default function AgendamentosPage() {
             status: data.status,
         };
 
-        const clientBirthDate = new Date(cliente.birthDate);
-        const serializableAppointment = {
+        // ✅ Serializar COMPLETAMENTE para evitar erro de Timestamp em Server Functions
+        const serializableAppointment = deepSerializeForServerFunction({
             ...appointmentData,
-            date: appointmentData.date.toISOString(),
-            cliente: {
-                ...cliente,
-                birthDate: cliente.birthDate && !isNaN(clientBirthDate.getTime()) ? clientBirthDate.toISOString() : null,
-            },
-        };
+            date: appointmentData.date,
+        });
         
-        const serializableSettings = JSON.parse(JSON.stringify(convertTimestamps(businessSettings)));
+        const serializableSettings = deepSerializeForServerFunction(businessSettings);
 
         // 🔍 DEBUG: Log do path que será usado
         console.log('  - Path Firestore:', `negocios/${finalUserId}/agendamentos/${newId}`);
@@ -364,20 +412,11 @@ export default function AgendamentosPage() {
         // Criar ou atualizar reminders
         if (data.status === 'Agendado') {
           try {
-            // Serializar dados para passar para server function
-            const serializedAppointment = {
-              ...appointmentData,
-              date: appointmentData.date.toISOString(),
-              cliente: {
-                ...appointmentData.cliente,
-                birthDate: appointmentData.cliente.birthDate ? new Date(appointmentData.cliente.birthDate).toISOString() : null
-              }
-            };
-            
+            // ✅ Já serializado acima com deepSerializeForServerFunction
             if (!isEditing) {
-              await createReminders(finalUserId, newId, serializedAppointment as any, serializableSettings);
+              await createReminders(finalUserId, newId, serializableAppointment, serializableSettings);
             } else {
-              await updateReminders(finalUserId, newId, serializedAppointment as any, serializableSettings);
+              await updateReminders(finalUserId, newId, serializableAppointment, serializableSettings);
             }
           } catch (error) {
             // Silencioso
@@ -387,6 +426,15 @@ export default function AgendamentosPage() {
         const wasCompleted = selectedAppointment?.status !== 'Finalizado' && data.status === 'Finalizado';
         const isNewAndFinalized = !isEditing && data.status === 'Finalizado';
 
+        // 🔍 DEBUG: Log de feedback
+        console.log('🔍 Verificando envio de feedback:');
+        console.log('  - wasCompleted:', wasCompleted);
+        console.log('  - isNewAndFinalized:', isNewAndFinalized);
+        console.log('  - whatsappConectado:', businessSettings?.whatsappConectado);
+        console.log('  - habilitarFeedback:', businessSettings?.habilitarFeedback);
+        console.log('  - feedbackLink:', businessSettings?.feedbackLink);
+        console.log('  - Vai enviar feedback?', (wasCompleted || isNewAndFinalized) && businessSettings?.whatsappConectado && businessSettings?.habilitarFeedback && businessSettings?.feedbackLink);
+
         // Solicitar confirmação antes de enviar feedback se finalizado
         if (
           (wasCompleted || isNewAndFinalized) &&
@@ -394,9 +442,12 @@ export default function AgendamentosPage() {
           businessSettings?.habilitarFeedback &&
           businessSettings?.feedbackLink
         ) {
+          console.log('✅ Abrindo modal de confirmação de feedback...');
           const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
           setPendingFeedbackPayload({ settings: serializableSettings, appointment: finalData });
           setIsFeedbackConfirmOpen(true);
+        } else {
+          console.log('❌ Feedback NÃO será enviado. Verifique as condições acima.');
         }
         
         // Send creation hooks only if it's a NEW appointment (not editing)
@@ -482,13 +533,29 @@ export default function AgendamentosPage() {
   };
 
   const handleConfirmFeedbackSend = async () => {
-    if (!pendingFeedbackPayload) return;
+    if (!pendingFeedbackPayload) {
+      console.error('❌ Nenhum payload pendente para envio de feedback!');
+      return;
+    }
+    
+    console.log('📤 Iniciando envio de feedback...');
+    console.log('  - Payload:', pendingFeedbackPayload);
+    
     setIsSubmitting(true);
     try {
+      console.log('📲 Chamando sendCompletionHooks...');
       await sendCompletionHooks(pendingFeedbackPayload.settings, pendingFeedbackPayload.appointment);
-      toast({ title: "Feedback enviado" });
-    } catch (error) {
-      // Silencioso: erros são logados no servidor
+      console.log('✅ Feedback enviado com sucesso!');
+      toast({ title: "✅ Feedback Enviado", description: "Cliente receberá a mensagem em breve." });
+    } catch (error: any) {
+      console.error('❌ Erro ao enviar feedback:', error);
+      console.error('  - Mensagem:', error?.message);
+      console.error('  - Stack:', error?.stack);
+      toast({ 
+        variant: "destructive",
+        title: "Erro ao Enviar Feedback", 
+        description: error?.message || "Verifique as configurações de WhatsApp." 
+      });
     } finally {
       setIsFeedbackConfirmOpen(false); // Vai limpar via handleFeedbackModalChange
       setIsSubmitting(false);
@@ -566,33 +633,44 @@ const handleClientConfirmModalChange = (open: boolean) => {
 };
 
 const handleSendClientConfirmation = async () => {
-    if (!pendingClientConfirm) return;
-    
-    try {
-        await sendClientConfirmation(
-            pendingClientConfirm.settings,
-            pendingClientConfirm.appointment
-        );
-        
-        toast({
-            title: '✅ Confirmação Enviada',
-            description: 'Cliente recebeu a confirmação do agendamento por WhatsApp.',
-        });
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: '❌ Erro ao Enviar',
-            description: error.message || 'Não foi possível enviar a confirmação.',
-        });
-    } finally {
-        // Fechar modal (que vai limpar o estado via handleClientConfirmModalChange)
-        setIsClientConfirmOpen(false);
-    }
+  if (!pendingClientConfirm) {
+    console.error('❌ Nenhum payload pendente para confirmação!');
+    return;
+  }
+
+  console.log('📤 Iniciando envio de confirmação...');
+  console.log('  - Payload:', pendingClientConfirm);
+
+  try {
+    console.log('📲 Chamando sendClientConfirmation...');
+    await sendClientConfirmation(
+      pendingClientConfirm.settings,
+      pendingClientConfirm.appointment
+    );
+
+    console.log('✅ Confirmação enviada com sucesso!');
+    toast({
+      title: '✅ Confirmação Enviada',
+      description: 'Cliente recebeu a confirmação do agendamento por WhatsApp.',
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao enviar confirmação:', error);
+    console.error('  - Mensagem:', error?.message);
+    console.error('  - Stack:', error?.stack);
+    toast({
+      variant: 'destructive',
+      title: '❌ Erro ao Enviar',
+      description: error?.message || 'Não foi possível enviar a confirmação.',
+    });
+  } finally {
+    // Fechar modal (que vai limpar o estado via handleClientConfirmModalChange)
+    setIsClientConfirmOpen(false);
+  }
 };
 
 const handleDeleteRequest = (appointment: Agendamento) => {
-    setAppointmentToDelete(appointment);
-    setIsAlertDialogOpen(true);
+  setAppointmentToDelete(appointment);
+  setIsAlertDialogOpen(true);
 };
 
 const safeToISOString = (date: any) => {
@@ -833,7 +911,7 @@ return (
             if (!open) setSelectedAppointment(null);
             setIsFormModalOpen(open);
         }}>
-            <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
+            <DialogContent className="max-w-[95vw] sm:max-w-xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{selectedAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
                     <DialogDescription>
@@ -868,24 +946,13 @@ return (
                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                     <AlertDialogDescription asChild>
                         <div className="space-y-3">
-                            <p className="break-words">
+                            <p className="break-words text-sm sm:text-base">
                                 Essa ação não pode ser desfeita. Isso excluirá permanentemente o agendamento do cliente:
                             </p>
-                            <div className="min-w-0 flex-1">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <p className="font-bold truncate cursor-help break-words">
-                                                {appointmentToDelete?.cliente.name}
-                                            </p>
-                                        </TooltipTrigger>
-                                        {appointmentToDelete && appointmentToDelete.cliente.name.length > 25 && (
-                                            <TooltipContent side="bottom">
-                                                <p>{appointmentToDelete.cliente.name}</p>
-                                            </TooltipContent>
-                                        )}
-                                    </Tooltip>
-                                </TooltipProvider>
+                            <div className="min-w-0 w-full">
+                                <p className="font-bold break-all text-sm sm:text-base" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                                    {appointmentToDelete?.cliente?.name || 'Cliente'}
+                                </p>
                             </div>
                         </div>
                     </AlertDialogDescription>
@@ -914,16 +981,16 @@ return (
 
         {/* Alert Dialog for Feedback Confirmation */}
         <AlertDialog open={isFeedbackConfirmOpen} onOpenChange={handleFeedbackModalChange}>
-            <AlertDialogContent>
+            <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Enviar feedback ao cliente?</AlertDialogTitle>
-                    <AlertDialogDescription>
+                    <AlertDialogTitle className="text-base sm:text-lg">Enviar feedback ao cliente?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-sm sm:text-base">
                         O agendamento foi marcado como Finalizado. Deseja enviar a solicitação de feedback para o cliente agora?
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={handleSkipFeedbackSend}>Não enviar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleConfirmFeedbackSend} disabled={isSubmitting}>
+                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                    <AlertDialogCancel onClick={handleSkipFeedbackSend} className="w-full sm:w-auto">Não enviar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmFeedbackSend} disabled={isSubmitting} className="w-full sm:w-auto">
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Enviar agora
                     </AlertDialogAction>
@@ -933,7 +1000,7 @@ return (
 
         {/* Dialog for Managing Blocked Dates */}
         <Dialog open={isBlockDateDialogOpen} onOpenChange={setIsBlockDateDialogOpen}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="max-w-[95vw] sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Gerenciar Bloqueios de Agenda</DialogTitle>
                     <DialogDescription>
@@ -949,9 +1016,9 @@ return (
                                     const isPast = new Date(d.endDate) < new Date();
                                     return (
                                         <div key={d.id} className={`flex items-center justify-between text-sm p-3 rounded-md border ${isPast ? 'opacity-60 bg-muted/30' : ''}`}>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium">{d.reason || 'Sem motivo informado'}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-medium break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{d.reason || 'Sem motivo informado'}</span>
                                                     <span className={`text-xs px-2 py-0.5 rounded-full ${isPast ? 'bg-gray-100 text-gray-600 dark:bg-gray-800' : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'}`}>
                                                         {isPast ? 'Histórico' : 'Futuro'}
                                                     </span>
@@ -994,7 +1061,7 @@ return (
             if (!open) setSelectedBlock(null);
             setIsNewBlockEntryDialogOpen(open);
           }}>
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                 <DialogTitle>{selectedBlock ? 'Editar Bloqueio' : 'Criar Novo Bloqueio'}</DialogTitle>
                 <DialogDescription>

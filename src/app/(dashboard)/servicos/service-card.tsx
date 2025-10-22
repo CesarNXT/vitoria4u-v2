@@ -34,18 +34,18 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
   const formattedDuration = `${duration} min`;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 rounded-md">
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+          <Avatar className="h-10 w-10 rounded-md flex-shrink-0">
             <AvatarImage src={imageUrl || undefined} alt={serviceName} className="object-cover" />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <div>
-            <p className="font-semibold">{serviceName}</p>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold line-clamp-2 break-all" title={serviceName} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{serviceName}</p>
           </div>
         </div>
-         <Badge variant={statusVariantMap[status]} className={status === 'Ativo' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/20 dark:text-green-400' : ''}>{statusTraducao[status]}</Badge>
+         <Badge variant={statusVariantMap[status]} className={status === 'Ativo' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/20 dark:text-green-400 flex-shrink-0' : 'flex-shrink-0'}>{statusTraducao[status]}</Badge>
       </CardHeader>
       <CardContent className="space-y-2 text-sm pb-4">
         <div className="flex items-center gap-2 text-muted-foreground">
@@ -63,12 +63,12 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end gap-2 pb-4 px-4">
-        <Button variant="outline" size="sm" onClick={() => onEdit(service)}>
+      <CardFooter className="flex flex-wrap justify-end gap-2 pb-4 px-4">
+        <Button variant="outline" size="sm" onClick={() => onEdit(service)} className="flex-shrink-0">
           <Pencil className="h-4 w-4 mr-2" />
           Editar
         </Button>
-        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(service)}>
+        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50 flex-shrink-0" onClick={() => onDelete(service)}>
           <Trash2 className="h-4 w-4 mr-2" />
           Excluir
         </Button>

@@ -11,6 +11,7 @@ if (!admin.apps.length) {
   try {
     console.log('[Firebase Admin] Inicializando...');
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     
     if (serviceAccountKey) {
       console.log('[Firebase Admin] Usando credenciais de service account');
@@ -18,17 +19,26 @@ if (!admin.apps.length) {
         const serviceAccount = JSON.parse(serviceAccountKey);
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
+          storageBucket: `${serviceAccount.project_id}.appspot.com`,
         });
         console.log('[Firebase Admin] ✅ Inicializado com sucesso usando service account');
+        console.log('[Firebase Admin] Storage bucket:', `${serviceAccount.project_id}.appspot.com`);
       } catch (parseError) {
         console.error('[Firebase Admin] ❌ Erro ao parsear service account key:', parseError);
         throw parseError;
       }
-    } else {
-      // Tenta ADC (Firebase App Hosting / GCP)
+    } else if (projectId) {
+      // Tenta ADC com projectId do env
       console.log('[Firebase Admin] Tentando usar Application Default Credentials (ADC)');
-      admin.initializeApp();
+      admin.initializeApp({
+        storageBucket: `${projectId}.appspot.com`,
+      });
       console.log('[Firebase Admin] ✅ Inicializado com sucesso usando ADC');
+      console.log('[Firebase Admin] Storage bucket:', `${projectId}.appspot.com`);
+    } else {
+      // Último recurso - sem bucket configurado
+      console.warn('[Firebase Admin] ⚠️ Inicializando sem storage bucket configurado');
+      admin.initializeApp();
     }
   } catch (error) {
     initializationError = error instanceof Error ? error : new Error(String(error));
@@ -36,6 +46,7 @@ if (!admin.apps.length) {
       error: initializationError.message,
       stack: initializationError.stack,
       hasServiceAccountKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+      hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       nodeEnv: process.env.NODE_ENV
     });
   }

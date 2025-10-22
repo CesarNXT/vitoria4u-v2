@@ -9,26 +9,44 @@ import { adminAuth, adminStorage } from '@/lib/firebase-admin';
  * 3. Firebase Storage (fallback 2 - sempre funciona)
  */
 
+/**
+ * Wrapper para adicionar timeout em operações assíncronas
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  const timeout = new Promise<T>((_, reject) =>
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+  );
+  return Promise.race([promise, timeout]);
+}
+
 // Tentar upload no Catbox.moe
 async function uploadToCatbox(formData: FormData): Promise<string | null> {
   try {
     console.log('📤 [UPLOAD] Tentando Catbox.moe...');
-    const response = await fetch('https://catbox.moe/user/api.php', {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await withTimeout(
+      fetch('https://catbox.moe/user/api.php', {
+        method: 'POST',
+        body: formData,
+      }),
+      15000, // 15 segundos timeout
+      'Timeout ao fazer upload no Catbox'
+    );
 
     const responseText = await response.text();
 
     if (response.ok && responseText.startsWith('http')) {
-      console.log('✅ [UPLOAD] Sucesso no Catbox.moe');
+      console.log('✅ [UPLOAD] Sucesso no Catbox.moe:', responseText);
       return responseText;
     }
     
     console.warn('⚠️ [UPLOAD] Catbox falhou:', responseText);
     return null;
   } catch (error) {
-    console.error('❌ [UPLOAD] Erro no Catbox:', error);
+    console.error('❌ [UPLOAD] Erro no Catbox:', error instanceof Error ? error.message : error);
     return null;
   }
 }
@@ -48,78 +66,137 @@ async function uploadToImgBB(file: File): Promise<string | null> {
     const formData = new FormData();
     formData.append('image', file);
     
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await withTimeout(
+      fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: 'POST',
+        body: formData,
+      }),
+      15000, // 15 segundos timeout
+      'Timeout ao fazer upload no ImgBB'
+    );
 
     const data = await response.json();
 
     if (data.success && data.data?.url) {
-      console.log('✅ [UPLOAD] Sucesso no ImgBB');
+      console.log('✅ [UPLOAD] Sucesso no ImgBB:', data.data.url);
       return data.data.url;
     }
     
     console.warn('⚠️ [UPLOAD] ImgBB falhou:', data);
     return null;
   } catch (error) {
-    console.error('❌ [UPLOAD] Erro no ImgBB:', error);
+    console.error('❌ [UPLOAD] Erro no ImgBB:', error instanceof Error ? error.message : error);
     return null;
   }
 }
 
 // Upload no Firebase Storage (sempre funciona)
 async function uploadToFirebase(file: File, userId: string): Promise<string> {
+  const startTime = Date.now();
   console.log('📤 [UPLOAD] Usando Firebase Storage...');
+  console.log('[UPLOAD] Arquivo:', file.name, 'Tamanho:', (file.size / 1024).toFixed(2), 'KB');
   
-  const bucket = adminStorage.bucket();
-  const fileName = `uploads/${userId}/${Date.now()}-${file.name}`;
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
-  
-  const firebaseFile = bucket.file(fileName);
-  
-  await firebaseFile.save(fileBuffer, {
-    metadata: {
-      contentType: file.type,
-    },
-  });
-  
-  await firebaseFile.makePublic();
-  
-  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-  console.log('✅ [UPLOAD] Sucesso no Firebase Storage');
-  
-  return publicUrl;
+  try {
+    const bucket = adminStorage.bucket();
+    console.log('[UPLOAD] Bucket:', bucket.name);
+    
+    const fileName = `uploads/${userId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    
+    const firebaseFile = bucket.file(fileName);
+    
+    // Upload com timeout de 30 segundos
+    await withTimeout(
+      firebaseFile.save(fileBuffer, {
+        metadata: {
+          contentType: file.type,
+          metadata: {
+            uploadedBy: userId,
+            uploadedAt: new Date().toISOString(),
+          }
+        },
+      }),
+      30000,
+      'Timeout ao salvar arquivo no Firebase Storage'
+    );
+    
+    console.log('[UPLOAD] Arquivo salvo, tornando público...');
+    
+    // Tornar público com timeout de 10 segundos
+    await withTimeout(
+      firebaseFile.makePublic(),
+      10000,
+      'Timeout ao tornar arquivo público'
+    );
+    
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+    const duration = Date.now() - startTime;
+    console.log(`✅ [UPLOAD] Sucesso no Firebase Storage (${duration}ms):`, publicUrl);
+    
+    return publicUrl;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`❌ [UPLOAD] Erro no Firebase Storage após ${duration}ms:`, {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      fileName: file.name,
+      fileSize: file.size,
+      userId
+    });
+    throw error;
+  }
 }
 
 export async function POST(req: NextRequest) {
+    const requestStartTime = Date.now();
+    console.log('\n🚀 [UPLOAD] Nova requisição de upload recebida');
+    
     try {
         const authToken = req.headers.get('Authorization')?.split('Bearer ')[1];
         if (!authToken) {
+            console.error('[UPLOAD] ❌ Token de autorização não fornecido');
             return new NextResponse('Unauthorized: No token provided', { status: 401 });
         }
         
         // 🔒 SEGURANÇA: Validar token com Firebase Admin SDK
         let userId: string;
         try {
-            const decodedToken = await adminAuth.verifyIdToken(authToken);
+            console.log('[UPLOAD] Verificando token de autenticação...');
+            const decodedToken = await withTimeout(
+                adminAuth.verifyIdToken(authToken),
+                10000,
+                'Timeout ao verificar token'
+            );
             userId = decodedToken.uid;
-            console.log(`✅ Upload autorizado para usuário: ${userId}`);
+            console.log(`✅ [UPLOAD] Upload autorizado para usuário: ${userId}`);
         } catch (error) {
-            console.error('❌ Token inválido:', error);
+            console.error('❌ [UPLOAD] Token inválido:', error);
             return new NextResponse('Unauthorized: Invalid token', { status: 401 });
         }
         
+        console.log('[UPLOAD] Processando FormData...');
         const formData = await req.formData();
         
         // Extrair arquivo do FormData
         const fileField = formData.get('fileToUpload') || formData.get('file');
         
         if (!fileField || !(fileField instanceof File)) {
+            console.error('[UPLOAD] ❌ Nenhum arquivo encontrado no FormData');
             return new NextResponse('Nenhum arquivo enviado', { status: 400 });
         }
         
         const file = fileField as File;
+        console.log('[UPLOAD] Arquivo recebido:', {
+            name: file.name,
+            size: `${(file.size / 1024).toFixed(2)} KB`,
+            type: file.type
+        });
+        
+        // Validação de tamanho (200MB máximo)
+        if (file.size > 200 * 1024 * 1024) {
+            console.error('[UPLOAD] ❌ Arquivo muito grande:', file.size);
+            return new NextResponse('Arquivo muito grande. Máximo: 200MB', { status: 400 });
+        }
         
         // 🎯 ESTRATÉGIA: Tentar múltiplos serviços com fallback
         let uploadUrl: string | null = null;
@@ -141,10 +218,24 @@ export async function POST(req: NextRequest) {
             throw new Error('Falha em todos os serviços de upload');
         }
 
-        return new NextResponse(uploadUrl, { status: 200 });
+        const totalDuration = Date.now() - requestStartTime;
+        console.log(`\n✅ [UPLOAD] SUCESSO TOTAL em ${totalDuration}ms`);
+        console.log('[UPLOAD] URL final:', uploadUrl);
+        
+        return new NextResponse(uploadUrl, { 
+            status: 200,
+            headers: {
+                'Content-Type': 'text/plain',
+            }
+        });
 
     } catch (error) {
-        console.error('❌ [UPLOAD] Erro geral:', error);
+        const totalDuration = Date.now() - requestStartTime;
+        console.error(`\n❌ [UPLOAD] ERRO GERAL após ${totalDuration}ms:`, {
+            error: error instanceof Error ? error.message : error,
+            stack: error instanceof Error ? error.stack : undefined
+        });
+        
         if (error instanceof Error) {
             return new NextResponse(`Erro ao fazer upload: ${error.message}`, { status: 500 });
         }

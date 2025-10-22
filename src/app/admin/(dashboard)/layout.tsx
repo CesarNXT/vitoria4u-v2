@@ -29,7 +29,7 @@ import { useAdminSync } from '@/hooks/use-admin-sync';
 
 // Layout específico para o painel do Super Admin
 function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
-  const { user, isUserLoading } = useFirebase();
+  const { user, isUserLoading, firestore } = useFirebase();
   const router = useRouter();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
@@ -39,6 +39,24 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   
   // 🔥 Sincronizar documento admin automaticamente
   useAdminSync();
+  
+  // 🔄 AUTO-SYNC: Sincroniza planos quando admin faz login
+  useEffect(() => {
+    async function syncPlans() {
+      if (!user || !firestore) return;
+      
+      const { syncPlansToFirestore, shouldSyncPlans, markPlansSynced } = await import('@/lib/sync-plans');
+      
+      if (shouldSyncPlans()) {
+        console.log('👤 Admin no painel - sincronizando planos...');
+        await syncPlansToFirestore(firestore);
+        markPlansSynced();
+        console.log('✅ Planos atualizados automaticamente!');
+      }
+    }
+    
+    syncPlans();
+  }, [user, firestore]);
 
   useEffect(() => {
     setMounted(true);

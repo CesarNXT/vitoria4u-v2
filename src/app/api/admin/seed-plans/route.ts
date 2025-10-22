@@ -6,12 +6,21 @@ import { isServerAdmin } from '@/lib/server-admin-utils';
 // Define a estrutura dos planos a serem criados
 const plansToCreate: Omit<Plano, 'id'>[] = [
   {
+    name: 'Gratuito',
+    description: 'Funcionalidades básicas gratuitas para sempre.',
+    price: 0,
+    durationInDays: 0,
+    status: 'Ativo',
+    features: ['notificacao_gestor_agendamento'],
+    isFeatured: false,
+  },
+  {
     name: 'Básico',
     description: 'Funcionalidades essenciais para o seu negócio.',
     price: 89.90,
     durationInDays: 30,
     status: 'Ativo',
-    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'notificacao_gestor_agendamento'],
+    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'solicitacao_feedback', 'notificacao_gestor_agendamento'],
     isFeatured: false,
   },
   {
@@ -20,7 +29,7 @@ const plansToCreate: Omit<Plano, 'id'>[] = [
     price: 149.90,
     durationInDays: 30,
     status: 'Ativo',
-    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'lembrete_profissional', 'disparo_de_mensagens', 'notificacao_gestor_agendamento'],
+    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'solicitacao_feedback', 'lembrete_profissional', 'disparo_de_mensagens', 'notificacao_gestor_agendamento'],
     isFeatured: true,
   },
   {
@@ -29,16 +38,7 @@ const plansToCreate: Omit<Plano, 'id'>[] = [
     price: 179.90,
     durationInDays: 30,
     status: 'Ativo',
-    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'lembrete_aniversario', 'lembrete_profissional', 'disparo_de_mensagens', 'retorno_manutencao', 'notificacao_gestor_agendamento', 'atendimento_whatsapp_ia', 'notificacao_cliente_agendamento', 'escalonamento_humano'],
-    isFeatured: false,
-  },
-  {
-    name: 'Plano Expirado',
-    description: 'Funcionalidades disponíveis para contas com assinatura expirada.',
-    price: 0,
-    durationInDays: 0,
-    status: 'Ativo',
-    features: ['notificacao_gestor_agendamento'],
+    features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'solicitacao_feedback', 'lembrete_aniversario', 'lembrete_profissional', 'disparo_de_mensagens', 'retorno_manutencao', 'notificacao_gestor_agendamento', 'atendimento_whatsapp_ia', 'notificacao_cliente_agendamento', 'escalonamento_humano'],
     isFeatured: false,
   },
 ];
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     const batch = adminDb.batch();
 
     // Define IDs fixos para os planos
-    const planIds = ['plano_basico', 'plano_profissional', 'plano_premium', 'plano_expirado'];
+    const planIds = ['plano_gratis', 'plano_basico', 'plano_profissional', 'plano_premium'];
 
     plansToCreate.forEach((plan, index) => {
       const planId = planIds[index];

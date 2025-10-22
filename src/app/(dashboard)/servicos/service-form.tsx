@@ -477,9 +477,10 @@ export function ServiceForm({ service, professionals, planosSaudeDisponiveis = [
                             <Input 
                                 type="text"
                                 inputMode="numeric"
+                                maxLength={3}
                                 {...field} 
                                 onChange={e => {
-                                    const value = e.target.value.replace(/\D/g, '');
+                                    const value = e.target.value.replace(/\D/g, '').slice(0, 3);
                                     field.onChange(value);
                                 }}
                                 value={field.value || ''}

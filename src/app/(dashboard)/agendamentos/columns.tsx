@@ -21,7 +21,8 @@ import { Money } from "@/core/value-objects/money"
 // ✅ Props tipadas e limpas
 type ColumnsProps = {
   onEdit: (appointment: Agendamento) => void;
-  onDelete: (appointmentId: string) => void;
+  onDelete: (appointment: Agendamento) => void;
+  onFinalize?: (appointment: Agendamento) => void;
   formatDate?: (date: any) => string;
   formatTime?: (time: string) => string;
   formatPhone?: (phone: any) => string;
@@ -43,7 +44,8 @@ const statusTraducao: { [key in Agendamento['status']]: string } = {
 // ✅ Função refatorada para usar formatadores padronizados
 export const getColumns = ({ 
   onEdit, 
-  onDelete, 
+  onDelete,
+  onFinalize,
   formatDate = (date: any) => {
     try {
       return DateTime.fromFirestoreData(date).formatDate()
@@ -74,13 +76,13 @@ export const getColumns = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium truncate cursor-help">{clientName}</span>
+                  <span className="font-medium line-clamp-1 break-all cursor-help" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', maxWidth: '200px' }}>{clientName}</span>
                   <span className="text-xs text-muted-foreground">{Phone.format(cliente.phone)}</span>
                 </div>
               </TooltipTrigger>
               {clientName.length > 25 && (
                 <TooltipContent>
-                  <p>{clientName}</p>
+                  <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{clientName}</p>
                 </TooltipContent>
               )}
             </Tooltip>
@@ -100,11 +102,11 @@ export const getColumns = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate block cursor-help max-w-[200px]">{serviceName}</span>
+              <span className="line-clamp-1 break-all block cursor-help max-w-[200px]" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{serviceName}</span>
             </TooltipTrigger>
             {serviceName.length > 30 && (
               <TooltipContent>
-                <p>{serviceName}</p>
+                <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{serviceName}</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -123,11 +125,11 @@ export const getColumns = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate block cursor-help max-w-[180px]">{professionalName}</span>
+              <span className="line-clamp-1 break-all block cursor-help max-w-[180px]" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{professionalName}</span>
             </TooltipTrigger>
             {professionalName.length > 25 && (
               <TooltipContent>
-                <p>{professionalName}</p>
+                <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{professionalName}</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -181,7 +183,7 @@ export const getColumns = ({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(appointment.id)}>
+                  <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(appointment)}>
                       <Trash2 className="h-4 w-4" />
                       <span className="sr-only">Excluir</span>
                   </Button>
@@ -190,14 +192,14 @@ export const getColumns = ({
                   <p>Excluir</p>
                 </TooltipContent>
               </Tooltip>
-              {isAgendado && (
+              {isAgendado && onFinalize && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button 
                       variant="outline" 
                       size="icon" 
                       className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-600/30"
-                      onClick={() => console.log('Finalizar:', appointment.id)}
+                      onClick={() => onFinalize(appointment)}
                     >
                         <CheckCircle className="h-4 w-4" />
                         <span className="sr-only">Finalizar</span>

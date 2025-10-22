@@ -44,7 +44,7 @@ export default function VendasPage() {
 
   const whatsappNumber = "553197922538";
   const whatsappMessage = "Quero testar a IA grátis por 3 dias!";
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(whatsappMessage)}`;
 
   return (
     <div className="min-h-screen bg-background">

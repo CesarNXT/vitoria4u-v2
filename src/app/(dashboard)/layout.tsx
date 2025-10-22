@@ -94,6 +94,18 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       const adminStatus = await isAdminUser(user);
       setIsAdmin(adminStatus);
       
+      // 🔄 AUTO-SYNC: Se for admin, sincroniza planos automaticamente
+      if (adminStatus && firestore) {
+        const { syncPlansToFirestore, shouldSyncPlans, markPlansSynced } = await import('@/lib/sync-plans');
+        
+        if (shouldSyncPlans()) {
+          console.log('👤 Admin detectado - sincronizando planos...');
+          await syncPlansToFirestore(firestore);
+          markPlansSynced();
+          console.log('✅ Planos sincronizados!');
+        }
+      }
+      
       // 🚫 BLOQUEIO: Admins não podem acessar painel de negócios
       // Apenas usuários comuns têm acesso
       if (adminStatus && !impersonatedId) {
@@ -102,7 +114,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     }
     
     checkAdmin();
-  }, [user, impersonatedId, router]);
+  }, [user, impersonatedId, router, firestore]);
   
   const businessSettingsRef = useMemoFirebase(
     () => (businessUserId && firestore ? doc(firestore, `negocios/${businessUserId}`) : null),

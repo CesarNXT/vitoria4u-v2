@@ -163,7 +163,7 @@ export class Client {
 
   getWhatsAppUrl(): string {
     const message = encodeURIComponent(`Olá ${this.name}! Como posso ajudá-lo?`);
-    return `https://wa.me/${this.phone.formatForWhatsApp()}?text=${message}`;
+    return `https://api.whatsapp.com/send?phone=${this.phone.formatForWhatsApp()}&text=${message}`;
   }
 
   // ✅ State Transition Methods

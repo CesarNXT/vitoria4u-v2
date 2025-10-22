@@ -51,7 +51,7 @@ export default function LandingPage() {
 
   const whatsappNumber = "5531997922538"; // ✅ Formato: 55 + DDD + 9 dígitos
   const whatsappMessage = "Olá! Tenho interesse em conhecer mais sobre a IA e o sistema da Vitoria4u.";
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(whatsappMessage)}`;
 
   return (
     <div className="flex flex-col min-h-screen">

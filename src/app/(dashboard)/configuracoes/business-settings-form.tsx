@@ -111,6 +111,9 @@ const businessSettingsSchema = z.object({
   habilitarLembrete24h: z.boolean().optional(),
   habilitarLembrete2h: z.boolean().optional(),
   habilitarAniversario: z.boolean().optional(),
+  habilitarFeedback: z.boolean().optional(),
+  feedbackPlatform: z.enum(['google', 'instagram']).optional(),
+  feedbackLink: z.string().optional(),
   habilitarEscalonamento: z.boolean().optional(),
   numeroEscalonamento: z.string().optional(),
   nomeIa: z.string().optional(),
@@ -189,6 +192,13 @@ export default function BusinessSettingsForm({
   const { hasFeature } = usePlanFeatures(settings, userPlan);
   const phoneInput = usePhoneInput('BR');
   
+  // 🔍 DEBUG: Log para descobrir por que não aparece
+  console.log('=== DEBUG FEEDBACK ===');
+  console.log('settings:', settings);
+  console.log('userPlan:', userPlan);
+  console.log('hasFeature("solicitacao_feedback"):', hasFeature('solicitacao_feedback'));
+  console.log('isSetupMode:', isSetupMode);
+  
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -223,6 +233,9 @@ export default function BusinessSettingsForm({
       habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
       habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
       habilitarAniversario: settings?.habilitarAniversario ?? false,
+      habilitarFeedback: settings?.habilitarFeedback ?? false,
+      feedbackPlatform: settings?.feedbackPlatform || 'google',
+      feedbackLink: settings?.feedbackLink || '',
       notificarClienteAgendamento: settings?.notificarClienteAgendamento ?? false,
       notificarGestorAgendamento: settings?.notificarGestorAgendamento ?? true,
       habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
@@ -273,7 +286,7 @@ export default function BusinessSettingsForm({
 
     const clinicSetupStep = { title: "Planos de Saúde", fields: ["planosSaudeAceitos"] };
     
-    const notificationsStep = { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarEscalonamento", "numeroEscalonamento"] };
+    const notificationsStep = { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] };
 
     // Se for clínica, adiciona passo de planos de saúde antes das notificações
     return isClinica 
@@ -1244,6 +1257,77 @@ export default function BusinessSettingsForm({
                             </FormItem>
                           )}
                         />
+                      )}
+                      
+                      {/* Solicitação de Feedback - Só aparece se plano tiver */}
+                      {hasFeature('solicitacao_feedback') && (
+                        <div className="space-y-4 rounded-lg border p-4">
+                          <FormField
+                            control={control}
+                            name="habilitarFeedback"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-0.5 flex-1">
+                                  <FormLabel className="text-base">⭐ Solicitação de Feedback</FormLabel>
+                                  <p className="text-sm text-muted-foreground">
+                                    <strong>Como funciona:</strong> Após o serviço ser finalizado, envia mensagem solicitando avaliação.<br/>
+                                    <strong>Para que serve:</strong> Melhora sua reputação online coletando avaliações positivas.
+                                  </p>
+                                </div>
+                                <FormControl>
+                                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          {watch('habilitarFeedback') && (
+                            <>
+                              <FormField
+                                control={control}
+                                name="feedbackPlatform"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Plataforma de Avaliação *</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Selecione" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="google">Google (Recomendado)</SelectItem>
+                                        <SelectItem value="instagram">Instagram</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={control}
+                                name="feedbackLink"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Link para Avaliação *</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder={watch('feedbackPlatform') === 'google' ? 'https://g.page/r/...' : 'https://instagram.com/...'}
+                                        {...field}
+                                        value={field.value || ''}
+                                      />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground">
+                                      {watch('feedbackPlatform') === 'google' 
+                                        ? '💡 Cole o link da sua página do Google Meu Negócio'
+                                        : '💡 Cole o link do seu perfil do Instagram'}
+                                    </p>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </>
+                          )}
+                        </div>
                       )}
                       
                       {/* Escalonamento Humano - Só aparece se plano tiver */}

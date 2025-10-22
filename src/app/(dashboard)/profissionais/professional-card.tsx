@@ -38,7 +38,7 @@ interface ProfessionalCardProps {
   onDelete: (professional: Profissional) => void;
 }
 
-export function ProfessionalCard({ professional, onEdit, onDelete }: ProfessionalCardProps) {
+export const ProfessionalCard = ({ professional, onEdit, onDelete }: ProfessionalCardProps) => {
   const profName = String(professional.name || 'Profissional');
   const initials = profName.charAt(0).toUpperCase();
   
@@ -48,23 +48,24 @@ export function ProfessionalCard({ professional, onEdit, onDelete }: Professiona
     const phoneWithCountryCode = cleanPhone.length === 13 ? cleanPhone : 
                                  cleanPhone.length === 11 ? `55${cleanPhone}` :
                                  cleanPhone;
-    window.open(`https://wa.me/${phoneWithCountryCode}`, '_blank');
+    const message = encodeURIComponent(`Olá! Como posso ajudar?`);
+    window.open(`https://api.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${message}`, '_blank');
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex items-center gap-3">
-          <Avatar>
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+          <Avatar className="flex-shrink-0">
             <AvatarImage src={professional.avatarUrl || undefined} alt={profName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <div>
-            <p className="font-semibold">{profName}</p>
-            <p className="text-sm text-muted-foreground">{formatPhoneNumber(String(professional.phone))}</p>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold line-clamp-2 break-all" title={profName} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{profName}</p>
+            <p className="text-sm text-muted-foreground truncate">{formatPhoneNumber(String(professional.phone))}</p>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <Badge variant={statusVariantMap[professional.status]} className={professional.status === 'Ativo' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/20 dark:text-green-400' : ''}>{statusTraducao[professional.status]}</Badge>
           {(professional.notificarAgendamentos ?? true) ? (
             <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
@@ -79,7 +80,7 @@ export function ProfessionalCard({ professional, onEdit, onDelete }: Professiona
           )}
         </div>
       </CardHeader>
-      <CardFooter className="flex justify-end gap-2 pb-4 px-4">
+      <CardFooter className="flex flex-wrap justify-end gap-2 pb-4 px-4">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -87,7 +88,7 @@ export function ProfessionalCard({ professional, onEdit, onDelete }: Professiona
                 variant="outline" 
                 size="icon" 
                 onClick={handleWhatsAppClick}
-                className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950 border-green-600/30"
+                className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950 border-green-600/30 flex-shrink-0"
               >
                 <WhatsAppIcon className="h-4 w-4" />
                 <span className="sr-only">WhatsApp</span>
@@ -98,11 +99,11 @@ export function ProfessionalCard({ professional, onEdit, onDelete }: Professiona
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <Button variant="outline" size="sm" onClick={() => onEdit(professional)}>
+        <Button variant="outline" size="sm" onClick={() => onEdit(professional)} className="flex-shrink-0">
           <Pencil className="h-4 w-4 mr-2" />
           Editar
         </Button>
-        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => onDelete(professional)}>
+        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50 flex-shrink-0" onClick={() => onDelete(professional)}>
           <Trash2 className="h-4 w-4 mr-2" />
           Excluir
         </Button>
@@ -110,5 +111,7 @@ export function ProfessionalCard({ professional, onEdit, onDelete }: Professiona
     </Card>
   )
 }
+
+ProfessionalCard.displayName = 'ProfessionalCard';
 
     

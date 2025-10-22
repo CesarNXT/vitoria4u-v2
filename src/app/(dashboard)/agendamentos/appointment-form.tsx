@@ -665,25 +665,28 @@ export function AppointmentForm({
       </form>
       
       <AlertDialog open={showConflictDialog} onOpenChange={setShowConflictDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
-              <AlertTriangle className="h-5 w-5" />
+            <AlertDialogTitle className="flex items-center gap-2 text-orange-600 text-base sm:text-lg">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
               Conflito de Horário Detectado!
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-base">
-              {conflictWarning}
-              <br /><br />
-              <strong>Deseja agendar mesmo assim?</strong>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <div className="text-sm sm:text-base break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {conflictWarning}
+                </div>
+                <strong className="block pt-2 text-sm sm:text-base">Deseja agendar mesmo assim?</strong>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingData(null)}>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={() => setPendingData(null)} className="w-full sm:w-auto">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmWithConflict}
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
             >
               Sim, Agendar Mesmo Assim
             </AlertDialogAction>

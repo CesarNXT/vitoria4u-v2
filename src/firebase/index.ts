@@ -5,6 +5,18 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, initializeFirestore, memoryLocalCache } from 'firebase/firestore'
 
+// 🔇 Suprimir avisos de OAuth em desenvolvimento local
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const originalConsoleInfo = console.info;
+  console.info = function(...args) {
+    // Ignorar avisos de OAuth em desenvolvimento local (IP local)
+    if (args[0]?.includes?.('not authorized for OAuth operations')) {
+      return; // Silenciar este aviso específico
+    }
+    originalConsoleInfo.apply(console, args);
+  };
+}
+
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   if (!getApps().length) {

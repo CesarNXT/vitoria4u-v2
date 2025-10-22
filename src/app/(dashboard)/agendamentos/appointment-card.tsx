@@ -44,9 +44,9 @@ export function AppointmentCard({ appointment, onEdit, onDelete, onFinalize }: A
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
           <Avatar className="flex-shrink-0">
             <AvatarImage src={cliente.avatarUrl || undefined} alt={clientName} />
             <AvatarFallback>{initials}</AvatarFallback>
@@ -55,16 +55,16 @@ export function AppointmentCard({ appointment, onEdit, onDelete, onFinalize }: A
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <p className="font-semibold truncate cursor-help">{clientName}</p>
+                  <p className="font-semibold line-clamp-2 break-all cursor-help" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{clientName}</p>
                 </TooltipTrigger>
                 {clientName.length > 25 && (
                   <TooltipContent>
-                    <p>{clientName}</p>
+                    <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{clientName}</p>
                   </TooltipContent>
                 )}
               </Tooltip>
             </TooltipProvider>
-            <p className="text-sm text-muted-foreground">{formatPhoneNumber(String(cliente.phone))}</p>
+            <p className="text-sm text-muted-foreground truncate">{formatPhoneNumber(String(cliente.phone))}</p>
           </div>
         </div>
          <Badge variant={variant} className={`${className} flex-shrink-0`}>{statusTraducao[status]}</Badge>
@@ -75,11 +75,11 @@ export function AppointmentCard({ appointment, onEdit, onDelete, onFinalize }: A
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="truncate cursor-help">{servico.name}</span>
+                  <span className="line-clamp-1 break-all cursor-help" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{servico.name}</span>
                 </TooltipTrigger>
                 {servico.name.length > 30 && (
                   <TooltipContent>
-                    <p>{servico.name}</p>
+                    <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{servico.name}</p>
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -90,11 +90,11 @@ export function AppointmentCard({ appointment, onEdit, onDelete, onFinalize }: A
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="truncate cursor-help">{profissional.name}</span>
+                  <span className="line-clamp-1 break-all cursor-help" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{profissional.name}</span>
                 </TooltipTrigger>
                 {profissional.name.length > 25 && (
                   <TooltipContent>
-                    <p>{profissional.name}</p>
+                    <p className="break-all" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{profissional.name}</p>
                   </TooltipContent>
                 )}
               </Tooltip>

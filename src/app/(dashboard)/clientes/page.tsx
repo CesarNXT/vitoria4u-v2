@@ -47,6 +47,7 @@ import { ClientStatsCards } from './client-stats-cards'
 import { Input } from '@/components/ui/input'
 import { ClientCard } from './client-card'
 import { Timestamp } from 'firebase/firestore'
+import { useDebounce } from '@/hooks/use-debounce'
 
 // Utility function to serialize Firestore Timestamps to plain objects
 function serializeTimestamps<T>(obj: T): T {
@@ -89,6 +90,7 @@ export default function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null)
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null)
   const [filter, setFilter] = useState('')
+  const debouncedFilter = useDebounce(filter, 300) // ⚡ Otimização: Debounce de 300ms
   
   const finalUserId = businessUserId || user?.uid;
 
@@ -262,10 +264,10 @@ export default function ClientsPage() {
     clients.filter(client => {
       const clientName = String(client.name || '').toLowerCase();
       const clientPhone = String(client.phone || '');
-      const searchTerm = filter.toLowerCase();
+      const searchTerm = debouncedFilter.toLowerCase();
       return clientName.includes(searchTerm) || clientPhone.includes(searchTerm);
     }), 
-    [clients, filter]
+    [clients, debouncedFilter] // ⚡ Usa debounced filter
   );
 
   if (isLoading) {
