@@ -286,7 +286,7 @@ export default function BusinessSettingsForm({
 
     const clinicSetupStep = { title: "Planos de Saúde", fields: ["planosSaudeAceitos"] };
     
-    const notificationsStep = { title: "Notificações", fields: ["habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] };
+    const notificationsStep = { title: "Notificações", fields: ["notificarGestorAgendamento", "habilitarLembrete24h", "habilitarLembrete2h", "habilitarAniversario", "notificarClienteAgendamento", "habilitarFeedback", "feedbackPlatform", "feedbackLink", "habilitarEscalonamento", "numeroEscalonamento"] };
 
     // Se for clínica, adiciona passo de planos de saúde antes das notificações
     return isClinica 
@@ -731,6 +731,24 @@ export default function BusinessSettingsForm({
           <div className="space-y-6">
               <FormField
                 control={control}
+                name="notificarGestorAgendamento"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4 bg-blue-50 dark:bg-blue-950">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">🔔 Aviso ao Gestor</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Notifica o gestor sobre novos agendamentos e cancelamentos.<br/>
+                        <strong>Para que serve:</strong> Mantém você informado em tempo real. <strong>Não requer WhatsApp conectado.</strong>
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
                 name="habilitarLembrete24h"
                 render={({ field }) => (
                   <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
@@ -852,6 +870,24 @@ export default function BusinessSettingsForm({
         if (isClinica && isSetupMode && steps[3]?.title === "Notificações") {
           return (
             <div className="space-y-6">
+              <FormField
+                control={control}
+                name="notificarGestorAgendamento"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4 bg-blue-50 dark:bg-blue-950">
+                    <div className="space-y-0.5 flex-1">
+                      <FormLabel className="text-base">🔔 Aviso ao Gestor</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Como funciona:</strong> Notifica o gestor sobre novos agendamentos e cancelamentos.<br/>
+                        <strong>Para que serve:</strong> Mantém você informado em tempo real. <strong>Não requer WhatsApp conectado.</strong>
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={control}
                 name="habilitarLembrete24h"
