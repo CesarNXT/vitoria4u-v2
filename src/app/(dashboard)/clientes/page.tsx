@@ -91,6 +91,8 @@ export default function ClientsPage() {
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null)
   const [filter, setFilter] = useState('')
   const debouncedFilter = useDebounce(filter, 300) // ⚡ Otimização: Debounce de 300ms
+  const [mobileCurrentPage, setMobileCurrentPage] = useState(1)
+  const MOBILE_ITEMS_PER_PAGE = 20 // Limite de itens por página no mobile
   
   const finalUserId = businessUserId || user?.uid;
 
@@ -265,8 +267,10 @@ export default function ClientsPage() {
         
         for (const clientData of chunk) {
           try {
-            const id = `client-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`
-            const clientRef = doc(collection(firestore, `usuarios/${finalUserId}/clientes`), id)
+            // 🔧 FIX: Usar generateUUID() para garantir IDs únicos mesmo em loops rápidos
+            const id = `client-${Date.now()}-${generateUUID().slice(0, 8)}`
+            // 🔧 FIX: Usar o path correto 'negocios' (não 'usuarios')
+            const clientRef = doc(collection(firestore, `negocios/${finalUserId}/clientes`), id)
             
             batch.set(clientRef, {
               name: clientData.name,
@@ -322,6 +326,24 @@ export default function ClientsPage() {
     [clients, debouncedFilter] // ⚡ Usa debounced filter
   );
 
+  // Paginação para mobile
+  const totalMobilePages = Math.ceil(filteredClients.length / MOBILE_ITEMS_PER_PAGE)
+  const paginatedMobileClients = useMemo(() => {
+    const startIndex = (mobileCurrentPage - 1) * MOBILE_ITEMS_PER_PAGE
+    const endIndex = startIndex + MOBILE_ITEMS_PER_PAGE
+    return filteredClients.slice(startIndex, endIndex)
+  }, [filteredClients, mobileCurrentPage])
+
+  // Reset página ao filtrar
+  useEffect(() => {
+    setMobileCurrentPage(1)
+  }, [debouncedFilter])
+
+  // Scroll to top quando mudar de página
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [mobileCurrentPage])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -368,8 +390,8 @@ export default function ClientsPage() {
             />
             <div className="block md:hidden">
               <div className="space-y-4">
-                {filteredClients.length > 0 ? (
-                    filteredClients.map(client => (
+                {paginatedMobileClients.length > 0 ? (
+                    paginatedMobileClients.map(client => (
                         <ClientCard
                             key={client.id}
                             client={client}
@@ -381,6 +403,36 @@ export default function ClientsPage() {
                     <p className="text-center text-muted-foreground py-8">Nenhum cliente encontrado.</p>
                 )}
               </div>
+              
+              {/* Paginação Mobile */}
+              {totalMobilePages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Página {mobileCurrentPage} de {totalMobilePages}
+                    <span className="block sm:inline sm:ml-2">
+                      ({filteredClients.length} cliente{filteredClients.length !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMobileCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={mobileCurrentPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMobileCurrentPage(prev => Math.min(totalMobilePages, prev + 1))}
+                      disabled={mobileCurrentPage === totalMobilePages}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className='hidden md:block'>
                 <DataTable 

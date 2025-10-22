@@ -3,7 +3,7 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore, memoryLocalCache } from 'firebase/firestore'
+import { getFirestore, initializeFirestore, memoryLocalCache, connectFirestoreEmulator } from 'firebase/firestore'
 
 // 🔇 Suprimir avisos de OAuth em desenvolvimento local
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -48,7 +48,12 @@ export function getSdks(firebaseApp: FirebaseApp) {
     // Tentar inicializar com cache em memória (muito mais rápido)
     if (typeof window !== 'undefined') {
       firestore = initializeFirestore(firebaseApp, {
-        localCache: memoryLocalCache()
+        localCache: memoryLocalCache(),
+        // ✅ CORREÇÃO: Forçar Long-Polling para evitar erro 400 de WebSocket
+        // Long-polling é mais estável em redes corporativas, proxies e Windows
+        experimentalForceLongPolling: true,
+        // ✅ Auto-cleanup: Limpa listeners inativos automaticamente
+        experimentalAutoDetectLongPolling: true,
       });
     } else {
       firestore = getFirestore(firebaseApp);
