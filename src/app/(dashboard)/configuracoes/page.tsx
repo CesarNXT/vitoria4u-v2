@@ -217,19 +217,34 @@ export default function SettingsPage() {
         // Aguardar save completar
         await setDoc(settingsRef, finalSettings, { merge: true });
         
-        // Atualizar UI local
+        // ✅ CRITICAL: Marcar no sessionStorage que acabou de completar setup
+        // Isso evita que o layout tente redirecionar de volta para /configuracoes
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('setup_just_completed', 'true');
+        }
+        
+        // Atualizar UI local ANTES de redirecionar
         setSettings(prev => ({...prev, ...finalSettings} as ConfiguracoesNegocio));
         
         if (!impersonatedId) {
           toast({
             title: '🎉 Configuração Concluída!',
-            description: "Redirecionando para o dashboard...",
+            description: "Bem-vindo ao Vitoria4U!",
           });
           
-          // ⚡ Redirecionar APÓS salvar usando window.location (hard refresh)
+          // ⚡ USAR ROUTER.PUSH para navegação client-side (mais rápido e confiável)
+          // Aguardar um pouco para garantir que o Firestore propagou
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Limpar a flag após um tempo
           setTimeout(() => {
-            window.location.href = '/dashboard';
-          }, 1500);
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('setup_just_completed');
+            }
+          }, 3000);
+          
+          // Navegar para o dashboard
+          router.push('/dashboard');
         } else {
           toast({
             title: 'Sucesso!',
@@ -237,6 +252,7 @@ export default function SettingsPage() {
           });
         }
       } catch (error) {
+        console.error('Erro ao salvar configurações:', error);
         toast({
           variant: 'destructive',
           title: 'Erro ao salvar',

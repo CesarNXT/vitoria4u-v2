@@ -242,17 +242,21 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
     const isActuallyComplete = isSetupComplete || hasBasicInfo;
     const needsSetupRedirect = !isActuallyComplete;
     
-    // 🔥 SE ESTÁ COMPLETO, CANCELAR QUALQUER REDIRECIONAMENTO PENDENTE
-    if (isActuallyComplete && pathname === '/dashboard') {
+    // ✅ CRITICAL: Verificar se acabou de completar o setup
+    const justCompletedSetup = typeof window !== 'undefined' && sessionStorage.getItem('setup_just_completed') === 'true';
+    
+    // 🔥 SE ESTÁ COMPLETO OU ACABOU DE COMPLETAR, CANCELAR QUALQUER REDIRECIONAMENTO
+    if ((isActuallyComplete || justCompletedSetup) && pathname === '/dashboard') {
       setIsRedirecting(false);
     }
     
-    if (needsSetupRedirect && pathname !== '/configuracoes') {
+    // ⚠️ NÃO redirecionar se acabou de completar o setup
+    if (needsSetupRedirect && pathname !== '/configuracoes' && !justCompletedSetup) {
       // Redirecionar para configurações
       setIsRedirecting(true);
       router.replace('/configuracoes');
-    } else if (pathname === '/configuracoes' || !needsSetupRedirect) {
-      // Resetar flag quando chegar em configurações OU não precisar mais de setup
+    } else if (pathname === '/configuracoes' || !needsSetupRedirect || justCompletedSetup) {
+      // Resetar flag quando chegar em configurações OU não precisar mais de setup OU acabou de completar
       setIsRedirecting(false);
     }
   }, [isReallyLoading, typedUser, settings, isAdmin, impersonatedId, router, pathname]);
@@ -287,7 +291,11 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const isActuallyComplete = isSetupComplete || hasBasicInfo;
   const requiresSetup = !isActuallyComplete;
   
-  if (requiresSetup && pathname !== '/configuracoes' && !isImpersonating) {
+  // ✅ CRITICAL: Verificar se acabou de completar o setup
+  const justCompletedSetup = typeof window !== 'undefined' && sessionStorage.getItem('setup_just_completed') === 'true';
+  
+  // ⚠️ NÃO bloquear se acabou de completar o setup
+  if (requiresSetup && pathname !== '/configuracoes' && !isImpersonating && !justCompletedSetup) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
