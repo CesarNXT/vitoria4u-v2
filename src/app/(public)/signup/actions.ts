@@ -13,55 +13,83 @@ interface SystemConfig {
 }
 
 /**
+ * Wrapper para adicionar timeout em operações assíncronas
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  const timeout = new Promise<T>((_, reject) =>
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+  );
+  return Promise.race([promise, timeout]);
+}
+
+/**
  * Cria o perfil de negócio para um novo usuário, aplicando as regras de teste do sistema.
  * @param userId O ID do novo usuário.
  * @param userEmail O email do novo usuário.
  * @param userName O nome do novo usuário.
  */
 export async function createUserBusinessProfile(userId: string, userEmail: string, userName: string) {
+  const startTime = Date.now();
+  console.log(`[createUserBusinessProfile] Iniciando para userId: ${userId}`);
+  
   try {
-    // 1. Buscar a configuração global do sistema
-    const configRef = adminDb.collection('configuracoes_sistema').doc('global');
-    const configSnap = await configRef.get();
+    // Validação de entrada
+    if (!userId || !userEmail) {
+      throw new Error('userId e userEmail são obrigatórios');
+    }
 
+    // 1. Buscar a configuração global do sistema com timeout
+    console.log('[createUserBusinessProfile] Buscando configuração do sistema...');
+    
     let trialConfig: SystemConfig['trial'] = {
       enabled: false,
       days: 0,
       planId: 'plano_gratis' // ✅ Sistema é GRATUITO por padrão
     };
 
-    if (configSnap.exists) {
-      const systemConfig = configSnap.data() as SystemConfig;
-      if (systemConfig.trial?.enabled) {
-        trialConfig = systemConfig.trial;
+    try {
+      const configRef = adminDb.collection('configuracoes_sistema').doc('global');
+      const configSnap = await withTimeout(
+        configRef.get(),
+        5000, // 5 segundos de timeout
+        'Timeout ao buscar configuração do sistema'
+      );
+
+      if (configSnap.exists) {
+        const systemConfig = configSnap.data() as SystemConfig;
+        if (systemConfig?.trial?.enabled) {
+          trialConfig = systemConfig.trial;
+        }
       }
+      console.log('[createUserBusinessProfile] Configuração obtida:', trialConfig);
+    } catch (configError) {
+      // Se falhar ao buscar config, continua com valores padrão
+      console.warn('[createUserBusinessProfile] Erro ao buscar config, usando padrão:', configError);
     }
 
     // 2. Definir o plano inicial e a data de expiração
-    // ✅ LÓGICA CORRETA:
-    // - COM teste: Plano premium temporário (ex: 3 dias)
-    // - SEM teste: Plano grátis permanente (sistema gratuito!)
     const initialPlanId = trialConfig.enabled ? trialConfig.planId : 'plano_gratis';
     const expiresAt = trialConfig.enabled && trialConfig.days > 0 
       ? add(new Date(), { days: trialConfig.days })
-      : null; // plano_gratis nunca expira
+      : null;
 
-    // 3. Criar o documento do negócio
+    // 3. Criar o documento do negócio com timeout
+    console.log('[createUserBusinessProfile] Criando documento do negócio...');
     const businessRef = adminDb.collection('negocios').doc(userId);
     
-    // ✅ Automações habilitadas APENAS se tiver teste ativo
-    // Cliente no plano grátis = automações desabilitadas (não tem WhatsApp)
     const automationsEnabled = trialConfig.enabled;
     
-    await businessRef.set({
+    const businessData = {
       ownerId: userId,
       email: userEmail,
-      // Nome fica vazio para ser preenchido pelo usuário
       planId: initialPlanId,
       access_expires_at: expiresAt,
       createdAt: new Date(),
-      setupCompleted: false, // Marca que a configuração inicial ainda não foi concluída
-      // Adicione aqui outros campos padrão que um novo negócio deve ter
+      setupCompleted: false,
       whatsappConectado: false,
       habilitarLembrete24h: automationsEnabled,
       habilitarLembrete2h: automationsEnabled,
@@ -77,11 +105,32 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
         sabado: { abertura: '09:00', fechamento: '13:00', ativo: false },
         domingo: { abertura: '09:00', fechamento: '13:00', ativo: false }
       },
-    });
+    };
 
+    await withTimeout(
+      businessRef.set(businessData),
+      10000, // 10 segundos de timeout
+      'Timeout ao criar documento do negócio'
+    );
+
+    const duration = Date.now() - startTime;
+    console.log(`[createUserBusinessProfile] Sucesso! Duração: ${duration}ms`);
+    
     return { success: true };
 
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Falha ao configurar a conta do negócio." };
+    const duration = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : "Falha ao configurar a conta do negócio.";
+    
+    console.error(`[createUserBusinessProfile] ERRO após ${duration}ms:`, {
+      userId,
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return { 
+      success: false, 
+      error: errorMessage
+    };
   }
 }

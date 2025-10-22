@@ -152,28 +152,63 @@ function LoginPageContent() {
             }
 
             try {
+                console.log('[Registro] Criando conta no Firebase Auth...');
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const newUser = userCredential.user;
+                console.log('[Registro] Conta criada, UID:', newUser.uid);
                 
                 // 🔒 SEGURANÇA: Criar session cookie segura
+                console.log('[Registro] Obtendo ID token...');
                 const idToken = await newUser.getIdToken();
+                
+                console.log('[Registro] Criando sessão...');
                 const sessionResult = await createUserSession(idToken);
                 
                 if (!sessionResult.success) {
-                    throw new Error('Falha ao criar sessão');
+                    console.error('[Registro] Falha ao criar sessão:', sessionResult.error);
+                    throw new Error(sessionResult.error || 'Falha ao criar sessão');
                 }
+                console.log('[Registro] Sessão criada com sucesso');
                 
                 // Chama a Server Action para criar o perfil do negócio no backend
-                const result = await createUserBusinessProfile(newUser.uid, newUser.email || '', newUser.displayName || 'Novo Usuário');
-                
-                if (!result.success) {
-                    throw new Error(result.error || 'Falha ao criar perfil de negócio');
+                console.log('[Registro] Criando perfil de negócio...');
+                try {
+                    const result = await createUserBusinessProfile(
+                        newUser.uid, 
+                        newUser.email || '', 
+                        newUser.displayName || 'Novo Usuário'
+                    );
+                    
+                    if (!result.success) {
+                        console.warn('[Registro] Falha ao criar perfil, mas continuando:', result.error);
+                        // NÃO lançar erro - permite que o usuário continue mesmo se o perfil falhar
+                        // O perfil pode ser criado posteriormente no primeiro acesso
+                        toast({ 
+                            title: "Conta criada!", 
+                            description: "Você será redirecionado para completar a configuração.",
+                            variant: "default"
+                        });
+                    } else {
+                        console.log('[Registro] Perfil criado com sucesso');
+                        toast({ 
+                            title: "Conta criada com sucesso!", 
+                            description: "Você será redirecionado para a configuração inicial." 
+                        });
+                    }
+                } catch (profileError) {
+                    console.error('[Registro] Erro ao criar perfil, mas permitindo login:', profileError);
+                    toast({ 
+                        title: "Conta criada!", 
+                        description: "Conclua seu perfil na próxima etapa.",
+                        variant: "default"
+                    });
                 }
-
-                toast({ title: "Conta criada com sucesso!", description: "Você será redirecionado para a configuração inicial." });
+                
+                console.log('[Registro] Redirecionando para /configuracoes');
                 router.push('/configuracoes');
                 
             } catch (firebaseError: any) {
+                console.error('[Registro] Erro no processo de registro:', firebaseError);
                 handleFirebaseAuthError(firebaseError, setError);
             } finally {
                 setIsLoading(false);
@@ -200,27 +235,58 @@ function LoginPageContent() {
             }
 
             // 🔒 SEGURANÇA: Criar session cookie segura
+            console.log('[GoogleSignIn] Obtendo ID token...');
             const idToken = await user.getIdToken();
+            
+            console.log('[GoogleSignIn] Criando sessão...');
             const sessionResult = await createUserSession(idToken);
             
             if (!sessionResult.success) {
-                throw new Error('Falha ao criar sessão');
+                console.error('[GoogleSignIn] Falha ao criar sessão:', sessionResult.error);
+                throw new Error(sessionResult.error || 'Falha ao criar sessão');
             }
+            console.log('[GoogleSignIn] Sessão criada com sucesso');
 
             if (additionalInfo?.isNewUser) {
                 // Chama a Server Action para criar o perfil do negócio no backend
-                const profileResult = await createUserBusinessProfile(user.uid, user.email || '', user.displayName || 'Novo Usuário');
-                
-                if (!profileResult.success) {
-                    throw new Error(profileResult.error || 'Falha ao criar perfil de negócio');
+                console.log('[GoogleSignIn] Novo usuário, criando perfil...');
+                try {
+                    const profileResult = await createUserBusinessProfile(
+                        user.uid, 
+                        user.email || '', 
+                        user.displayName || 'Novo Usuário'
+                    );
+                    
+                    if (!profileResult.success) {
+                        console.warn('[GoogleSignIn] Falha ao criar perfil, mas continuando:', profileResult.error);
+                        toast({ 
+                            title: "Conta criada!", 
+                            description: "Complete sua configuração na próxima etapa.",
+                            variant: "default"
+                        });
+                    } else {
+                        console.log('[GoogleSignIn] Perfil criado com sucesso');
+                        toast({ 
+                            title: "Conta criada com sucesso!", 
+                            description: "Vamos começar com algumas configurações." 
+                        });
+                    }
+                } catch (profileError) {
+                    console.error('[GoogleSignIn] Erro ao criar perfil, mas permitindo login:', profileError);
+                    toast({ 
+                        title: "Conta criada!", 
+                        description: "Complete sua configuração na próxima etapa.",
+                        variant: "default"
+                    });
                 }
                 
-                toast({ title: "Conta criada com sucesso!", description: "Vamos começar com algumas configurações." });
+                console.log('[GoogleSignIn] Redirecionando para /configuracoes');
                 router.push('/configuracoes');
                 // Mantém loading até a navegação ser concluída
                 return;
             } else {
                 // For existing users, just go to the dashboard. The layout will handle redirects if setup is incomplete.
+                console.log('[GoogleSignIn] Usuário existente, redirecionando para dashboard');
                 router.push('/dashboard');
                 // Mantém loading até a navegação ser concluída
                 return;

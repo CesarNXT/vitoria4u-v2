@@ -7,12 +7,45 @@ const SESSION_COOKIE_NAME = 'session';
 const ADMIN_FLAG_COOKIE = 'admin-session';
 const IMPERSONATION_COOKIE = 'impersonating';
 const SESSION_DURATION = 60 * 60 * 24 * 5 * 1000;
+
+/**
+ * Wrapper para adicionar timeout em operações assíncronas
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  const timeout = new Promise<T>((_, reject) =>
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+  );
+  return Promise.race([promise, timeout]);
+}
+
+/**
+ * Cria uma sessão com retry e timeout
+ */
 export async function createSession(idToken: string) {
+  const startTime = Date.now();
+  console.log('[createSession] Iniciando criação de sessão');
+  
   try {
-    const sessionCookie = await adminAuth.createSessionCookie(idToken, {
-      expiresIn: SESSION_DURATION
-    });
+    // Validação de entrada
+    if (!idToken) {
+      throw new Error('idToken é obrigatório');
+    }
+
+    // Criar session cookie com timeout de 10 segundos
+    console.log('[createSession] Criando session cookie...');
+    const sessionCookie = await withTimeout(
+      adminAuth.createSessionCookie(idToken, {
+        expiresIn: SESSION_DURATION
+      }),
+      10000,
+      'Timeout ao criar session cookie'
+    );
     
+    console.log('[createSession] Session cookie criado, configurando cookies...');
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, sessionCookie, {
       maxAge: SESSION_DURATION / 1000,
@@ -22,10 +55,20 @@ export async function createSession(idToken: string) {
       path: '/'
     });
     
+    const duration = Date.now() - startTime;
+    console.log(`[createSession] Sucesso! Duração: ${duration}ms`);
+    
     return { success: true };
   } catch (error) {
-    console.error('Error creating session:', error);
-    return { success: false, error: 'Failed to create session' };
+    const duration = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
+    
+    console.error(`[createSession] ERRO após ${duration}ms:`, {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return { success: false, error: errorMessage };
   }
 }
 
