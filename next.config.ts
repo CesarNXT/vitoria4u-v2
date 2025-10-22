@@ -1,6 +1,5 @@
-import type {NextConfig} from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   /* config options here */
   allowedDevOrigins: [
     '172.28.124.126',
@@ -27,7 +26,7 @@ const nextConfig: NextConfig = {
   // Resolver polyfills para Node.js modules no browser
   // OBS: Configuração para Webpack (quando não usar --turbopack)
   ...(process.env.TURBOPACK === undefined && {
-    webpack: (config: any, { isServer }: any) => {
+    webpack: (config, { isServer }) => {
       if (!isServer) {
         config.resolve.fallback = {
           ...config.resolve.fallback,
@@ -88,4 +87,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
