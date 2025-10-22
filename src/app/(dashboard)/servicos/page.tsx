@@ -158,7 +158,7 @@ export default function ServicesPage() {
         // Converter IDs de planos para objetos PlanoSaude
         const planosAceitosData = data.planosAceitos && data.planosAceitos.length > 0
             ? data.planosAceitos
-                .map((planoId: string) => businessSettings.planosSaudeAceitos?.find((p: PlanoSaude) => p.id === planoId))
+                .map((planoId) => businessSettings.planosSaudeAceitos?.find((p) => p.id === planoId))
                 .filter((plano): plano is PlanoSaude => plano !== undefined)
             : undefined;
         
