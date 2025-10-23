@@ -292,7 +292,6 @@ export function AppointmentForm({
   const handleFormSubmit = (data: AppointmentFormValues) => {
     // Proteção contra duplo clique
     if (isSubmittingRef.current || isSubmitting) {
-      console.log('⚠️ Duplo clique detectado - ignorando submissão duplicada');
       return;
     }
     

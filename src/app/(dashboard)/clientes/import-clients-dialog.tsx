@@ -137,16 +137,51 @@ export function ImportClientsDialog({
     // Remove TUDO que não é número
     let cleaned = String(phone).replace(/\D/g, '')
     
-    // Remove DDI 55 se presente (13 dígitos começando com 55)
-    if (cleaned.length === 13 && cleaned.startsWith('55')) {
+    // ✅ PASSO 1: Remove 0 inicial se presente (ex: 081988924282 → 81988924282)
+    if (cleaned.startsWith('0') && cleaned.length >= 11) {
+      cleaned = cleaned.substring(1)
+    }
+    
+    // ✅ PASSO 2: Remove DDI 55 se presente (ex: 5581988924282 → 81988924282)
+    if (cleaned.startsWith('55') && cleaned.length >= 12) {
       cleaned = cleaned.substring(2)
     }
     
-    // Limita a 11 dígitos
-    cleaned = cleaned.slice(0, 11)
+    // ✅ PASSO 3: Se ainda começar com 0 após remover DDI, remove novamente
+    if (cleaned.startsWith('0') && cleaned.length >= 11) {
+      cleaned = cleaned.substring(1)
+    }
     
-    // Deve ter exatamente 11 dígitos
+    // ✅ PASSO 4: GARANTIR SEMPRE 11 DÍGITOS - Adicionar o 9 se necessário
+    if (cleaned.length === 10) {
+      const ddd = cleaned.substring(0, 2)
+      const numero = cleaned.substring(2)
+      cleaned = ddd + '9' + numero
+    }
+    
+    // Se tiver 9 dígitos: adicionar 0 no DDD (caso de DDDs de 1 dígito antigos)
+    if (cleaned.length === 9) {
+      cleaned = '0' + cleaned.substring(0, 1) + '9' + cleaned.substring(1)
+    }
+    
+    // Se tiver mais de 11 dígitos, pegar apenas os últimos 11
+    if (cleaned.length > 11) {
+      cleaned = cleaned.slice(-11)
+    }
+    
+    // ✅ VALIDAÇÃO FINAL: Deve ter EXATAMENTE 11 dígitos
     if (cleaned.length !== 11) {
+      return null
+    }
+    
+    // Validar DDD (primeiros 2 dígitos devem ser entre 11 e 99)
+    const ddd = parseInt(cleaned.substring(0, 2), 10)
+    if (ddd < 11 || ddd > 99) {
+      return null
+    }
+    
+    // Validar que o terceiro dígito é 9 (celular)
+    if (cleaned[2] !== '9') {
       return null
     }
 
@@ -220,7 +255,7 @@ export function ImportClientsDialog({
           row: i + 1,
           nome,
           telefone,
-          erro: 'Telefone deve ter 11 dígitos (DDD + 9 + número)',
+          erro: 'Telefone inválido - deve ser celular com DDD válido (11 dígitos)',
         })
         continue
       }
@@ -350,8 +385,16 @@ export function ImportClientsDialog({
                     <ul className="list-disc list-inside text-sm space-y-1">
                       <li>A planilha deve conter uma linha de cabeçalho</li>
                       <li><strong>Nome:</strong> obrigatório</li>
-                      <li><strong>Telefone:</strong> obrigatório, deve ter exatamente 11 dígitos (DDD + 9 + número)</li>
-                      <li>Telefones duplicados serão ignorados</li>
+                      <li><strong>Telefone:</strong> número de celular com DDD válido</li>
+                      <li>✅ Formatos aceitos:</li>
+                      <ul className="list-none ml-4 text-xs space-y-0.5">
+                        <li>• 81995207521 (11 dígitos)</li>
+                        <li>• 8195207521 (10 dígitos - adiciona 9 automaticamente)</li>
+                        <li>• 081995207521 (com 0 na frente - remove automaticamente)</li>
+                        <li>• 5581995207521 (com DDI 55 - remove automaticamente)</li>
+                      </ul>
+                      <li>✅ Sistema garante sempre 11 dígitos no Firestore</li>
+                      <li>❌ Telefones duplicados serão ignorados</li>
                     </ul>
                   </div>
                 </AlertDescription>

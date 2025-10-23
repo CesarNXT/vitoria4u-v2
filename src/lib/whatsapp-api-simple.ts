@@ -62,12 +62,6 @@ export class WhatsAppAPI {
       headers['admintoken'] = ADMIN_TOKEN;
     }
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`📡 ${method} ${url}`);
-    console.log('📋 Headers:', JSON.stringify(headers, null, 2));
-    if (body) console.log('📦 Body:', JSON.stringify(body, null, 2));
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
     try {
       const response = await fetch(url, {
         method,
@@ -76,9 +70,6 @@ export class WhatsAppAPI {
       });
 
       const responseText = await response.text();
-      
-      console.log(`📥 Response Status: ${response.status}`);
-      console.log(`📥 Response Body:`, responseText.substring(0, 500));
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${responseText}`);
@@ -97,7 +88,6 @@ export class WhatsAppAPI {
   // ==========================================
 
   async createInstance(systemName: string = 'Vitoria4U Web'): Promise<string> {
-    console.log('🔧 PASSO 1: Criando instância...');
     
     const response = await this.makeRequest(
       '/instance/init',
@@ -113,7 +103,6 @@ export class WhatsAppAPI {
     }
 
     this.instanceToken = token;
-    console.log('✅ Instância criada! Token:', token.substring(0, 8) + '...');
     
     return token;
   }
@@ -123,8 +112,6 @@ export class WhatsAppAPI {
   // ==========================================
 
   async connectWithPhone(phone: string): Promise<PairCodeResponse> {
-    console.log('📱 PASSO 2A: Conectando com telefone...');
-    console.log('📞 Telefone:', phone);
 
     if (!this.instanceToken) {
       throw new Error('Instância não criada. Chame createInstance() primeiro.');
@@ -137,13 +124,10 @@ export class WhatsAppAPI {
       true // Usa instanceToken
     );
 
-    console.log('📥 Resposta completa:', JSON.stringify(response, null, 2));
-
     const pairCode = response.instance?.paircode || response.paircode;
     const qrCode = response.instance?.qrcode || response.qrcode;
 
     if (pairCode) {
-      console.log('✅ Pair Code gerado:', pairCode);
       return {
         success: true,
         pairCode,
@@ -152,7 +136,6 @@ export class WhatsAppAPI {
     }
 
     if (qrCode) {
-      console.log('✅ QR Code gerado');
       return {
         success: true,
         qrCode,
@@ -168,7 +151,6 @@ export class WhatsAppAPI {
   // ==========================================
 
   async connectWithQRCode(): Promise<PairCodeResponse> {
-    console.log('📱 PASSO 2B: Conectando via QR Code (método mais confiável)...');
 
     if (!this.instanceToken) {
       throw new Error('Instância não criada. Chame createInstance() primeiro.');
@@ -181,12 +163,9 @@ export class WhatsAppAPI {
       true // Usa instanceToken
     );
 
-    console.log('📥 Resposta completa:', JSON.stringify(response, null, 2));
-
     const qrCode = response.instance?.qrcode || response.qrcode;
 
     if (qrCode) {
-      console.log('✅ QR Code gerado');
       return {
         success: true,
         qrCode,
@@ -202,7 +181,6 @@ export class WhatsAppAPI {
   // ==========================================
 
   async checkStatus(): Promise<StatusResponse> {
-    console.log('🔍 PASSO 3: Verificando status...');
 
     if (!this.instanceToken) {
       throw new Error('Token da instância não configurado');
@@ -218,8 +196,6 @@ export class WhatsAppAPI {
     const connected = response.status?.connected || response.connected || false;
     const status = response.status?.instance?.status || response.instance?.status || 'disconnected';
 
-    console.log('📊 Status:', { connected, status });
-
     return {
       connected,
       status,
@@ -232,8 +208,6 @@ export class WhatsAppAPI {
   // ==========================================
 
   async setupWebhook(webhookUrl: string): Promise<void> {
-    console.log('🔔 PASSO 4: Configurando webhook...');
-    console.log('📍 URL:', webhookUrl);
 
     if (!this.instanceToken) {
       throw new Error('Token da instância não configurado');
@@ -250,8 +224,6 @@ export class WhatsAppAPI {
       },
       true // Usa instanceToken
     );
-
-    console.log('✅ Webhook configurado!');
   }
 
   // ==========================================
@@ -259,7 +231,6 @@ export class WhatsAppAPI {
   // ==========================================
 
   async deleteInstance(): Promise<void> {
-    console.log('🗑️ Deletando instância...');
 
     if (!this.instanceToken) {
       throw new Error('Token da instância não configurado');
@@ -271,8 +242,6 @@ export class WhatsAppAPI {
       undefined,
       true // Usa instanceToken
     );
-
-    console.log('✅ Instância deletada!');
   }
 
   // ==========================================
@@ -280,7 +249,6 @@ export class WhatsAppAPI {
   // ==========================================
 
   async disconnect(): Promise<void> {
-    console.log('🔌 Desconectando instância...');
 
     if (!this.instanceToken) {
       throw new Error('Token da instância não configurado');
@@ -292,8 +260,6 @@ export class WhatsAppAPI {
       undefined,
       true // Usa instanceToken
     );
-
-    console.log('✅ Instância desconectada!');
   }
 }
 
@@ -315,10 +281,6 @@ export async function connectWhatsApp(
   webhookUrl: string
 ): Promise<PairCodeResponse> {
   
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🚀 INICIANDO CONEXÃO WHATSAPP');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
   const api = new WhatsAppAPI(instanceId);
 
   try {
@@ -326,7 +288,6 @@ export async function connectWhatsApp(
     const instanceToken = await api.createInstance();
     
     // Aguardar 2s para instância inicializar
-    console.log('⏳ Aguardando instância inicializar...');
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // PASSO 2: Conectar com telefone
@@ -334,10 +295,6 @@ export async function connectWhatsApp(
 
     // PASSO 3: Configurar webhook
     await api.setupWebhook(webhookUrl);
-
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅ CONEXÃO INICIADA COM SUCESSO!');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     return result;
 
@@ -350,7 +307,6 @@ export async function connectWhatsApp(
     // Tentar deletar instância em caso de erro
     try {
       await api.deleteInstance();
-      console.log('🗑️ Instância deletada após erro');
     } catch {
       // Ignorar erro ao deletar
     }
@@ -391,26 +347,20 @@ export async function listInstances(): Promise<any[]> {
  * 🗑️ DELETAR INSTÂNCIAS ANTIGAS COM MESMO NOME
  */
 export async function deleteOldInstances(instanceId: string): Promise<void> {
-  console.log('🔍 Verificando instâncias antigas...');
   
   try {
     const instances = await listInstances();
     const oldInstances = instances.filter((inst: any) => inst.name === instanceId);
     
     if (oldInstances.length > 0) {
-      console.log(`🗑️ Encontradas ${oldInstances.length} instância(s) antiga(s)`);
-      
       for (const inst of oldInstances) {
         try {
           const api = new WhatsAppAPI(instanceId, inst.token);
           await api.deleteInstance();
-          console.log(`✅ Instância ${inst.token.substring(0, 8)}... deletada`);
         } catch (error) {
-          console.warn('⚠️ Erro ao deletar instância antiga:', error);
+          // Ignorar erro
         }
       }
-    } else {
-      console.log('✅ Nenhuma instância antiga encontrada');
     }
   } catch (error) {
     console.warn('⚠️ Erro ao verificar instâncias antigas:', error);

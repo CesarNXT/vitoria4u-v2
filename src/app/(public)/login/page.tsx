@@ -152,26 +152,18 @@ function LoginPageContent() {
             }
 
             try {
-                console.log('[Registro] Criando conta no Firebase Auth...');
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const newUser = userCredential.user;
-                console.log('[Registro] Conta criada, UID:', newUser.uid);
-                
                 // 🔒 SEGURANÇA: Criar session cookie segura
-                console.log('[Registro] Obtendo ID token...');
                 const idToken = await newUser.getIdToken();
                 
-                console.log('[Registro] Criando sessão...');
                 const sessionResult = await createUserSession(idToken);
                 
                 if (!sessionResult.success) {
                     console.error('[Registro] Falha ao criar sessão:', sessionResult.error);
                     throw new Error(sessionResult.error || 'Falha ao criar sessão');
                 }
-                console.log('[Registro] Sessão criada com sucesso');
-                
                 // Chama a Server Action para criar o perfil do negócio no backend
-                console.log('[Registro] Criando perfil de negócio...');
                 try {
                     const result = await createUserBusinessProfile(
                         newUser.uid, 
@@ -189,7 +181,6 @@ function LoginPageContent() {
                             variant: "default"
                         });
                     } else {
-                        console.log('[Registro] Perfil criado com sucesso');
                         toast({ 
                             title: "Conta criada com sucesso!", 
                             description: "Você será redirecionado para a configuração inicial." 
@@ -204,7 +195,6 @@ function LoginPageContent() {
                     });
                 }
                 
-                console.log('[Registro] Redirecionando para /configuracoes');
                 router.push('/configuracoes');
                 
             } catch (firebaseError: any) {
@@ -235,21 +225,16 @@ function LoginPageContent() {
             }
 
             // 🔒 SEGURANÇA: Criar session cookie segura
-            console.log('[GoogleSignIn] Obtendo ID token...');
             const idToken = await user.getIdToken();
             
-            console.log('[GoogleSignIn] Criando sessão...');
             const sessionResult = await createUserSession(idToken);
             
             if (!sessionResult.success) {
                 console.error('[GoogleSignIn] Falha ao criar sessão:', sessionResult.error);
                 throw new Error(sessionResult.error || 'Falha ao criar sessão');
             }
-            console.log('[GoogleSignIn] Sessão criada com sucesso');
-
             if (additionalInfo?.isNewUser) {
                 // Chama a Server Action para criar o perfil do negócio no backend
-                console.log('[GoogleSignIn] Novo usuário, criando perfil...');
                 try {
                     const profileResult = await createUserBusinessProfile(
                         user.uid, 
@@ -265,7 +250,6 @@ function LoginPageContent() {
                             variant: "default"
                         });
                     } else {
-                        console.log('[GoogleSignIn] Perfil criado com sucesso');
                         toast({ 
                             title: "Conta criada com sucesso!", 
                             description: "Vamos começar com algumas configurações." 
@@ -280,13 +264,11 @@ function LoginPageContent() {
                     });
                 }
                 
-                console.log('[GoogleSignIn] Redirecionando para /configuracoes');
                 router.push('/configuracoes');
                 // Mantém loading até a navegação ser concluída
                 return;
             } else {
                 // For existing users, just go to the dashboard. The layout will handle redirects if setup is incomplete.
-                console.log('[GoogleSignIn] Usuário existente, redirecionando para dashboard');
                 router.push('/dashboard');
                 // Mantém loading até a navegação ser concluída
                 return;

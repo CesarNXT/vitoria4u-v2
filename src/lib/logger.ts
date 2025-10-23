@@ -160,8 +160,7 @@ class Logger {
     // 🔒 NUNCA loga no navegador
     if (this.isServer && this.isDevelopment) {
       const sanitized = data ? sanitizeForLog(data) : '';
-      console.log(`[DEBUG] ${message}`, sanitized);
-    }
+      }
   }
 
   /**
@@ -171,8 +170,7 @@ class Logger {
     // 🔒 NUNCA loga no navegador
     if (this.isServer) {
       const sanitized = data ? sanitizeForLog(data) : '';
-      console.log(`[INFO] ${message}`, sanitized);
-    }
+      }
   }
 
   /**
@@ -204,8 +202,7 @@ class Logger {
     // 🔒 NUNCA loga no navegador
     if (this.isServer && this.isDevelopment) {
       const sanitized = data ? sanitizeForLog(data) : '';
-      console.log(`✅ [SUCCESS] ${message}`, sanitized);
-    }
+      }
   }
 }
 

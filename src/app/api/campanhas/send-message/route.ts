@@ -116,8 +116,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`✅ Mensagem enviada para ${phoneNumber} - Tipo: ${tipo}`);
-
     return NextResponse.json({
       success: true,
       data: responseData,

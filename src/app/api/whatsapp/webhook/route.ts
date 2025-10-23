@@ -12,8 +12,6 @@ const ADMIN_TOKEN = process.env.NEXT_PUBLIC_WHATSAPP_API_TOKEN || '';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    console.log('📱 Webhook WhatsApp recebido:', JSON.stringify(body, null, 2));
 
     // Extrair dados do evento (estrutura UazAPI)
     const { EventType, instance } = body;
@@ -47,15 +45,12 @@ async function handleConnectionUpdate(instance: any) {
   try {
     const { name: instanceId, status, token: instanceToken } = instance;
     
-    console.log(`📡 Atualização de conexão - BusinessId: ${instanceId}, Status: ${status}`);
-
     // Apenas processar quando realmente conectado ou desconectado
     const isConnected = status === 'connected' || status === 'open';
     const isDisconnected = status === 'disconnected' || status === 'close';
 
     if (!isConnected && !isDisconnected) {
       // Estado intermediário (connecting), ignorar
-      console.log(`⏳ Estado intermediário: ${status} - aguardando...`);
       return;
     }
     
@@ -98,12 +93,8 @@ async function handleConnectionUpdate(instance: any) {
       updatedAt: new Date(),
     });
 
-    console.log(`✅ Firestore atualizado - ${instanceId}: whatsappConectado = ${isConnected}`);
-
     // Se DESCONECTOU: deletar instância e enviar notificação
     if (isDisconnected) {
-      console.log('🗑️ Deletando instância desconectada...');
-      
       // Deletar instância
       const deleteResponse = await fetch(`${WHATSAPP_API_URL}/instance`, {
         method: 'DELETE',
@@ -114,8 +105,7 @@ async function handleConnectionUpdate(instance: any) {
       });
       
       if (deleteResponse.ok) {
-        console.log('✅ Instância deletada');
-      }
+        }
       
       // Enviar notificação de desconexão
       if (businessPhone) {
@@ -158,8 +148,7 @@ async function sendNotification(phone: string, message: string) {
       const error = await response.text();
       console.error('❌ Erro ao enviar notificação:', error);
     } else {
-      console.log(`✅ Notificação enviada para ${cleanPhone}`);
-    }
+      }
   } catch (error) {
     console.error('❌ Erro ao enviar notificação WhatsApp:', error);
   }

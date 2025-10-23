@@ -15,7 +15,8 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Users, Gem, LogOut, Sun, Moon, Loader2, Home, Settings, Building2 } from 'lucide-react';
+import { Users, Gem, LogOut, Sun, Moon, Loader2, Home, Settings, Building2, ShieldCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useFirebase, FirebaseClientProvider } from '@/firebase';
@@ -52,11 +53,9 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
       const { syncPlansToFirestore, shouldSyncPlans, markPlansSynced } = await import('@/lib/sync-plans');
       
       if (shouldSyncPlans()) {
-        console.log('👤 Admin no painel - sincronizando planos...');
         await syncPlansToFirestore(firestore);
         markPlansSynced();
-        console.log('✅ Planos atualizados automaticamente!');
-      }
+        }
     }
     
     syncPlans();
@@ -145,6 +144,12 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
               Admin Panel
             </span>
           </Link>
+          <div className="mt-2 group-data-[collapsible=icon]:hidden">
+            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+              <ShieldCheck className="h-3 w-3" />
+              {typedUser?.email}
+            </Badge>
+          </div>
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
@@ -204,8 +209,12 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-lg md:hidden">
             <SidebarTrigger />
-             <div className="flex-1 text-center">
+             <div className="flex-1 flex flex-col items-center">
               <span className="text-lg font-semibold">Admin Panel</span>
+              <Badge variant="secondary" className="flex items-center gap-1 text-[10px] h-5">
+                <ShieldCheck className="h-2.5 w-2.5" />
+                {typedUser?.email}
+              </Badge>
             </div>
         </header>
         <main className="flex flex-1 flex-col">

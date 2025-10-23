@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -74,6 +74,9 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
   const [incluirInativos, setIncluirInativos] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isContactsDialogOpen, setIsContactsDialogOpen] = useState(false);
+  const [displayedCount, setDisplayedCount] = useState(50);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignSchema),
@@ -163,9 +166,11 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
   };
 
   // Toggle seleção de contato
-  const toggleContato = (clienteId: string) => {
+  const toggleContato = (clienteId: string, forceValue?: boolean) => {
     setContatos(prev => prev.map(c => 
-      c.clienteId === clienteId ? { ...c, selecionado: !c.selecionado } : c
+      c.clienteId === clienteId 
+        ? { ...c, selecionado: forceValue !== undefined ? forceValue : !c.selecionado } 
+        : c
     ));
   };
 
@@ -435,11 +440,11 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
             <div>
               <CardTitle>Contatos</CardTitle>
               <CardDescription>
-                Selecione até 200 contatos para enviar a campanha
+                Selecione os contatos para enviar a campanha
               </CardDescription>
             </div>
-            <Badge variant={contatosSelecionados > 200 ? "destructive" : "default"}>
-              {contatosSelecionados} / 200
+            <Badge variant={contatosSelecionados > 0 ? "default" : "secondary"}>
+              {contatosSelecionados} contato{contatosSelecionados !== 1 ? 's' : ''}
             </Badge>
           </div>
         </CardHeader>
@@ -467,119 +472,156 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
         </CardContent>
       </Card>
 
-      {/* Dialog de seleção de contatos */}
+      {/* Dialog de seleção de contatos - NOVO DESIGN */}
       <Dialog open={isContactsDialogOpen} onOpenChange={setIsContactsDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Selecionar Contatos</DialogTitle>
+        <DialogContent className="max-w-[600px] w-[calc(100vw-2rem)] h-[80vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle className="text-xl">Selecionar Contatos</DialogTitle>
             <DialogDescription>
-              Escolha até 200 contatos para enviar a campanha
+              Escolha os contatos para enviar a campanha (sem limite)
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden flex flex-col space-y-4">
+          <div className="flex-1 overflow-hidden flex flex-col px-6">
             {/* Busca e ações */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <div className="relative flex-1">
+            <div className="flex flex-col gap-3 pb-4">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Nome ou telefone..."
+                  placeholder="Buscar por nome ou telefone..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setDisplayedCount(50);
+                  }}
+                  className="pl-9 h-10"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={toggleTodos}
-                className="w-full sm:w-auto"
-              >
-                {contatosFiltrados.every(c => c.selecionado) ? 'Desmarcar' : 'Marcar'} Todos
-              </Button>
-            </div>
-
-            {/* Toggle inativos */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="incluirInativos"
-                checked={incluirInativos}
-                onCheckedChange={(checked) => setIncluirInativos(checked as boolean)}
-              />
-              <Label htmlFor="incluirInativos" className="cursor-pointer">
-                Mostrar contatos inativos
-              </Label>
-            </div>
-
-            <Separator />
-
-            {/* Lista de contatos - scrollável */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-              {contatosFiltrados.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum contato encontrado
-                </p>
-              ) : (
-                contatosFiltrados.map((contato) => (
-                  <div
-                    key={contato.clienteId}
-                    className={cn(
-                      "flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg transition-colors overflow-hidden",
-                      contato.selecionado && "bg-primary/5 border-primary/50",
-                      contato.status === 'Inativo' && "opacity-60"
-                    )}
+              
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="incluirInativos"
+                    checked={incluirInativos}
+                    onCheckedChange={(checked) => setIncluirInativos(checked as boolean)}
+                  />
+                  <Label htmlFor="incluirInativos" className="cursor-pointer text-sm">
+                    Mostrar inativos
+                  </Label>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      const todosVisiveis = contatosFiltrados.slice(0, displayedCount);
+                      const todosSelecionados = todosVisiveis.every(c => c.selecionado);
+                      todosVisiveis.forEach(c => {
+                        toggleContato(c.clienteId, !todosSelecionados);
+                      });
+                    }}
                   >
-                    <Checkbox
-                      className="flex-shrink-0"
-                      checked={contato.selecionado}
-                      onCheckedChange={() => toggleContato(contato.clienteId)}
-                      disabled={contatosSelecionados >= 200 && !contato.selecionado}
-                    />
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <p className="font-medium cursor-help line-clamp-1 break-all">{contato.nome}</p>
-                          </TooltipTrigger>
-                          {contato.nome.length > 25 && (
-                            <TooltipContent className="max-w-xs break-words">
-                              <p>{contato.nome}</p>
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </TooltipProvider>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {String(contato.telefone).replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
-                      </p>
-                    </div>
-                    <Badge variant={contato.status === 'Ativo' ? 'default' : 'secondary'} className="flex-shrink-0 text-xs">
-                      {contato.status === 'Ativo' ? (
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                      ) : (
-                        <XCircle className="h-3 w-3 mr-1" />
+                    {contatosFiltrados.slice(0, displayedCount).every(c => c.selecionado) ? 'Desmarcar' : 'Marcar'} Visíveis
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={toggleTodos}
+                  >
+                    {contatosFiltrados.every(c => c.selecionado) ? 'Desmarcar' : 'Marcar'} Todos
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="mb-3" />
+
+            {/* Lista de contatos - VIRTUALIZADA */}
+            <div 
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto space-y-1.5"
+              onScroll={(e) => {
+                const target = e.currentTarget;
+                const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 200;
+                
+                if (isNearBottom && displayedCount < contatosFiltrados.length) {
+                  setDisplayedCount(prev => Math.min(prev + 50, contatosFiltrados.length));
+                }
+              }}
+            >
+              {contatosFiltrados.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Users className="h-12 w-12 mb-3 opacity-20" />
+                  <p className="text-sm">Nenhum contato encontrado</p>
+                </div>
+              ) : (
+                <>
+                  {contatosFiltrados.slice(0, displayedCount).map((contato) => (
+                    <div
+                      key={contato.clienteId}
+                      className={cn(
+                        "flex items-center gap-3 p-3 border rounded-md transition-all cursor-pointer hover:bg-accent/50",
+                        contato.selecionado && "bg-primary/5 border-primary/50 shadow-sm",
+                        contato.status === 'Inativo' && "opacity-50"
                       )}
-                      <span className="hidden sm:inline">{contato.status}</span>
-                      <span className="sm:hidden">{contato.status === 'Ativo' ? 'A' : 'I'}</span>
-                    </Badge>
-                  </div>
-                ))
+                      onClick={() => toggleContato(contato.clienteId)}
+                    >
+                      <Checkbox
+                        className="flex-shrink-0"
+                        checked={contato.selecionado}
+                        onCheckedChange={(checked) => toggleContato(contato.clienteId, checked as boolean)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{contato.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {String(contato.telefone).replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+                        </p>
+                      </div>
+                      {contato.status === 'Ativo' ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      )}
+                    </div>
+                  ))}
+                  
+                  {displayedCount < contatosFiltrados.length && (
+                    <div className="text-center py-3 text-sm text-muted-foreground">
+                      Mostrando {displayedCount} de {contatosFiltrados.length} • Role para carregar mais
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
 
           {/* Footer com contador e botão */}
-          <div className="border-t pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={contatosSelecionados > 200 ? "destructive" : "default"}>
-                {contatosSelecionados} / 200
+          <div className="border-t p-4 flex items-center justify-between gap-3 bg-background">
+            <div className="flex items-center gap-3">
+              <Badge variant={contatosSelecionados > 0 ? "default" : "secondary"} className="text-sm px-3 py-1">
+                {contatosSelecionados} selecionado{contatosSelecionados !== 1 ? 's' : ''}
               </Badge>
-              <span className="text-sm text-muted-foreground">
-                {contatosSelecionados > 0 && `${calcularTempoEstimado()} estimado`}
-              </span>
+              {contatosSelecionados > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  ~{calcularTempoEstimado()}
+                </span>
+              )}
             </div>
-            <Button onClick={() => setIsContactsDialogOpen(false)} className="w-full sm:w-auto">
-              Confirmar Seleção
+            <Button 
+              onClick={() => {
+                setIsContactsDialogOpen(false);
+                setDisplayedCount(50);
+              }} 
+              size="sm"
+              disabled={contatosSelecionados === 0}
+            >
+              Confirmar
             </Button>
           </div>
         </DialogContent>
@@ -627,7 +669,7 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
       <div className="flex justify-end gap-3">
         <Button
           type="submit"
-          disabled={isSubmitting || contatosSelecionados === 0 || contatosSelecionados > 200}
+          disabled={isSubmitting || contatosSelecionados === 0}
         >
           {isSubmitting ? 'Agendando...' : 'Agendar Campanha'}
         </Button>

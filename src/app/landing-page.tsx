@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Bot, MessageCircle, Check, Smartphone, Search, WandSparkles } from 'lucide-react';
 import Image from 'next/image';
-import type { Plano } from '@/lib/types';
+import type { Plano, SystemConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 
 function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -21,6 +21,7 @@ function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export default function LandingPage() {
   const [plans, setPlans] = useState<Plano[]>([]);
+  const [trialDays, setTrialDays] = useState<number>(3);
   const [isLoading, setIsLoading] = useState(true);
 
   // ✅ Limpar flag de logout quando chegar na landing page
@@ -33,8 +34,10 @@ export default function LandingPage() {
   useEffect(() => {
     const { firestore } = initializeFirebase();
     const plansRef = collection(firestore, 'planos');
+    const configRef = doc(firestore, 'system_config', 'global');
     
-    const unsubscribe = onSnapshot(plansRef, (snapshot) => {
+    // Buscar planos
+    const unsubscribePlans = onSnapshot(plansRef, (snapshot) => {
         const plansData = snapshot.docs
             .map(doc => ({
                 id: doc.id,
@@ -46,7 +49,18 @@ export default function LandingPage() {
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    // Buscar configuração de dias de teste
+    const unsubscribeConfig = onSnapshot(configRef, (snapshot) => {
+      const configData = snapshot.data() as SystemConfig | undefined;
+      if (configData?.trial?.enabled && configData.trial.days) {
+        setTrialDays(configData.trial.days);
+      }
+    });
+
+    return () => {
+      unsubscribePlans();
+      unsubscribeConfig();
+    };
   }, []);
 
   const whatsappNumber = "5531997922538"; // ✅ Formato: 55 + DDD + 9 dígitos
@@ -87,7 +101,7 @@ export default function LandingPage() {
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                   <Button size="lg" variant="gradient" asChild>
                     <Link href="/login?mode=register">
-                      Faça seu teste grátis de 3 dias!
+                      Faça seu teste grátis de {trialDays} {trialDays === 1 ? 'dia' : 'dias'}!
                     </Link>
                   </Button>
                 </div>
@@ -180,7 +194,7 @@ export default function LandingPage() {
                   Escolha o <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">plano perfeito</span> para o seu negócio
                 </h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed">
-                  Comece de graça e evolua conforme seu negócio cresce. Todos os planos incluem um teste grátis de 3 dias.
+                  Comece de graça e evolua conforme seu negócio cresce. Todos os planos incluem um teste grátis de {trialDays} {trialDays === 1 ? 'dia' : 'dias'}.
                 </p>
               </div>
             </div>

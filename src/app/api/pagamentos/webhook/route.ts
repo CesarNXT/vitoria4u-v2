@@ -157,9 +157,17 @@ export async function POST(request: Request) {
                     const userData = userDoc.data();
                     const durationInDays = planData.durationInDays || 30; // Fallback para 30 dias
                     
-                    // 🎯 SOMA DIAS RESTANTES DO PLANO ATUAL
+                    // 🎯 SOMA DIAS RESTANTES DO PLANO ATUAL - GARANTIDO!
                     const now = new Date();
                     let totalDaysToAdd = durationInDays;
+                    let daysRemaining = 0;
+                    
+                    logger.info(`💰 Processando pagamento aprovado`, { 
+                        userId, 
+                        planId, 
+                        planName: planData.name,
+                        novoDias: durationInDays 
+                    });
                     
                     // Verifica se há plano ativo com dias restantes
                     if (userData?.access_expires_at) {
@@ -167,19 +175,29 @@ export async function POST(request: Request) {
                             userData.access_expires_at.toDate() : 
                             new Date(userData.access_expires_at);
                         
+                        logger.info(`📆 Expiração atual: ${currentExpiration.toISOString()}`);
+                        
                         // Se a expiração atual é no futuro, calcular dias restantes
                         if (currentExpiration > now) {
-                            const daysRemaining = Math.ceil((currentExpiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                            totalDaysToAdd += daysRemaining;
-                            logger.info(`📅 Dias restantes do plano atual: ${daysRemaining} | Novos dias: ${durationInDays} | Total: ${totalDaysToAdd}`, { userId });
+                            daysRemaining = Math.ceil((currentExpiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                            totalDaysToAdd = durationInDays + daysRemaining; // SOMA EXPLÍCITA!
+                            logger.success(`✅ DIAS SOMADOS! Restantes: ${daysRemaining} + Novos: ${durationInDays} = TOTAL: ${totalDaysToAdd} dias`, { userId });
+                        } else {
+                            logger.info(`⚠️ Plano já expirado. Contando apenas dias novos: ${durationInDays}`, { userId });
                         }
+                    } else {
+                        logger.info(`🆕 Primeiro plano do usuário. Dias: ${durationInDays}`, { userId });
                     }
 
+                    // Calcular nova data de expiração
                     const accessExpiresAt = new Date();
                     accessExpiresAt.setDate(accessExpiresAt.getDate() + totalDaysToAdd);
 
+                    logger.info(`📅 Nova expiração calculada: ${accessExpiresAt.toISOString()} (em ${totalDaysToAdd} dias)`);
+
+                    // Atualizar no Firestore
                     await userDocRef.update({
-                        planId: planId, // Garante que o planId do usuário está atualizado
+                        planId: planId,
                         mp: { 
                             lastPaymentId: paymentData.id,
                             lastPaymentStatus: paymentData.status,
@@ -187,11 +205,18 @@ export async function POST(request: Request) {
                             paymentType: paymentData.payment_type_id,
                         },
                         access_expires_at: accessExpiresAt,
+                        updatedAt: new Date(),
                     });
-                    logger.success(`✅ Acesso liberado por ${totalDaysToAdd} dias (${durationInDays} novos + dias restantes)`, { 
-                        userId, 
-                        expiresAt: accessExpiresAt.toISOString(),
-                        planId 
+                    
+                    logger.success(`🎉 PLANO ATIVADO COM SUCESSO!`, { 
+                        userId,
+                        planId,
+                        planName: planData.name,
+                        diasRestantes: daysRemaining,
+                        diasNovos: durationInDays,
+                        diasTotais: totalDaysToAdd,
+                        expiraEm: accessExpiresAt.toISOString(),
+                        paymentId: paymentData.id
                     });
                 } else {
                     if (!userDoc.exists) logger.error(`❌ Usuário não encontrado`, { userId });

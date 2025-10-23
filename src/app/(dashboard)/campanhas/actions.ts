@@ -199,8 +199,6 @@ export async function createCampanhaAction(data: {
       createdAt: Timestamp.now(),
     });
 
-    console.log(`✅ Campanha criada: ${campanhaRef.id} - ${data.nome} - ${data.contatos.length} contatos`);
-
     return { 
       success: true, 
       campanhaId: campanhaRef.id,
@@ -376,8 +374,6 @@ export async function cancelCampanhaAction(campanhaId: string) {
     // 🔥 OTIMIZAÇÃO: Remover da coleção centralizada
     await adminDb.collection('active_campaigns').doc(campanhaId).delete();
 
-    console.log(`⚠️ Campanha cancelada: ${campanhaId}`);
-
     return { 
       success: true, 
       message: 'Campanha cancelada com sucesso' 
@@ -435,8 +431,6 @@ export async function deleteCampanhaAction(campanhaId: string) {
     await adminDb.collection('active_campaigns').doc(campanhaId).delete().catch(() => {
       // Ignora erro se já foi removida
     });
-
-    console.log(`🗑️ Campanha deletada: ${campanhaId}`);
 
     return { 
       success: true, 

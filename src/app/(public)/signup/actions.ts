@@ -34,8 +34,6 @@ async function withTimeout<T>(
  */
 export async function createUserBusinessProfile(userId: string, userEmail: string, userName: string) {
   const startTime = Date.now();
-  console.log(`[createUserBusinessProfile] Iniciando para userId: ${userId}`);
-  
   try {
     // Validação de entrada
     if (!userId || !userEmail) {
@@ -43,8 +41,6 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
     }
 
     // 1. Buscar a configuração global do sistema com timeout
-    console.log('[createUserBusinessProfile] Buscando configuração do sistema...');
-    
     let trialConfig: SystemConfig['trial'] = {
       enabled: false,
       days: 0,
@@ -65,8 +61,7 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
           trialConfig = systemConfig.trial;
         }
       }
-      console.log('[createUserBusinessProfile] Configuração obtida:', trialConfig);
-    } catch (configError) {
+      } catch (configError) {
       // Se falhar ao buscar config, continua com valores padrão
       console.warn('[createUserBusinessProfile] Erro ao buscar config, usando padrão:', configError);
     }
@@ -78,7 +73,6 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
       : null;
 
     // 3. Criar o documento do negócio com timeout
-    console.log('[createUserBusinessProfile] Criando documento do negócio...');
     const businessRef = adminDb.collection('negocios').doc(userId);
     
     const automationsEnabled = trialConfig.enabled;
@@ -114,8 +108,6 @@ export async function createUserBusinessProfile(userId: string, userEmail: strin
     );
 
     const duration = Date.now() - startTime;
-    console.log(`[createUserBusinessProfile] Sucesso! Duração: ${duration}ms`);
-    
     return { success: true };
 
   } catch (error) {

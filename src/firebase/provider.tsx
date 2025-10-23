@@ -83,8 +83,33 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser) => { // Auth state determined
+      async (firebaseUser) => { // Auth state determined
         setUserAuthState({ user: firebaseUser as User | null, isUserLoading: false, userError: null });
+        
+        // ✅ Configurar negócio automaticamente para novos usuários
+        if (firebaseUser && firestore) {
+          try {
+            // Verificar se é um admin (admins não precisam de setup de negócio)
+            const adminEmails = ['italocesar.hd@gmail.com', 'eduardosoarestonon@gmail.com'];
+            if (adminEmails.includes(firebaseUser.email?.toLowerCase() || '')) {
+              return;
+            }
+
+            // Chamar API para setup do negócio (criará apenas se não existir)
+            await fetch('/api/setup-business', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: firebaseUser.uid,
+                email: firebaseUser.email,
+                nome: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+              }),
+            });
+          } catch (error) {
+            console.error('Erro ao configurar negócio:', error);
+            // Não bloqueia o login em caso de erro
+          }
+        }
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
@@ -92,7 +117,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
     );
     return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+  }, [auth, firestore]); // Depends on the auth instance
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {

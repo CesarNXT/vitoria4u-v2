@@ -77,8 +77,6 @@ export const STANDARD_PLANS: Record<string, Omit<Plano, 'id'>> = {
  * Chamado automaticamente quando admin faz login
  */
 export async function syncPlansToFirestore(firestore: any): Promise<void> {
-  console.log('🔄 Sincronizando planos no Firestore...');
-  
   try {
     const { doc, setDoc, deleteDoc } = await import('firebase/firestore');
     
@@ -86,12 +84,10 @@ export async function syncPlansToFirestore(firestore: any): Promise<void> {
     try {
       const oldPlanRef = doc(firestore, 'planos', 'plano_expirado');
       await deleteDoc(oldPlanRef);
-      console.log('🧹 Plano obsoleto "plano_expirado" removido');
-    } catch (error: any) {
+      } catch (error: any) {
       // Pode já ter sido deletado - silencioso
       if (error.code !== 'not-found') {
-        console.log('⚠️ Plano obsoleto já foi removido anteriormente');
-      }
+        }
     }
     
     // 🔄 Agora sincroniza os planos corretos
@@ -101,8 +97,7 @@ export async function syncPlansToFirestore(firestore: any): Promise<void> {
     });
     
     await Promise.all(promises);
-    console.log('✅ Planos sincronizados com sucesso!');
-  } catch (error) {
+    } catch (error) {
     console.error('❌ Erro ao sincronizar planos:', error);
     // Não falha silenciosamente - apenas loga
   }

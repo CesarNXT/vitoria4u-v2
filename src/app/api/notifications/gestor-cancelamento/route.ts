@@ -11,8 +11,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    console.log('❌ Cancelamento - Notificando gestor:', body);
-
     const { telefoneEmpresa, nomeCliente, nomeServico, dataHoraAtendimento } = body;
 
     if (!telefoneEmpresa || !nomeCliente || !nomeServico || !dataHoraAtendimento) {
@@ -41,8 +39,6 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       throw new Error(`Erro ao enviar mensagem: ${response.status}`);
     }
-
-    console.log('✅ Notificação de cancelamento enviada para gestor:', telefoneEmpresa);
 
     return NextResponse.json({ success: true, sent: true });
   } catch (error) {

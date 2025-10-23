@@ -10,8 +10,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    console.log('⭐ Solicitando feedback:', body);
-
     const { 
       tokenInstancia, 
       telefoneCliente, 
@@ -55,8 +53,6 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       throw new Error(`Erro ao enviar mensagem: ${response.status}`);
     }
-
-    console.log('✅ Solicitação de feedback enviada:', telefoneCliente, feedbackPlatform);
 
     return NextResponse.json({ success: true, sent: true, platform: feedbackPlatform });
   } catch (error) {

@@ -84,6 +84,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
+    // ✅ System Config - Leitura pública (landing page precisa ler trial days)
+    match /system_config/{docId} {
+      allow read: if true; // Público para landing page
+      allow write: if isAdmin(); // Apenas admin escreve
+    }
+    
     // ✅ Monitor Collection - For connection health checks (public read)
     match /_monitor/{document=**} {
       allow read: if true; // Allow public read for health monitoring

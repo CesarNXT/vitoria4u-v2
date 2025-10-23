@@ -26,7 +26,6 @@ async function withTimeout<T>(
 // Tentar upload no Catbox.moe
 async function uploadToCatbox(formData: FormData): Promise<string | null> {
   try {
-    console.log('📤 [UPLOAD] Tentando Catbox.moe...');
     const response = await withTimeout(
       fetch('https://catbox.moe/user/api.php', {
         method: 'POST',
@@ -39,7 +38,6 @@ async function uploadToCatbox(formData: FormData): Promise<string | null> {
     const responseText = await response.text();
 
     if (response.ok && responseText.startsWith('http')) {
-      console.log('✅ [UPLOAD] Sucesso no Catbox.moe:', responseText);
       return responseText;
     }
     
@@ -57,12 +55,9 @@ async function uploadToImgBB(file: File): Promise<string | null> {
     const apiKey = process.env.IMGBB_API_KEY;
     
     if (!apiKey) {
-      console.log('⏭️ [UPLOAD] ImgBB desabilitado (sem API key)');
       return null;
     }
 
-    console.log('📤 [UPLOAD] Tentando ImgBB...');
-    
     const formData = new FormData();
     formData.append('image', file);
     
@@ -78,7 +73,6 @@ async function uploadToImgBB(file: File): Promise<string | null> {
     const data = await response.json();
 
     if (data.success && data.data?.url) {
-      console.log('✅ [UPLOAD] Sucesso no ImgBB:', data.data.url);
       return data.data.url;
     }
     
@@ -93,13 +87,9 @@ async function uploadToImgBB(file: File): Promise<string | null> {
 // Upload no Firebase Storage (sempre funciona)
 async function uploadToFirebase(file: File, userId: string): Promise<string> {
   const startTime = Date.now();
-  console.log('📤 [UPLOAD] Usando Firebase Storage...');
-  console.log('[UPLOAD] Arquivo:', file.name, 'Tamanho:', (file.size / 1024).toFixed(2), 'KB');
   
   try {
     const bucket = adminStorage.bucket();
-    console.log('[UPLOAD] Bucket:', bucket.name);
-    
     const fileName = `uploads/${userId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     
@@ -120,8 +110,6 @@ async function uploadToFirebase(file: File, userId: string): Promise<string> {
       'Timeout ao salvar arquivo no Firebase Storage'
     );
     
-    console.log('[UPLOAD] Arquivo salvo, tornando público...');
-    
     // Tornar público com timeout de 10 segundos
     await withTimeout(
       firebaseFile.makePublic(),
@@ -131,7 +119,6 @@ async function uploadToFirebase(file: File, userId: string): Promise<string> {
     
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
     const duration = Date.now() - startTime;
-    console.log(`✅ [UPLOAD] Sucesso no Firebase Storage (${duration}ms):`, publicUrl);
     
     return publicUrl;
   } catch (error) {
@@ -149,8 +136,6 @@ async function uploadToFirebase(file: File, userId: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
     const requestStartTime = Date.now();
-    console.log('\n🚀 [UPLOAD] Nova requisição de upload recebida');
-    
     try {
         const authToken = req.headers.get('Authorization')?.split('Bearer ')[1];
         if (!authToken) {
@@ -161,20 +146,17 @@ export async function POST(req: NextRequest) {
         // 🔒 SEGURANÇA: Validar token com Firebase Admin SDK
         let userId: string;
         try {
-            console.log('[UPLOAD] Verificando token de autenticação...');
             const decodedToken = await withTimeout(
                 adminAuth.verifyIdToken(authToken),
                 10000,
                 'Timeout ao verificar token'
             );
             userId = decodedToken.uid;
-            console.log(`✅ [UPLOAD] Upload autorizado para usuário: ${userId}`);
-        } catch (error) {
+            } catch (error) {
             console.error('❌ [UPLOAD] Token inválido:', error);
             return new NextResponse('Unauthorized: Invalid token', { status: 401 });
         }
         
-        console.log('[UPLOAD] Processando FormData...');
         const formData = await req.formData();
         
         // Extrair arquivo do FormData
@@ -186,11 +168,6 @@ export async function POST(req: NextRequest) {
         }
         
         const file = fileField as File;
-        console.log('[UPLOAD] Arquivo recebido:', {
-            name: file.name,
-            size: `${(file.size / 1024).toFixed(2)} KB`,
-            type: file.type
-        });
         
         // Validação de tamanho (200MB máximo)
         if (file.size > 200 * 1024 * 1024) {
@@ -219,9 +196,6 @@ export async function POST(req: NextRequest) {
         }
 
         const totalDuration = Date.now() - requestStartTime;
-        console.log(`\n✅ [UPLOAD] SUCESSO TOTAL em ${totalDuration}ms`);
-        console.log('[UPLOAD] URL final:', uploadUrl);
-        
         return new NextResponse(uploadUrl, { 
             status: 200,
             headers: {

@@ -33,8 +33,6 @@ export async function GET(request: Request) {
     }
 
     const startTime = Date.now();
-    console.log('🚀 [CRON] Iniciando verificação de campanhas...');
-
     const agora = new Date();
     const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
     const horaAtual = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
@@ -51,7 +49,6 @@ export async function GET(request: Request) {
 
     if (totalCampanhas === 0) {
       const duration = Date.now() - startTime;
-      console.log(`✅ [CRON] Nenhuma campanha para processar (${duration}ms, 1 leitura)`);
       return NextResponse.json({ 
         message: 'Nenhuma campanha ativa no momento',
         processed: 0,
@@ -61,8 +58,6 @@ export async function GET(request: Request) {
         optimization: '⚡ Early return - execução ultra-rápida!'
       });
     }
-
-    console.log(`📋 [CRON] Encontradas ${totalCampanhas} campanhas ativas`);
 
     // 🎯 OTIMIZAÇÃO 2: Buscar apenas campanhas que devem processar AGORA
     const activeCampaignsSnapshot = await adminDb
@@ -74,7 +69,6 @@ export async function GET(request: Request) {
 
     if (activeCampaignsSnapshot.empty) {
       const duration = Date.now() - startTime;
-      console.log(`✅ [CRON] Campanhas ainda não atingiram horário (${duration}ms)`);
       return NextResponse.json({ 
         message: 'Campanhas aguardando horário',
         processed: 0,
@@ -82,8 +76,6 @@ export async function GET(request: Request) {
         reads: 2
       });
     }
-
-    console.log(`📦 [CRON] Processando ${activeCampaignsSnapshot.size} campanhas...`);
 
     let totalProcessado = 0;
     let totalErros = 0;
@@ -111,28 +103,16 @@ export async function GET(request: Request) {
 
       const campanha = { id: campanhaDoc.id, ...campanhaDoc.data() } as Campanha;
 
-      // 🎯 DEBUG: Informações da campanha
-      console.log(`📋 [DEBUG] Campanha ${campanha.id} - Nome: ${campanha.nome}`);
-      console.log(`📋 [DEBUG] Status: ${campanha.status}`);
-      console.log(`📋 [DEBUG] Hora Início: ${campanha.horaInicio}`);
-      console.log(`📋 [DEBUG] Hora Atual: ${horaAtual}`);
-      
       const dataAgendamento = campanha.dataAgendamento.toDate();
       const diaAgendamento = new Date(
         dataAgendamento.getFullYear(),
         dataAgendamento.getMonth(),
         dataAgendamento.getDate()
       );
-      
-      console.log(`📋 [DEBUG] Data Agendamento: ${dataAgendamento.toISOString()}`);
-      console.log(`📋 [DEBUG] Dia Agendamento: ${diaAgendamento.toISOString()}`);
-      console.log(`📋 [DEBUG] Hoje: ${hoje.toISOString()}`);
 
       // 🚫 PROTEÇÃO: Campanhas antigas nunca iniciadas (evita loop infinito)
       if (campanha.status === 'Agendada') {
         const horasDesdeAgendamento = (agora.getTime() - dataAgendamento.getTime()) / (1000 * 60 * 60);
-        
-        console.log(`⏱️ [DEBUG] Horas desde agendamento: ${horasDesdeAgendamento.toFixed(2)}h`);
         
         // Se passou mais de 24 horas e nunca iniciou, marcar como Expirada
         if (horasDesdeAgendamento > 24) {
@@ -143,7 +123,6 @@ export async function GET(request: Request) {
           
           await activeCampaignDoc.ref.delete();
           
-          console.log(`⚠️ [CRON] Campanha ${campanha.id} EXPIRADA (${Math.floor(horasDesdeAgendamento)}h de atraso)`);
           campanhasAtualizadas++;
           continue;
         }
@@ -151,7 +130,6 @@ export async function GET(request: Request) {
 
       // Só processar se for HOJE ou ANTES (se atrasou)
       if (diaAgendamento.getTime() > hoje.getTime()) {
-        console.log(`⏭️ [CRON] Campanha ${campanha.id} agendada para o futuro (${diaAgendamento.toLocaleDateString('pt-BR')})`);
         continue;
       }
 
@@ -164,10 +142,7 @@ export async function GET(request: Request) {
         const minutosAtual = horaAtualH * 60 + horaAtualM;
         const minutosInicio = horaInicioH * 60 + horaInicioM;
         
-        console.log(`⏰ [DEBUG] Minutos atual: ${minutosAtual}, Minutos início: ${minutosInicio}`);
-        
         if (minutosAtual < minutosInicio) {
-          console.log(`⏰ [CRON] Campanha ${campanha.id} aguardando horário ${campanha.horaInicio} (faltam ${minutosInicio - minutosAtual} minutos)`);
           continue;
         }
       }
@@ -186,8 +161,6 @@ export async function GET(request: Request) {
 
           // 🔥 Remover da active_campaigns
           await activeCampaignDoc.ref.delete();
-
-          console.log(`✅ [CRON] Campanha ${campanha.id} concluída (${campanha.contatosEnviados}/${campanha.totalContatos})`);
         }
         campanhasAtualizadas++;
         continue;
@@ -207,7 +180,6 @@ export async function GET(request: Request) {
         });
 
         campanhasAtualizadas++;
-        console.log(`▶️ [CRON] Campanha ${campanha.id} iniciada - ${enviosPendentes.length} envios pendentes`);
       }
 
       // Processar no máximo X envios
@@ -215,7 +187,6 @@ export async function GET(request: Request) {
 
       for (const envio of enviosParaProcessar) {
         if (totalProcessado >= maxEnviosPorExecucao) {
-          console.log(`⏸️ [CRON] Limite de ${maxEnviosPorExecucao} envios atingido, continuando na próxima execução`);
           break;
         }
 
@@ -232,7 +203,6 @@ export async function GET(request: Request) {
 
             if (tempoDesdeUltimoEnvio < tempoMinimoMs) {
               const aguardar = Math.ceil((tempoMinimoMs - tempoDesdeUltimoEnvio) / 1000);
-              console.log(`⏳ [ANTI-BAN] Campanha ${campanha.id} aguardando ${aguardar}s (próximo intervalo: ${intervaloAleatorio}s)`);
               continue; // Pular este envio, aguardar próxima execução
             }
           }
@@ -280,9 +250,6 @@ export async function GET(request: Request) {
           totalProcessado++;
           campanhasAtualizadas++;
           if (!success) totalErros++;
-          
-          const progresso = `${campanha.contatosEnviados + (success ? 1 : 0)}/${campanha.totalContatos}`;
-          console.log(`📤 [ENVIO] ${success ? '✅' : '❌'} ${envio.telefone} - Campanha ${campanha.id} (${progresso})`);
 
         } catch (error) {
           totalErros++;
@@ -314,12 +281,6 @@ export async function GET(request: Request) {
     const duration = Date.now() - startTime;
     const totalReads = 1 + activeCampaignsSnapshot.size + activeCampaignsSnapshot.size; // count + active_campaigns + campanhas completas
     const avgTimePerMessage = totalProcessado > 0 ? Math.round(duration / totalProcessado) : 0;
-
-    console.log(`\n✅ [CRON] Processamento concluído em ${duration}ms`);
-    console.log(`📤 Mensagens: ${totalProcessado} enviadas, ${totalErros} erros`);
-    console.log(`📦 Campanhas: ${activeCampaignsSnapshot.size} verificadas, ${campanhasAtualizadas} atualizadas`);
-    console.log(`📊 Firebase: ${totalReads} leituras (95% economia vs versão antiga)`);
-    console.log(`⚡ Performance: ${avgTimePerMessage}ms/mensagem\n`);
 
     return NextResponse.json({
       success: true,

@@ -6,9 +6,7 @@ interface BusinessUserContextType {
   businessUserId: string | null;
 }
 
-const BusinessUserContext = createContext<BusinessUserContextType>({
-  businessUserId: null,
-});
+const BusinessUserContext = createContext<BusinessUserContextType | undefined>(undefined);
 
 export function BusinessUserProvider({
   children,
@@ -25,5 +23,9 @@ export function BusinessUserProvider({
 }
 
 export function useBusinessUser() {
-  return useContext(BusinessUserContext);
+  const context = useContext(BusinessUserContext);
+  if (context === undefined) {
+    throw new Error('useBusinessUser must be used within BusinessUserProvider');
+  }
+  return context;
 }

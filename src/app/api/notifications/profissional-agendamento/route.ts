@@ -10,8 +10,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    console.log('📢 Novo agendamento - Notificando profissional:', body);
-
     const { tokenInstancia, telefoneProfissional, nomeProfissional, nomeCliente, nomeServico, dataHoraAtendimento } = body;
 
     if (!tokenInstancia || !telefoneProfissional || !nomeProfissional || !nomeCliente || !nomeServico || !dataHoraAtendimento) {
@@ -41,8 +39,6 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       throw new Error(`Erro ao enviar mensagem: ${response.status}`);
     }
-
-    console.log('✅ Notificação enviada para profissional:', telefoneProfissional);
 
     return NextResponse.json({ success: true, sent: true });
   } catch (error) {

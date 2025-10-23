@@ -31,7 +31,6 @@ export function FirestoreConnectionMonitor() {
       () => {
         // Conexão OK - reset contador
         if (errorCount > 0) {
-          console.log('✅ Conexão Firestore restaurada')
           errorCount = 0
         }
       },

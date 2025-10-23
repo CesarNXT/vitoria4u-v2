@@ -1,10 +1,11 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/theme-provider';
 import { CookieBanner } from '@/components/cookie-banner';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { Poppins } from 'next/font/google';
 
 const poppins = Poppins({
@@ -14,13 +15,45 @@ const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
 });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
-  title: 'Vitoria4u',
-  description: 'Sistema de agendamento para profissionais de beleza.',
+  title: {
+    default: 'Vitoria4u - Sistema de Agendamento Inteligente',
+    template: '%s | Vitoria4u'
+  },
+  description: 'Sistema completo de agendamento para profissionais de beleza com IA, WhatsApp e automações. Gerencie clientes, agendamentos e campanhas de forma inteligente.',
+  keywords: ['agendamento', 'salão de beleza', 'barbearia', 'clínica estética', 'WhatsApp', 'IA', 'automação', 'gestão', 'calendário online'],
+  authors: [{ name: 'Vitoria4u' }],
+  creator: 'Vitoria4u',
+  publisher: 'Vitoria4u',
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    siteName: 'Vitoria4u',
+    title: 'Vitoria4u - Sistema de Agendamento Inteligente',
+    description: 'Automatize seu salão com IA e WhatsApp. Gestão completa de agendamentos, clientes e campanhas.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vitoria4u - Agendamento Inteligente',
+    description: 'Sistema de agendamento com IA e WhatsApp para profissionais de beleza',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
 };
 
@@ -30,68 +63,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth" className={`${poppins.variable} font-sans`}>
-      <head>
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              const suppressPatterns = [
-                /WebSocket connection.*failed/i,
-                /Fast Refresh/i,
-                /Could not establish connection/i,
-                /Receiving end does not exist/i,
-                /connect.*is not a function/i,
-                /Erro capturado/i,
-                /Token.*instância/i,
-                /Request URL/i,
-                /Request Method/i,
-                /Request Headers/i,
-                /Request Body/i,
-                /Instance Token/i,
-                /Admin Token/i,
-                /━━━━━━/,
-                /Automatic initialization failed/i,
-                /Falling back to firebase config/i,
-                /Need to provide options/i,
-                /app\\/no-options/i,
-                /Download the React DevTools/i,
-                /Violation.*handler took/i,
-                /scroll-behavior.*smooth/i,
-                /data-scroll-behavior/i,
-              ];
-              const originalError = console.error;
-              const originalWarn = console.warn;
-              const originalLog = console.log;
-              
-              console.error = function(...args) {
-                const msg = String(args[0] || '');
-                if (!suppressPatterns.some(p => p.test(msg))) originalError.apply(console, args);
-              };
-              console.warn = function(...args) {
-                const msg = String(args[0] || '');
-                if (!suppressPatterns.some(p => p.test(msg))) originalWarn.apply(console, args);
-              };
-              console.log = function(...args) {
-                const msg = String(args[0] || '');
-                if (!suppressPatterns.some(p => p.test(msg))) originalLog.apply(console, args);
-              };
-            })();
-          `
-        }} />
-      </head>
+    <html lang="pt-BR" suppressHydrationWarning className={`${poppins.variable} font-sans`}>
       <body className="overflow-x-hidden">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <FirebaseClientProvider>
-            {children}
-            <Toaster />
-            <CookieBanner />
-          </FirebaseClientProvider>
-        </ThemeProvider>
+        <ErrorBoundary>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <FirebaseClientProvider>
+              {children}
+              <Toaster />
+              <CookieBanner />
+            </FirebaseClientProvider>
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

@@ -161,17 +161,44 @@ export const formatPhoneNumber = (phone: string | number | null | undefined): st
 
 
 /**
- * ✅ REFATORADO: Usa Phone value object para normalização
+ * ✅ NORMALIZAÇÃO DE TELEFONE - SEMPRE 11 DÍGITOS
+ * Retorna apenas o número nacional (sem DDI) com exatamente 11 dígitos
+ * Formato: XXYYYYYYYYYY (DDD + 9 + 8 dígitos)
  */
 export const normalizePhoneNumber = (phone: string | number): string => {
   if (!phone) return '';
   
   try {
-    return Phone.create(phone).formatForWhatsApp();
+    // Phone.create() já garante 11 dígitos
+    return Phone.create(phone).raw; // Retorna 11 dígitos (sem DDI)
   } catch {
     // Fallback para valores inválidos
-    const cleaned = String(phone).replace(/\D/g, '');
-    return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
+    let cleaned = String(phone).replace(/\D/g, '');
+    
+    // ✅ PASSO 1: Remove 0 inicial se presente
+    if (cleaned.startsWith('0') && cleaned.length >= 11) {
+      cleaned = cleaned.substring(1);
+    }
+    
+    // ✅ PASSO 2: Remove DDI 55 se presente
+    if (cleaned.startsWith('55') && cleaned.length >= 12) {
+      cleaned = cleaned.substring(2);
+    }
+    
+    // ✅ PASSO 3: Se ainda começar com 0 após remover DDI, remove novamente
+    if (cleaned.startsWith('0') && cleaned.length >= 11) {
+      cleaned = cleaned.substring(1);
+    }
+    
+    // ✅ PASSO 4: Se tiver 10 dígitos, adicionar o 9
+    if (cleaned.length === 10) {
+      const ddd = cleaned.substring(0, 2);
+      const numero = cleaned.substring(2);
+      cleaned = ddd + '9' + numero;
+    }
+    
+    // Limitar a 11 dígitos
+    return cleaned.slice(0, 11);
   }
 };
 

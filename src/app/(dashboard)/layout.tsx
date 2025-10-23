@@ -126,11 +126,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
         const { syncPlansToFirestore, shouldSyncPlans, markPlansSynced } = await import('@/lib/sync-plans');
         
         if (shouldSyncPlans()) {
-          console.log('👤 Admin detectado - sincronizando planos...');
           await syncPlansToFirestore(firestore);
           markPlansSynced();
-          console.log('✅ Planos sincronizados!');
-        }
+          }
       }
       
       // 🚫 BLOQUEIO: Admins não podem acessar painel de negócios

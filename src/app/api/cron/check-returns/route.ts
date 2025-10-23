@@ -3,11 +3,9 @@ import { adminDb } from '@/lib/firebase-admin';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
 import { notifyReturn } from '@/lib/notifications';
 
-// ✅ Agora usa código nativo (notifyReturn)
-// Helper to convert Firestore Timestamp or string to Date
 function toDate(value: any): Date | null {
     if (!value) return null;
-    if (value.toDate) return value.toDate(); // Firestore Timestamp
+    if (value.toDate) return value.toDate();
     if (typeof value === 'string' || typeof value === 'number') {
         const d = new Date(value);
         if (!isNaN(d.getTime())) return d;
@@ -22,23 +20,17 @@ export async function GET(request: Request) {
         return new Response('Unauthorized', { status: 401 });
     }
     
-    console.log('🔄 CRON Job (check-returns) started - OPTIMIZED VERSION');
-    
     try {
         const today = startOfDay(new Date());
         
-        // 🔥 OTIMIZAÇÃO 1: Query apenas negócios com WhatsApp conectado
         const businessesSnapshot = await adminDb.collection('negocios')
             .where('whatsappConectado', '==', true)
             .get();
-        
-        console.log(`🏪 Found ${businessesSnapshot.size} businesses with WhatsApp`);
         
         let returnCount = 0;
         let businessesProcessed = 0;
         let totalReads = businessesSnapshot.size;
         
-        // 🔥 OTIMIZAÇÃO 2: Processar em paralelo (lotes de 15)
         const BATCH_SIZE = 15;
         const businesses = businessesSnapshot.docs;
         
@@ -55,8 +47,6 @@ export async function GET(request: Request) {
 
                 let businessHasReturns = false;
 
-                // 🔥 OTIMIZAÇÃO 3: Query apenas agendamentos finalizados
-                // TODO: Adicionar filtro por data para reduzir ainda mais (requer índice composto)
                 const appointmentsSnapshot = await adminDb
                     .collection(`negocios/${businessId}/agendamentos`)
                     .where('status', '==', 'Finalizado')
@@ -64,12 +54,10 @@ export async function GET(request: Request) {
                 
                 totalReads += appointmentsSnapshot.size;
 
-                // Processar agendamentos em paralelo
                 const returnPromises = appointmentsSnapshot.docs.map(async (appointmentDoc) => {
                     const appointmentData = appointmentDoc.data();
                     const service = appointmentData.servico;
 
-                    // Check if the service has a return period defined
                     if (!service || typeof service.returnInDays !== 'number' || service.returnInDays <= 0) {
                         return;
                     }
@@ -79,10 +67,8 @@ export async function GET(request: Request) {
                         return;
                     }
 
-                    // Calculate the exact return date
                     const returnDate = addDays(startOfDay(appointmentDate), service.returnInDays);
                     
-                    // Check if today is the day for the return reminder
                     if (!isSameDay(today, returnDate)) {
                         return;
                     }
@@ -90,7 +76,6 @@ export async function GET(request: Request) {
                     const client = appointmentData.cliente;
                     
                     try {
-                        // Envia mensagem de retorno (código nativo)
                         await notifyReturn({
                             tokenInstancia: businessData.tokenInstancia,
                             telefoneCliente: client.phone,
@@ -104,7 +89,7 @@ export async function GET(request: Request) {
                         returnCount++;
                         businessHasReturns = true;
                     } catch (error) {
-                        console.error(`❌ Error sending return to ${client.name}:`, error);
+                        console.error(`Erro ao enviar retorno para ${client.name}:`, error);
                     }
                 });
                 
@@ -115,11 +100,6 @@ export async function GET(request: Request) {
                 }
             }));
         }
-
-        console.log(`✅ CRON Job (check-returns) finished`);
-        console.log(`🔔 Returns sent: ${returnCount}`);
-        console.log(`🏪 Businesses processed: ${businessesProcessed}/${businessesSnapshot.size}`);
-        console.log(`📊 Firebase reads: ${totalReads} (OPTIMIZED!)`);
         
         return NextResponse.json({ 
             message: `Return checks completed. Found ${returnCount} returns in ${businessesProcessed} businesses.`,
@@ -128,7 +108,7 @@ export async function GET(request: Request) {
             totalReads
         });
     } catch (error: any) {
-        console.error('❌ CRON Job (check-returns) failed:', error);
+        console.error('CRON Job (check-returns) failed:', error);
         return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
     }
 }

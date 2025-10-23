@@ -53,10 +53,7 @@ export default async function PublicBookingPage({ params }: { params: Promise<{ 
     const { businessId } = await params;
 
     try {
-        console.log('🔍 Loading business data for:', businessId);
         const initialData = await getBusinessData(businessId);
-        console.log('✅ Business data loaded successfully');
-
         return (
             <BookingClient
                 businessId={businessId}

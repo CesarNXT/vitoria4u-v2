@@ -22,7 +22,6 @@ export async function checkFeatureAccess(businessSettings: ConfiguracoesNegocio,
             : new Date(businessSettings.access_expires_at);
         
         if (expiresAt < new Date()) {
-            console.log(`⚠️ Acesso expirado para negócio ${businessSettings.id} (expirou em ${expiresAt.toISOString()})`);
             return false;
         }
     }

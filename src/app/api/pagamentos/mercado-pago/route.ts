@@ -9,11 +9,6 @@ const client = new MercadoPagoConfig({
 });
 
 export async function POST(request: Request) {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🔵 API MERCADO PAGO - Iniciando');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('MERCADOPAGO_ACCESS_TOKEN:', process.env.MERCADOPAGO_ACCESS_TOKEN ? 'Carregado ✅' : 'NÃO CARREGADO ❌');
-  
   // Verificar se o token está configurado
   if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
     console.error('❌ MERCADOPAGO_ACCESS_TOKEN não configurado no .env');
@@ -47,27 +42,20 @@ export async function POST(request: Request) {
     // Usar o UID do token, não o userId do body (previne manipulação)
     const authenticatedUserId = decodedToken.uid;
     const authenticatedUserEmail = decodedToken.email || '';
-    console.log('✅ Usuário autenticado:', authenticatedUserId, authenticatedUserEmail);
-
     const proto = request.headers.get('x-forwarded-proto') || 'http';
     const host = request.headers.get('host');
     const origin = `${proto}://${host}`;
     const body = await request.json();
     const { planId } = body;
 
-    console.log('📋 Dados recebidos:', { planId, origin });
-    
     // Verificar se é ambiente de produção com URL válida
     const isProduction = origin.includes('vitoria4u') || origin.includes('vercel.app') || proto === 'https';
-    console.log('🌐 Ambiente:', isProduction ? 'Produção' : 'Desenvolvimento');
-
     if (!planId) {
       console.error('❌ planId não fornecido');
       return NextResponse.json({ error: 'planId é obrigatório.' }, { status: 400 });
     }
 
     // 1. Buscar o plano no Firestore para garantir a integridade do preço
-    console.log('🔍 Buscando plano no Firestore:', planId);
     const planDoc = await adminDb.collection('planos').doc(planId).get();
 
     if (!planDoc.exists) {
@@ -76,15 +64,12 @@ export async function POST(request: Request) {
     }
 
     const plan = planDoc.data() as Plano;
-    console.log('✅ Plano encontrado:', plan.name, 'R$', plan.price);
-
     // 2. Se o plano é gratuito (price = 0), não cria checkout
     if (!plan.price || plan.price === 0) {
         console.error('❌ Plano gratuito');
         return NextResponse.json({ error: 'Plano gratuito não requer checkout.' }, { status: 400 });
     }
 
-    console.log('🛒 Criando preferência no Mercado Pago...');
     const preference = new Preference(client);
 
     // Configurar preferência baseada no ambiente
@@ -111,9 +96,6 @@ export async function POST(request: Request) {
         pending: `${origin}/pagamento/pendente`,
       };
       preferenceBody.auto_return = 'approved';
-      console.log('✅ Back URLs configuradas (produção)');
-    } else {
-      console.log('⚠️ Back URLs não configuradas (desenvolvimento - use ambiente de produção para testar pagamentos)');
     }
 
     // 3. Criar a preferência com os dados seguros do banco de dados e do token
@@ -121,10 +103,6 @@ export async function POST(request: Request) {
       body: preferenceBody,
     });
 
-    console.log('✅ Preferência criada com sucesso!');
-    console.log('🔗 Checkout URL:', result.init_point);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
     // Retorna a URL de checkout (init_point)
     return NextResponse.json({ checkoutUrl: result.init_point });
 

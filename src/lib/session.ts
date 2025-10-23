@@ -27,7 +27,6 @@ async function withTimeout<T>(
  */
 export async function createSession(idToken: string) {
   const startTime = Date.now();
-  console.log('[createSession] Iniciando criação de sessão');
   
   try {
     // Validação de entrada
@@ -36,7 +35,6 @@ export async function createSession(idToken: string) {
     }
 
     // Criar session cookie com timeout de 10 segundos
-    console.log('[createSession] Criando session cookie...');
     const sessionCookie = await withTimeout(
       adminAuth.createSessionCookie(idToken, {
         expiresIn: SESSION_DURATION
@@ -45,7 +43,6 @@ export async function createSession(idToken: string) {
       'Timeout ao criar session cookie'
     );
     
-    console.log('[createSession] Session cookie criado, configurando cookies...');
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, sessionCookie, {
       maxAge: SESSION_DURATION / 1000,
@@ -54,9 +51,6 @@ export async function createSession(idToken: string) {
       sameSite: 'lax',
       path: '/'
     });
-    
-    const duration = Date.now() - startTime;
-    console.log(`[createSession] Sucesso! Duração: ${duration}ms`);
     
     return { success: true };
   } catch (error) {

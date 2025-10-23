@@ -48,33 +48,7 @@ import { Input } from '@/components/ui/input'
 import { ClientCard } from './client-card'
 import { Timestamp } from 'firebase/firestore'
 import { useDebounce } from '@/hooks/use-debounce'
-
-// Utility function to serialize Firestore Timestamps to plain objects
-function serializeTimestamps<T>(obj: T): T {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-  
-  if (obj instanceof Timestamp) {
-    return obj.toDate() as unknown as T;
-  }
-  
-  if (Array.isArray(obj)) {
-    return obj.map(item => serializeTimestamps(item)) as unknown as T;
-  }
-  
-  if (typeof obj === 'object') {
-    const serialized: any = {};
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        serialized[key] = serializeTimestamps((obj as any)[key]);
-      }
-    }
-    return serialized;
-  }
-  
-  return obj;
-}
+import { convertTimestamps } from '@/lib/utils'
 
 export default function ClientsPage() {
   const { businessUserId } = useBusinessUser()
@@ -101,13 +75,13 @@ export default function ClientsPage() {
     
     const unsubscribe = getClientsOnSnapshot(finalUserId, (data) => {
       // ✅ CRITICAL: Serializar TODOS os timestamps antes de setar no state
-      const serializedClients = data.map(client => serializeTimestamps(client));
+      const serializedClients = data.map(client => convertTimestamps(client));
       setClients(serializedClients)
       setIsLoading(false)
     })
     
      getBusinessConfig(finalUserId).then(settings => {
-      setBusinessSettings(serializeTimestamps(settings));
+      setBusinessSettings(convertTimestamps(settings));
     });
 
     return () => unsubscribe()
@@ -138,12 +112,7 @@ export default function ClientsPage() {
     }
 
     try {
-      console.log('🗑️ Tentando excluir cliente:', clientToDelete.id);
-      console.log('📍 Path:', `negocios/${finalUserId}/clientes/${clientToDelete.id}`);
-      
       await deleteDocument('clientes', clientToDelete.id, finalUserId);
-      
-      console.log('✅ Cliente excluído com sucesso!');
       
       toast({
         title: "Cliente Excluído",
@@ -153,7 +122,7 @@ export default function ClientsPage() {
       setClientToDelete(null);
       setIsAlertDialogOpen(false);
     } catch (error) {
-      console.error('❌ Erro ao excluir cliente:', error);
+      handleError(error, { context: 'Delete client', clientId: clientToDelete.id });
       toast({
         variant: "destructive",
         title: "Erro ao Excluir",

@@ -60,47 +60,41 @@ import { ptBR } from 'date-fns/locale'
 // ✅ Stub functions for missing notification and reminder functions
 // TODO: Implement these functions properly or connect to existing API routes
 const createReminders = async (userId: string, appointmentId: string, appointment: any, settings: any) => {
-  console.log('createReminders called - stub function');
+  // Stub function
 };
 
 const updateReminders = async (userId: string, appointmentId: string, appointment: any, settings: any) => {
-  console.log('updateReminders called - stub function');
+  // Stub function
 };
 
 const deleteReminders = async (appointmentId: string) => {
-  console.log('deleteReminders called - stub function');
+  // Stub function
 };
 
 const sendCreationHooks = async (settings: any, appointment: any, source: string, isGestor: boolean) => {
-  console.log('sendCreationHooks called - stub function');
+  // Stub function
 };
 
 const sendReminderHooksOnly = async (settings: any, appointment: any) => {
-  console.log('sendReminderHooksOnly called - stub function');
+  // Stub function
 };
 
 const sendCancellationHooks = async (settings: any, appointment: any, source: string) => {
-  console.log('sendCancellationHooks called - stub function');
+  // Stub function
 };
 
 const sendCompletionHooks = async (settings: any, appointment: any) => {
-  console.log('📲 sendCompletionHooks: Importando função real...');
   const { sendCompletionHooks: realSendCompletionHooks } = await import('./actions');
-  console.log('📲 Chamando função real de feedback...');
   await realSendCompletionHooks(settings, appointment);
-  console.log('✅ Feedback enviado com sucesso!');
 };
 
 const sendClientConfirmation = async (settings: any, appointment: any) => {
-  console.log('📲 sendClientConfirmation: Importando função real...');
   const { sendClientConfirmation: realSendClientConfirmation } = await import('./actions');
-  console.log('📲 Enviando confirmação para o cliente...');
   await realSendClientConfirmation(settings, appointment);
-  console.log('✅ Confirmação enviada com sucesso!');
 };
 
 const sendDeletionHooks = async (settings: any, appointment: any) => {
-  console.log('sendDeletionHooks called - stub function');
+  // Stub function
 };
 
 // ✅ Função refatorada para usar DateTime
@@ -195,7 +189,6 @@ export default function AgendamentosPage() {
     if (!finalUserId || !firestore) return;
     
     setIsLoading(true);
-    console.log('🔌 Conectando listeners do Firestore...');
 
     // Wrapper para capturar erros nos listeners
     const safeListener = (listenerFn: any, name: string) => {
@@ -215,7 +208,6 @@ export default function AgendamentosPage() {
     const unsubAppointments = safeListener(
       getAppointmentsOnSnapshot(finalUserId, (data) => {
         setAppointments(serializeTimestamps(data));
-        console.log('✅ Agendamentos carregados:', data.length);
       }),
       'Agendamentos'
     );
@@ -223,7 +215,6 @@ export default function AgendamentosPage() {
     const unsubClients = safeListener(
       getClientsOnSnapshot(finalUserId, (data) => {
         setClients(serializeTimestamps(data));
-        console.log('✅ Clientes carregados:', data.length);
       }),
       'Clientes'
     );
@@ -231,7 +222,6 @@ export default function AgendamentosPage() {
     const unsubServices = safeListener(
       getServicesOnSnapshot(finalUserId, (services) => {
         setServices(services);
-        console.log('✅ Serviços carregados:', services.length);
       }),
       'Serviços'
     );
@@ -253,7 +243,6 @@ export default function AgendamentosPage() {
     getBusinessConfig(finalUserId)
       .then(settings => {
         setBusinessSettings(serializeTimestamps(settings));
-        console.log('✅ Configurações carregadas');
         setIsLoading(false);
       })
       .catch(error => {
@@ -314,17 +303,10 @@ export default function AgendamentosPage() {
   const handleFormSubmit = async (data: any) => {
     if (!finalUserId || !businessSettings) return;
     setIsSubmitting(true);
-    console.log('🚀 Iniciando submit do agendamento...');
     
     try {
         const isEditing = !!selectedAppointment;
         
-        // 🔍 DEBUG: Log de autenticação
-        console.log('🔐 DEBUG Agendamento:');
-        console.log('  - user.uid:', user?.uid);
-        console.log('  - businessUserId:', businessUserId);
-        console.log('  - finalUserId:', finalUserId);
-        console.log('  - user.email:', user?.email);
         
         // Se for edição, deletar o agendamento antigo e criar novo ID
         if (isEditing) {
@@ -335,24 +317,11 @@ export default function AgendamentosPage() {
         // Usar generateUUID() para garantir unicidade absoluta (evita duplicatas em cliques rápidos)
         const newId = `appt-${Date.now()}-${generateUUID().slice(0, 8)}`;
         
-        // 🔍 DEBUG: Verificar dados antes de buscar
-        console.log('📋 Dados recebidos do formulário:');
-        console.log('  - clienteId:', data.clienteId);
-        console.log('  - servicoId:', data.servicoId);
-        console.log('  - profissionalId:', data.profissionalId);
-        console.log('📦 Estados atuais:');
-        console.log('  - clients disponíveis:', clients.length, clients.map(c => ({ id: c.id, name: c.name })));
-        console.log('  - services disponíveis:', services.length, services.map(s => ({ id: s.id, name: s.name })));
-        console.log('  - professionals disponíveis:', professionals.length, professionals.map(p => ({ id: p.id, name: p.name })));
         
         const cliente = clients.find(c => c.id === data.clienteId);
         const servico = services.find(s => s.id === data.servicoId);
         const profissional = professionals.find(p => p.id === data.profissionalId);
 
-        console.log('🔍 Resultados da busca:');
-        console.log('  - cliente encontrado:', cliente ? `✅ ${cliente.name}` : '❌ NÃO ENCONTRADO');
-        console.log('  - servico encontrado:', servico ? `✅ ${servico.name}` : '❌ NÃO ENCONTRADO');
-        console.log('  - profissional encontrado:', profissional ? `✅ ${profissional.name}` : '❌ NÃO ENCONTRADO');
 
         if (!cliente || !servico || !profissional) {
             const erroDetalhes = [];
@@ -383,13 +352,9 @@ export default function AgendamentosPage() {
         
         const serializableSettings = deepSerializeForServerFunction(businessSettings);
 
-        // 🔍 DEBUG: Log do path que será usado
-        console.log('  - Path Firestore:', `negocios/${finalUserId}/agendamentos/${newId}`);
         
         // Salvar o novo agendamento
-        console.log('💾 Salvando no Firestore...');
         await saveOrUpdateDocument('agendamentos', newId, serializableAppointment, finalUserId);
-        console.log('✅ Salvo no Firestore com sucesso!');
         
         // Atualização otimista: adiciona/atualiza no estado local imediatamente
         if (isEditing) {
@@ -424,14 +389,6 @@ export default function AgendamentosPage() {
         const wasCompleted = selectedAppointment?.status !== 'Finalizado' && data.status === 'Finalizado';
         const isNewAndFinalized = !isEditing && data.status === 'Finalizado';
 
-        // 🔍 DEBUG: Log de feedback
-        console.log('🔍 Verificando envio de feedback:');
-        console.log('  - wasCompleted:', wasCompleted);
-        console.log('  - isNewAndFinalized:', isNewAndFinalized);
-        console.log('  - whatsappConectado:', businessSettings?.whatsappConectado);
-        console.log('  - habilitarFeedback:', businessSettings?.habilitarFeedback);
-        console.log('  - feedbackLink:', businessSettings?.feedbackLink);
-        console.log('  - Vai enviar feedback?', (wasCompleted || isNewAndFinalized) && businessSettings?.whatsappConectado && businessSettings?.habilitarFeedback && businessSettings?.feedbackLink);
 
         // Solicitar confirmação antes de enviar feedback se finalizado
         if (
@@ -440,29 +397,8 @@ export default function AgendamentosPage() {
           businessSettings?.habilitarFeedback &&
           businessSettings?.feedbackLink
         ) {
-          console.log('✅ Abrindo modal de confirmação de feedback...');
           const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
           setPendingFeedbackPayload({ settings: serializableSettings, appointment: finalData });
-          setIsFeedbackConfirmOpen(true);
-        } else {
-          console.log('❌ Feedback NÃO será enviado. Verifique as condições acima.');
-        }
-        
-        // Send creation hooks only if it's a NEW appointment (not editing)
-        if (!isEditing && data.status === 'Agendado') {
-            try {
-                console.log('📲 Enviando notificações de criação...');
-                const creationPromise = sendCreationHooks(serializableSettings, serializableAppointment as any, 'Gestor (Painel)', true);
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout ao enviar notificações')), 10000)
-                );
-                await Promise.race([creationPromise, timeoutPromise]);
-                console.log('✅ Notificações enviadas!');
-            } catch (error: any) {
-                console.warn('⚠️ Erro ao enviar notificações (continuando):', error.message);
-                // Erro silencioso - logar apenas no servidor
-            }
-            
             // Mostrar modal de confirmação para enviar ao cliente
             // Só mostra se WhatsApp conectado E feature ativada
             if (businessSettings?.whatsappConectado && businessSettings?.notificarClienteAgendamento) {
@@ -498,26 +434,17 @@ export default function AgendamentosPage() {
             }
         }
         
-        console.log('🎉 Agendamento salvo com sucesso!');
         toast({ title: isEditing ? "Agendamento Atualizado" : "Agendamento Criado" });
         setIsFormModalOpen(false);
-        console.log('✅ Modal fechado');
 
     } catch (error: any) {
-        // 🔴 DEBUG: Log detalhado do erro
-        console.error('❌ ERRO AO SALVAR AGENDAMENTO:');
-        console.error('  - Erro completo:', error);
-        console.error('  - Mensagem:', error?.message);
-        console.error('  - Code:', error?.code);
-        console.error('  - Stack:', error?.stack);
-        
+        console.error('Erro ao salvar agendamento:', error);
         toast({ 
             variant: "destructive", 
             title: "Erro ao Salvar",
-            description: error?.message || "Verifique o console para mais detalhes"
+            description: error?.message || "Tente novamente"
         });
     } finally {
-        console.log('🏁 Finalizando submit (setIsSubmitting = false)');
         setIsSubmitting(false);
     }
   };
@@ -531,31 +458,21 @@ export default function AgendamentosPage() {
   };
 
   const handleConfirmFeedbackSend = async () => {
-    if (!pendingFeedbackPayload) {
-      console.error('❌ Nenhum payload pendente para envio de feedback!');
-      return;
-    }
-    
-    console.log('📤 Iniciando envio de feedback...');
-    console.log('  - Payload:', pendingFeedbackPayload);
+    if (!pendingFeedbackPayload) return;
     
     setIsSubmitting(true);
     try {
-      console.log('📲 Chamando sendCompletionHooks...');
       await sendCompletionHooks(pendingFeedbackPayload.settings, pendingFeedbackPayload.appointment);
-      console.log('✅ Feedback enviado com sucesso!');
       toast({ title: "✅ Feedback Enviado", description: "Cliente receberá a mensagem em breve." });
     } catch (error: any) {
-      console.error('❌ Erro ao enviar feedback:', error);
-      console.error('  - Mensagem:', error?.message);
-      console.error('  - Stack:', error?.stack);
+      console.error('Erro ao enviar feedback:', error);
       toast({ 
         variant: "destructive",
         title: "Erro ao Enviar Feedback", 
         description: error?.message || "Verifique as configurações de WhatsApp." 
       });
     } finally {
-      setIsFeedbackConfirmOpen(false); // Vai limpar via handleFeedbackModalChange
+      setIsFeedbackConfirmOpen(false);
       setIsSubmitting(false);
     }
   };
@@ -631,37 +548,26 @@ const handleClientConfirmModalChange = (open: boolean) => {
 };
 
 const handleSendClientConfirmation = async () => {
-  if (!pendingClientConfirm) {
-    console.error('❌ Nenhum payload pendente para confirmação!');
-    return;
-  }
-
-  console.log('📤 Iniciando envio de confirmação...');
-  console.log('  - Payload:', pendingClientConfirm);
+  if (!pendingClientConfirm) return;
 
   try {
-    console.log('📲 Chamando sendClientConfirmation...');
     await sendClientConfirmation(
       pendingClientConfirm.settings,
       pendingClientConfirm.appointment
     );
 
-    console.log('✅ Confirmação enviada com sucesso!');
     toast({
       title: '✅ Confirmação Enviada',
       description: 'Cliente recebeu a confirmação do agendamento por WhatsApp.',
     });
   } catch (error: any) {
-    console.error('❌ Erro ao enviar confirmação:', error);
-    console.error('  - Mensagem:', error?.message);
-    console.error('  - Stack:', error?.stack);
+    console.error('Erro ao enviar confirmação:', error);
     toast({
       variant: 'destructive',
       title: '❌ Erro ao Enviar',
       description: error?.message || 'Não foi possível enviar a confirmação.',
     });
   } finally {
-    // Fechar modal (que vai limpar o estado via handleClientConfirmModalChange)
     setIsClientConfirmOpen(false);
   }
 };

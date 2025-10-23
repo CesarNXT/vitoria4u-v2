@@ -192,13 +192,6 @@ export default function BusinessSettingsForm({
   const { hasFeature } = usePlanFeatures(settings, userPlan);
   const phoneInput = usePhoneInput('BR');
   
-  // 🔍 DEBUG: Log para descobrir por que não aparece
-  console.log('=== DEBUG FEEDBACK ===');
-  console.log('settings:', settings);
-  console.log('userPlan:', userPlan);
-  console.log('hasFeature("solicitacao_feedback"):', hasFeature('solicitacao_feedback'));
-  console.log('isSetupMode:', isSetupMode);
-  
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);

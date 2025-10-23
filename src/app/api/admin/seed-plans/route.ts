@@ -70,7 +70,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Acesso negado. Apenas administradores.' }, { status: 403 });
     }
 
-    console.log('Iniciando a criação de planos via API com permissões de Admin...');
     const plansRef = adminDb.collection('planos');
     const batch = adminDb.batch();
 
@@ -82,12 +81,9 @@ export async function GET(request: Request) {
       if (!planId) return;
       const docRef = plansRef.doc(planId);
       batch.set(docRef, plan);
-      console.log(`- Adicionando plano '${plan.name}' ao batch.`);
-    });
+      });
 
     await batch.commit();
-    console.log('✅ Sucesso! Todos os planos foram criados no Firestore.');
-
     return NextResponse.json({ 
       message: 'Planos criados com sucesso!',
       plans: plansToCreate.map((p, i) => ({ id: planIds[i], ...p }))

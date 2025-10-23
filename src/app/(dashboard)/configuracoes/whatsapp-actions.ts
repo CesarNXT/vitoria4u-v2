@@ -28,7 +28,7 @@ async function sendNotificationSMS(phone: string, text: string) {
       },
       body: JSON.stringify({ number: phone, text })
     })
-    console.log('📱 SMS enviado:', text.substring(0, 50))
+    )
   } catch (error) {
     console.warn('⚠️ Erro ao enviar SMS:', error)
   }
@@ -44,8 +44,6 @@ async function waitAndCheckConnection(
   businessPhone: string,
   timeoutSeconds: number = 60
 ): Promise<boolean> {
-  console.log(`⏳ Aguardando ${timeoutSeconds}s para verificar conexão...`)
-  
   // Aguardar tempo especificado
   await new Promise(resolve => setTimeout(resolve, timeoutSeconds * 1000))
   
@@ -54,8 +52,6 @@ async function waitAndCheckConnection(
     const status = await api.checkStatus()
     
     if (status.connected) {
-      console.log('✅ CONECTADO!')
-      
       // Enviar SMS de sucesso
       await sendNotificationSMS(businessPhone, '✅Whatsapp Conectado✅')
       
@@ -67,8 +63,6 @@ async function waitAndCheckConnection(
       
       return true
     } else {
-      console.log('❌ Não conectou no timeout')
-      
       // Deletar instância
       await api.deleteInstance()
       
@@ -88,10 +82,7 @@ export async function connectWhatsAppAction(data: {
   businessId: string
   businessPhone: string
 }) {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🚀 CONECTAR WHATSAPP (Server Action)')
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  
+  ')
   const { businessId, businessPhone } = data
   
   // Formatar telefone (remover caracteres não numéricos)
@@ -107,8 +98,6 @@ export async function connectWhatsAppAction(data: {
     cleanPhone = '55' + cleanPhone
   }
   
-  console.log('📞 Telefone formatado:', cleanPhone)
-  
   try {
     // 1. Buscar configurações do negócio para verificar features
     const businessDoc = await adminDb.collection('negocios').doc(businessId).get()
@@ -116,13 +105,10 @@ export async function connectWhatsAppAction(data: {
     
     // Verificar se tem feature de IA
     const hasIAFeature = await checkFeatureAccess(businessSettings, 'atendimento_whatsapp_ia')
-    console.log('🤖 Feature de IA disponível:', hasIAFeature)
-    
     // 2. Criar API instance
     const api = new WhatsAppAPI(businessId)
     
     // 3. Criar instância
-    console.log('🔧 Criando instância...')
     const token = await api.createInstance('apilocal')
     
     // Salvar token no Firestore
@@ -131,11 +117,10 @@ export async function connectWhatsAppAction(data: {
     })
     
     // 3. Aguardar inicialização
-    console.log('⏳ Aguardando 2s...')
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     // 4. Conectar com telefone (tentar paircode primeiro)
-    console.log('📱 Tentando conectar com telefone (PairCode)...')
+    ...')
     let result = await api.connectWithPhone(cleanPhone)
     
     // 5. Verificar se paircode foi gerado
@@ -147,19 +132,16 @@ export async function connectWhatsAppAction(data: {
         result = await api.connectWithQRCode()
         
         if (result.qrCode) {
-          console.log('✅ QR Code gerado com sucesso!')
-          
           // Configurar webhook APENAS se tiver feature de IA
           if (hasIAFeature) {
             // URL FIXA E CORRETA da webhook N8N
             const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-            console.log('🤖 Configurando webhook N8N (IA ativa):', webhookUrl)
+            :', webhookUrl)
             
             // Garantir que a webhook está sendo configurada
             const webhookResult = await api.setupWebhook(webhookUrl)
-            console.log('✅ Webhook configurada com sucesso')
-          } else {
-            console.log('⏭️ Webhook N8N não configurada (plano sem IA)')
+            } else {
+            ')
           }
           
           // Enviar instrução via SMS
@@ -199,19 +181,16 @@ export async function connectWhatsAppAction(data: {
     }
     
     // PairCode foi gerado com sucesso
-    console.log('✅ PairCode gerado:', result.pairCode)
-    
     // Configurar webhook APENAS se tiver feature de IA
     if (hasIAFeature) {
       // URL FIXA E CORRETA da webhook N8N
       const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-      console.log('🤖 Configurando webhook N8N (IA ativa):', webhookUrl)
+      :', webhookUrl)
       
       // Garantir que a webhook está sendo configurada
       const webhookResult = await api.setupWebhook(webhookUrl)
-      console.log('✅ Webhook configurada com sucesso')
-    } else {
-      console.log('⏭️ Webhook N8N não configurada (plano sem IA)')
+      } else {
+      ')
     }
     
     // Enviar paircode via SMS
@@ -248,10 +227,6 @@ export async function connectWhatsAppAction(data: {
 export async function verifyAndFixWebhookAction(data: {
   businessId: string
 }) {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🔍 VERIFICAR E CORRIGIR WEBHOOK')
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  
   const { businessId } = data
   
   try {
@@ -268,8 +243,6 @@ export async function verifyAndFixWebhookAction(data: {
     
     // 2. Verificar se tem feature de IA
     const hasIAFeature = await checkFeatureAccess(businessSettings, 'atendimento_whatsapp_ia')
-    console.log('🤖 Feature de IA disponível:', hasIAFeature)
-    
     // 3. Criar API instance
     const api = new WhatsAppAPI(businessId, businessSettings.tokenInstancia)
     
@@ -277,23 +250,17 @@ export async function verifyAndFixWebhookAction(data: {
     if (hasIAFeature) {
       // URL FIXA E CORRETA da webhook N8N
       const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-      console.log('🤖 Configurando webhook N8N (IA ativa):', webhookUrl)
+      :', webhookUrl)
       
       await api.setupWebhook(webhookUrl)
-      console.log('✅ Webhook configurada/corrigida com sucesso')
-      
       return {
         success: true,
         message: 'Webhook configurada corretamente',
         webhookUrl
       }
     } else {
-      console.log('⏭️ Plano sem IA - webhook não deve estar configurada')
-      
       // Configurar webhook vazia para garantir que não há webhook ativa
       await api.setupWebhook('')
-      console.log('✅ Webhook removida/limpa')
-      
       return {
         success: true,
         message: 'Webhook removida (plano sem IA)',
@@ -319,10 +286,7 @@ export async function disconnectWhatsAppAction(data: {
   instanceToken: string
   businessPhone: string
 }) {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🔌 DESCONECTAR WHATSAPP (Server Action)')
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  
+  ')
   const { businessId, instanceToken, businessPhone } = data
   
   try {
@@ -339,7 +303,6 @@ export async function disconnectWhatsAppAction(data: {
     const api = new WhatsAppAPI(businessId, instanceToken)
     
     // 2. Deletar instância
-    console.log('🗑️ Deletando instância...')
     await api.deleteInstance()
     
     // 3. Atualizar Firestore
@@ -350,8 +313,6 @@ export async function disconnectWhatsAppAction(data: {
     
     // 4. Enviar SMS de desconexão
     await sendNotificationSMS(cleanPhone, '❌Whatsapp Desconectado❌')
-    
-    console.log('✅ Desconectado com sucesso')
     
     return {
       success: true,
@@ -390,14 +351,7 @@ export async function handleWebhookDisconnection(data: {
   id: string
   status: string
 }) {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🔔 WEBHOOK: Desconexão detectada')
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('ID:', data.id)
-  console.log('Status:', data.status)
-  
   if (data.status !== 'disconnected') {
-    console.log('⏭️ Status não é disconnected, ignorando')
     return { success: false, message: 'Status não é disconnected' }
   }
   
@@ -416,7 +370,6 @@ export async function handleWebhookDisconnection(data: {
     const instance = instances.find((inst: any) => inst.name === data.id)
     
     if (!instance) {
-      console.log('⚠️ Instância não encontrada')
       return { success: false, message: 'Instância não encontrada' }
     }
     
@@ -424,7 +377,6 @@ export async function handleWebhookDisconnection(data: {
     const businessDoc = await adminDb.collection('negocios').doc(data.id).get()
     
     if (!businessDoc.exists) {
-      console.log('⚠️ Negócio não encontrado')
       return { success: false, message: 'Negócio não encontrado' }
     }
     
@@ -452,8 +404,6 @@ export async function handleWebhookDisconnection(data: {
       
       await sendNotificationSMS(cleanPhone, '❌Whatsapp Desconectado❌')
     }
-    
-    console.log('✅ Desconexão processada')
     
     return {
       success: true,

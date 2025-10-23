@@ -14,7 +14,6 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { isFuture, differenceInDays } from 'date-fns'
 import { startImpersonation } from '@/app/(public)/login/session-actions'
-import { EmergencyActionsCard } from './emergency-actions-card'
 
 
 export default function AdminDashboardPage() {
@@ -78,9 +77,6 @@ export default function AdminDashboardPage() {
       </div>
       
       <AdminStatsCards businesses={businesses} />
-      
-      {/* Card de Ações de Emergência */}
-      <EmergencyActionsCard />
       
       {/* Gráficos - Verticalizados em mobile, lado a lado em desktop */}
       <div className="flex flex-col gap-6 md:gap-8 lg:grid lg:grid-cols-2">

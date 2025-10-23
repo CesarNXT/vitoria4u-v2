@@ -119,13 +119,6 @@ export async function POST(request: NextRequest) {
                     status: 'Cancelado',
                 };
                 
-                console.log('📤 Enviando webhooks de cancelamento...', {
-                    appointmentId,
-                    clientName: appointmentData.cliente.name,
-                    professionalName: appointmentData.profissional?.name,
-                    professionalPhone: appointmentData.profissional?.phone
-                });
-                
                 // Enviar webhooks (notificação gestor + notificação profissional)
                 await sendCancellationHooks(businessSettings as any, fullAppointment as any);
                 logger.success('Webhooks de cancelamento enviados', { appointmentId });
