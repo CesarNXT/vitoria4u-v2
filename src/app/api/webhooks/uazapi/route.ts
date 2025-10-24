@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    console.log('[WEBHOOK] Recebido da UazAPI:', JSON.stringify(body, null, 2));
+    // console.warn('[WEBHOOK] Recebido da UazAPI:', JSON.stringify(body, null, 2));
 
     // Tipos de eventos que podemos receber:
     // WEBHOOK GLOBAL (formato novo):
@@ -74,7 +74,7 @@ async function processBulkMessageEvent(event: string, data: any) {
     const { folder_id, message_id, number, status, timestamp } = data;
 
     if (!folder_id || !message_id) {
-      console.log('[WEBHOOK] Evento sem folder_id ou message_id, ignorando');
+      // Evento sem folder_id ou message_id, ignorando
       return;
     }
 
@@ -86,7 +86,7 @@ async function processBulkMessageEvent(event: string, data: any) {
       .get();
 
     if (snapshot.empty) {
-      console.log(`[WEBHOOK] Campanha ${folder_id} não encontrada no Firestore`);
+      // Campanha não encontrada
       return;
     }
 
@@ -130,7 +130,7 @@ async function processBulkMessageEvent(event: string, data: any) {
       receivedAt: new Date(),
     }, { merge: true });
 
-    console.log(`[WEBHOOK] Campanha ${folder_id} atualizada: ${event} para ${number}`);
+    // Campanha atualizada
   } catch (error) {
     console.error('[WEBHOOK] Erro ao processar evento:', error);
   }
@@ -148,7 +148,7 @@ async function processReminderEvent(event: string, data: any) {
       return; // Não é uma campanha agendada
     }
 
-    console.log(`[WEBHOOK-REMINDER] Evento ${event} para folder ${folder_id}`);
+    // console.warn(`[WEBHOOK-REMINDER] Evento ${event} para folder ${folder_id}`);
 
     // Buscar agendamento que contém este folder_id
     const agendamentosRef = adminDb.collectionGroup('agendamentos');
@@ -160,7 +160,7 @@ async function processReminderEvent(event: string, data: any) {
       .get();
 
     if (snapshot.empty) {
-      console.log(`[WEBHOOK-REMINDER] Nenhum agendamento encontrado para folder ${folder_id}`);
+      // Nenhum agendamento encontrado
       return;
     }
 
@@ -206,7 +206,7 @@ async function processReminderEvent(event: string, data: any) {
       // Atualizar agendamento
       if (Object.keys(updateData).length > 0) {
         await agendamentoDoc.ref.update(updateData);
-        console.log(`[WEBHOOK-REMINDER] Agendamento ${agendamentoDoc.id} atualizado: ${reminderType} - ${event}`);
+        // Agendamento atualizado
       }
 
       // Se houve erro, notificar o gestor (opcional)
@@ -276,7 +276,7 @@ Por favor, confirme o agendamento manualmente.`;
       })
     });
 
-    console.log(`[WEBHOOK-REMINDER] Gestor notificado sobre falha no lembrete ${reminderType}`);
+    // Gestor notificado
   } catch (error) {
     console.error('[WEBHOOK-REMINDER] Erro ao notificar gestor:', error);
   }
@@ -294,7 +294,7 @@ async function processConnectionEvent(data: any) {
       return;
     }
 
-    console.log(`[WEBHOOK-CONNECTION] Instância ${instance} → estado: ${state}`);
+    // console.warn(`[WEBHOOK-CONNECTION] Instância ${instance} → estado: ${state}`);
 
     // Mapear estados
     const connectionStates: Record<string, any> = {
@@ -313,7 +313,7 @@ async function processConnectionEvent(data: any) {
       .get();
 
     if (snapshot.empty) {
-      console.log(`[WEBHOOK-CONNECTION] Nenhum negócio encontrado para instância ${instance}`);
+      // Nenhum negócio encontrado
       return;
     }
 
@@ -331,7 +331,7 @@ async function processConnectionEvent(data: any) {
 
     await batch.commit();
 
-    console.log(`[WEBHOOK-CONNECTION] ${snapshot.size} negócio(s) atualizado(s): ${state}`);
+    // Negócios atualizados
 
     // Se desconectou, notificar gestor
     if (state === 'close') {
@@ -374,7 +374,7 @@ async function notifyManagerAboutDisconnection(business: any) {
       })
     });
 
-    console.log(`[WEBHOOK-CONNECTION] Gestor notificado sobre desconexão`);
+    // Gestor notificado
   } catch (error) {
     console.error('[WEBHOOK-CONNECTION] Erro ao notificar gestor:', error);
   }
@@ -397,7 +397,7 @@ async function processCallEvent(data: any) {
       return;
     }
 
-    console.log(`[WEBHOOK-CALL] Chamada recebida de ${from}`);
+    // console.warn(`[WEBHOOK-CALL] Chamada recebida de ${from}`);
 
     // Extrair número limpo
     const phoneNumber = from.replace('@s.whatsapp.net', '').replace(/\D/g, '');
@@ -410,7 +410,7 @@ async function processCallEvent(data: any) {
       .get();
 
     if (snapshot.empty) {
-      console.log('[WEBHOOK-CALL] Nenhum negócio configurado para rejeitar chamadas');
+      // Nenhum negócio configurado
       return;
     }
 
@@ -430,7 +430,7 @@ async function processCallEvent(data: any) {
       );
 
       if (callRejected) {
-        console.log(`[WEBHOOK-CALL] Chamada de ${phoneNumber} rejeitada`);
+        // Chamada rejeitada
 
         // Enviar mensagem automática
         const mensagem = business.mensagemRejeicaoChamada || 
@@ -519,7 +519,7 @@ async function sendAutoReplyMessage(
       })
     });
 
-    console.log(`[WEBHOOK-CALL] Mensagem automática enviada para ${phoneNumber}`);
+    // Mensagem automática enviada
   } catch (error) {
     console.error('[WEBHOOK-CALL] Erro ao enviar mensagem automática:', error);
   }
@@ -537,7 +537,7 @@ async function processSenderEvent(data: any) {
       return;
     }
 
-    console.log(`[WEBHOOK-SENDER] Campanha ${folder_id} → status: ${status}, enviadas: ${sent_count}/${total_messages}`);
+    // console.warn(`[WEBHOOK-SENDER] Campanha ${folder_id} → status: ${status}, enviadas: ${sent_count}/${total_messages}`);
 
     // Buscar agendamentos com esta campanha
     const agendamentosRef = adminDb.collectionGroup('agendamentos');
@@ -549,7 +549,7 @@ async function processSenderEvent(data: any) {
       .get();
 
     if (snapshot.empty) {
-      console.log(`[WEBHOOK-SENDER] Nenhum agendamento encontrado para folder ${folder_id}`);
+      // Nenhum agendamento encontrado
       return;
     }
 
@@ -578,7 +578,7 @@ async function processSenderEvent(data: any) {
       // Atualizar
       if (Object.keys(updateData).length > 0) {
         await agendamentoDoc.ref.update(updateData);
-        console.log(`[WEBHOOK-SENDER] Agendamento ${agendamentoDoc.id} atualizado: ${reminderType} - ${status}`);
+        // Agendamento atualizado
       }
     }
   } catch (error) {
@@ -598,7 +598,7 @@ async function processMessagesUpdateEvent(data: any) {
       return;
     }
 
-    console.log(`[WEBHOOK-MSG-UPDATE] Mensagem ${messageId} → ack: ${ack}`);
+    // console.warn(`[WEBHOOK-MSG-UPDATE] Mensagem ${messageId} → ack: ${ack}`);
 
     // ACK codes:
     // 1 = enviado
@@ -662,11 +662,11 @@ async function processMessagesUpdateEvent(data: any) {
       // Atualizar
       if (Object.keys(updateData).length > 0) {
         await agendamentoDoc.ref.update(updateData);
-        console.log(`[WEBHOOK-MSG-UPDATE] Agendamento ${agendamentoDoc.id} atualizado: ack ${ack}`);
+        // Agendamento atualizado
       }
     }
   } catch (error) {
-    console.log('[WEBHOOK-MSG-UPDATE] Erro ao processar evento messages_update:', error);
+    console.error('[WEBHOOK-MSG-UPDATE] Erro ao processar evento messages_update:', error);
   }
 }
 
@@ -682,7 +682,7 @@ async function processButtonResponse(data: any) {
       return;
     }
 
-    console.log(`[WEBHOOK-BUTTON] Cliente ${from} clicou: ${buttonOrListid}`);
+    // console.warn(`[WEBHOOK-BUTTON] Cliente ${from} clicou: ${buttonOrListid}`);
 
     // Extrair agendamento ID do track_id (formato: reminder_24h_appt-123)
     if (!track_id || !track_id.startsWith('reminder_')) {
@@ -693,7 +693,7 @@ async function processButtonResponse(data: any) {
     const agendamentoId = parts.length >= 3 ? parts.slice(2).join('_') : null;
 
     if (!agendamentoId) {
-      console.log('[WEBHOOK-BUTTON] track_id inválido:', track_id);
+      console.warn('[WEBHOOK-BUTTON] track_id inválido:', track_id);
       return;
     }
 
@@ -705,7 +705,7 @@ async function processButtonResponse(data: any) {
       .get();
 
     if (snapshot.empty) {
-      console.log(`[WEBHOOK-BUTTON] Agendamento ${agendamentoId} não encontrado`);
+      // Agendamento não encontrado
       return;
     }
 
@@ -728,7 +728,7 @@ async function processButtonResponse(data: any) {
         updateData.presencaConfirmadaPor = 'cliente';
         updateData.status = 'Confirmado';
         
-        console.log(`✅ Cliente confirmou presença: ${agendamento.cliente?.name}`);
+        // Cliente confirmou presença
         
         // Enviar confirmação ao cliente
         await sendConfirmationMessage(from, agendamento, 'confirmed');
@@ -746,7 +746,7 @@ async function processButtonResponse(data: any) {
           `Data original: ${formatDate(agendamento.date)}\n\n` +
           `Entre em contato para reagendar.`;
         
-        console.log(`📅 Cliente solicitou remarcação: ${agendamento.cliente?.name}`);
+        // Cliente solicitou remarcação
         
         // Enviar mensagem ao cliente
         await sendConfirmationMessage(from, agendamento, 'reschedule');
@@ -766,7 +766,7 @@ async function processButtonResponse(data: any) {
           `Data: ${formatDate(agendamento.date)}\n\n` +
           `Horário agora disponível.`;
         
-        console.log(`❌ Cliente cancelou: ${agendamento.cliente?.name}`);
+        // Cliente cancelou
         
         // Enviar confirmação ao cliente
         await sendConfirmationMessage(from, agendamento, 'cancelled');
@@ -776,7 +776,7 @@ async function processButtonResponse(data: any) {
     // Atualizar agendamento
     if (Object.keys(updateData).length > 0) {
       await agendamentoDoc.ref.update(updateData);
-      console.log(`[WEBHOOK-BUTTON] Agendamento ${agendamentoId} atualizado`);
+      // Agendamento atualizado
     }
 
     // Notificar gestor se necessário
@@ -821,7 +821,7 @@ async function sendConfirmationMessage(
       })
     });
 
-    console.log(`📤 Confirmação enviada ao cliente: ${action}`);
+    // Confirmação enviada ao cliente
   } catch (error) {
     console.error('[WEBHOOK-BUTTON] Erro ao enviar confirmação:', error);
   }
@@ -858,7 +858,7 @@ async function notifyManagerAboutClientAction(
       })
     });
 
-    console.log(`[WEBHOOK-BUTTON] Gestor notificado sobre ação do cliente`);
+    // Gestor notificado
   } catch (error) {
     console.error('[WEBHOOK-BUTTON] Erro ao notificar gestor:', error);
   }

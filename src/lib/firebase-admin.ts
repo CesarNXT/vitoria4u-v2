@@ -20,7 +20,7 @@ if (!admin.apps.length) {
           credential: admin.credential.cert(serviceAccount),
           storageBucket: storageBucket || `${serviceAccount.project_id}.appspot.com`,
         });
-        console.log('[Firebase Admin] ✅ Inicializado com storage bucket:', storageBucket || `${serviceAccount.project_id}.appspot.com`);
+        console.warn('[Firebase Admin] ✅ Inicializado com storage bucket:', storageBucket || `${serviceAccount.project_id}.appspot.com`);
         } catch (parseError) {
         console.error('[Firebase Admin] ❌ Erro ao parsear service account key:', parseError);
         throw parseError;
@@ -30,7 +30,7 @@ if (!admin.apps.length) {
       admin.initializeApp({
         storageBucket: storageBucket || `${projectId}.appspot.com`,
       });
-      console.log('[Firebase Admin] ✅ Inicializado com storage bucket:', storageBucket || `${projectId}.appspot.com`);
+      console.warn('[Firebase Admin] ✅ Inicializado com storage bucket:', storageBucket || `${projectId}.appspot.com`);
     } else {
       // Último recurso - sem bucket configurado
       console.warn('[Firebase Admin] ⚠️ Inicializando sem storage bucket configurado');

@@ -154,12 +154,12 @@ async function createReminderCampaign(
       messages: [messagePayload]
     };
 
-    console.log(`📤 Criando campanha ${type} com botões interativos:`, {
-      scheduledFor: scheduledFor.toISOString(),
-      scheduledTimestamp,
-      phone: whatsappNumber,
-      buttons: buttons.length
-    });
+    // console.warn(`📤 Criando campanha ${type} com botões interativos:`, {
+    //   scheduledFor: scheduledFor.toISOString(),
+    //   scheduledTimestamp,
+    //   phone: whatsappNumber,
+    //   buttons: buttons.length
+    // });
 
     const response = await fetch(`${API_BASE}/sender/advanced`, {
       method: 'POST',
@@ -186,11 +186,11 @@ async function createReminderCampaign(
       return null;
     }
 
-    console.log(`✅ Campanha ${type} com botões criada! folder_id:`, folderId);
+    // Campanha criada
     return folderId;
 
   } catch (error: any) {
-    console.error(`❌ Erro ao criar campanha ${type}:`, error.message);
+    console.error(`Erro ao criar lembretes para ${agendamentoId}:`, error.message);
     return null;
   }
 }
@@ -211,7 +211,7 @@ export async function createReminders(
   business: ConfiguracoesNegocio
 ): Promise<ReminderCampaign[]> {
   
-  console.log(`🔔 Iniciando criação de lembretes para agendamento ${agendamentoId}`);
+  // Iniciando criação de lembretes
 
   // Validações
   if (!business.tokenInstancia) {
@@ -305,11 +305,11 @@ export async function createReminders(
       }
     }
 
-    console.log(`✅ ${campaigns.length} lembretes criados para agendamento ${agendamentoId}`);
+    // Lembretes criados
     return campaigns;
 
   } catch (error: any) {
-    console.error('❌ Erro ao criar lembretes:', error.message);
+    console.error('Erro ao criar lembretes:', error.message);
     return [];
   }
 }
@@ -323,7 +323,7 @@ async function cancelCampaign(
   type: '24h' | '2h'
 ): Promise<boolean> {
   try {
-    console.log(`🗑️ Cancelando campanha ${type} (folder_id: ${folderId})`);
+    // Cancelando campanha
 
     const response = await fetch(`${API_BASE}/sender/edit`, {
       method: 'POST',
@@ -343,7 +343,7 @@ async function cancelCampaign(
       return false;
     }
 
-    console.log(`✅ Campanha ${type} cancelada com sucesso`);
+    // Campanha cancelada
     return true;
 
   } catch (error: any) {
@@ -366,7 +366,7 @@ export async function updateReminders(
   oldCampaigns?: ReminderCampaign[]
 ): Promise<ReminderCampaign[]> {
   
-  console.log(`🔄 Atualizando lembretes para agendamento ${agendamentoId}`);
+  // Atualizando lembretes
 
   // 1. Cancelar campanhas antigas (se existirem)
   if (oldCampaigns && oldCampaigns.length > 0 && business.tokenInstancia) {

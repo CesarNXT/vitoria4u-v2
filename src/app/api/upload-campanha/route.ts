@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
             throw new Error('Falha no upload para Catbox');
         }
 
-        console.log(`✅ [UPLOAD-CAMPANHA] Upload bem-sucedido: ${uploadUrl}`);
+        // Upload bem-sucedido
         
         const totalDuration = Date.now() - requestStartTime;
         return new NextResponse(uploadUrl, { 

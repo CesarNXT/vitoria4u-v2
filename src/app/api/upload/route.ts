@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
         // Tentativa 1: Firebase Storage (garantido e rápido)
         try {
             uploadUrl = await uploadToFirebase(file, userId);
-            console.log('✅ [UPLOAD] Upload bem-sucedido no Firebase Storage');
+            // Upload bem-sucedido no Firebase Storage
         } catch (error) {
             console.error('❌ [UPLOAD] Firebase falhou, tentando fallback...');
             

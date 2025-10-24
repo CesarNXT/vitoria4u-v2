@@ -44,7 +44,8 @@ export const STANDARD_PLANS: Record<string, Omit<Plano, 'id'>> = {
       'solicitacao_feedback',
       'lembrete_profissional',
       'disparo_de_mensagens',
-      'notificacao_gestor_agendamento'
+      'notificacao_gestor_agendamento',
+      'rejeicao_chamadas'
     ],
     isFeatured: true,
   },
@@ -66,7 +67,8 @@ export const STANDARD_PLANS: Record<string, Omit<Plano, 'id'>> = {
       'notificacao_gestor_agendamento',
       'atendimento_whatsapp_ia',
       'notificacao_cliente_agendamento',
-      'escalonamento_humano'
+      'escalonamento_humano',
+      'rejeicao_chamadas'
     ],
     isFeatured: false,
   },

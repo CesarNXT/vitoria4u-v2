@@ -1248,7 +1248,8 @@ export default function BusinessSettingsForm({
                         />
                       )}
                       
-                      {/* Rejeição Automática de Chamadas */}
+                      {/* Rejeição Automática de Chamadas - Só aparece se plano tiver */}
+                      {hasFeature('rejeicao_chamadas') && (
                       <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
                         <FormField
                           control={control}
@@ -1296,6 +1297,7 @@ export default function BusinessSettingsForm({
                           />
                         )}
                       </div>
+                      )}
                       
                       {/* Lembrete Aniversário - Só aparece se plano tiver */}
                       {hasFeature('lembrete_aniversario') && (

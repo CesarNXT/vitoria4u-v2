@@ -169,7 +169,8 @@ export type PlanFeature =
   | 'notificacao_gestor_agendamento'
   | 'notificacao_cliente_agendamento'
   | 'atendimento_whatsapp_ia'
-  | 'escalonamento_humano';
+  | 'escalonamento_humano'
+  | 'rejeicao_chamadas'; // Rejeitar chamadas automaticamente
 
 export interface Plano {
   id: string;
