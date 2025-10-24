@@ -108,7 +108,8 @@ export const FEATURE_LABELS: Record<PlanFeature, string> = {
   'notificacao_gestor_agendamento': 'Aviso de agendamento/cancelamento',
   'notificacao_cliente_agendamento': 'Confirmação para o cliente',
   'atendimento_whatsapp_ia': 'Atendimento com IA',
-  'escalonamento_humano': 'Escalonamento Humano'
+  'escalonamento_humano': 'Escalonamento Humano',
+  'rejeicao_chamadas': 'Rejeição de Chamadas'
 };
 
 /**
@@ -126,5 +127,6 @@ export const FEATURE_DESCRIPTIONS: Record<PlanFeature, string> = {
   'notificacao_gestor_agendamento': 'Notifica gestor sobre novos agendamentos e cancelamentos via token fixo do sistema (funciona sem WhatsApp)',
   'notificacao_cliente_agendamento': 'Envia confirmação automática quando cliente agenda (requer WhatsApp conectado)',
   'atendimento_whatsapp_ia': 'IA responde automaticamente no WhatsApp e agenda via webhook N8N (híbrido: só IA ou IA + humano)',
-  'escalonamento_humano': 'Transfere conversa para atendente humano quando IA não souber responder (requer WhatsApp conectado)'
+  'escalonamento_humano': 'Transfere conversa para atendente humano quando IA não souber responder (requer WhatsApp conectado)',
+  'rejeicao_chamadas': 'Rejeita chamadas de voz/vídeo automaticamente e envia mensagem personalizada (requer WhatsApp conectado)'
 };
