@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CustomSwitch } from '@/components/ui/custom-switch'
-import { Loader2, Upload, X, Bell, BellOff, Calendar } from 'lucide-react'
+import { Loader2, Upload, X, Bell, BellOff, Calendar, CalendarX } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Profissional, HorarioTrabalho } from '@/lib/types'
 import BusinessAgendaForm from '../configuracoes/business-agenda-form'
@@ -28,6 +28,8 @@ import Image from 'next/image'
 import { cn, formatPhoneNumber, formatPhoneInput } from '@/lib/utils';
 import { handleError, getErrorMessage } from '@/lib/error-handler';
 import { getAuth } from 'firebase/auth'
+import { saveOrUpdateDocument } from '@/lib/firestore'
+import { ProfessionalBlocksManager } from './professional-blocks-manager'
 
 const timeSlotSchema = z.object({
   start: z.string(),
@@ -95,6 +97,7 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
   const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(professional?.avatarUrl || null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isBlocksModalOpen, setIsBlocksModalOpen] = useState(false);
   
   const defaultWorkHours = businessHours || {
         domingo: { enabled: false, slots: [] },
@@ -362,6 +365,29 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
 
           <Separator />
           
+          {/* Botão de Bloqueios - Apenas para profissionais existentes */}
+          {professional && professional.id && (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-lg font-medium">Bloqueios de Agenda</h3>
+                <p className="text-sm text-muted-foreground">
+                  Bloqueie períodos específicos (férias, folgas, etc)
+                </p>
+              </div>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setIsBlocksModalOpen(true)}
+              >
+                <CalendarX className="mr-2 h-4 w-4" />
+                Gerenciar Bloqueios
+              </Button>
+            </div>
+          )}
+
+          {professional && professional.id && <Separator />}
+          
           <div className="space-y-3">
             <div>
               <h3 className="text-lg font-medium">Horários de Trabalho</h3>
@@ -386,6 +412,67 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
           </Button>
         </form>
       </Form>
+
+      {/* Modal de Bloqueios */}
+      {professional && professional.id && (
+        <Dialog open={isBlocksModalOpen} onOpenChange={setIsBlocksModalOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Bloqueios de Agenda</DialogTitle>
+              <DialogDescription>
+                Gerencie os bloqueios de agenda de {professional.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-1 -mx-1">
+              <ProfessionalBlocksManager
+                profissionalId={professional.id}
+                profissionalNome={professional.name}
+                bloqueios={professional.datasBloqueadas || []}
+                onSave={async (bloqueios) => {
+                  try {
+                    // Salvar bloqueios no Firestore
+                    const auth = getAuth();
+                    const userId = auth.currentUser?.uid;
+                    if (!userId) {
+                      console.error('[BLOQUEIOS] userId não encontrado');
+                      toast({
+                        variant: 'destructive',
+                        title: 'Erro ao salvar',
+                        description: 'Usuário não autenticado',
+                      });
+                      return;
+                    }
+                    
+                    console.log('[BLOQUEIOS] Salvando bloqueios:', bloqueios);
+                    console.log('[BLOQUEIOS] Professional ID:', professional.id);
+                    
+                    await saveOrUpdateDocument(
+                      'profissionais',
+                      professional.id,
+                      { datasBloqueadas: bloqueios },
+                      userId
+                    );
+                    
+                    console.log('[BLOQUEIOS] Bloqueios salvos com sucesso!');
+                    
+                    toast({
+                      title: 'Bloqueios salvos!',
+                      description: 'Os bloqueios foram atualizados com sucesso.',
+                    });
+                  } catch (error) {
+                    console.error('[BLOQUEIOS] Erro ao salvar:', error);
+                    toast({
+                      variant: 'destructive',
+                      title: 'Erro ao salvar',
+                      description: 'Não foi possível salvar os bloqueios. Tente novamente.',
+                    });
+                  }
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Modal de Horários */}
       <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>

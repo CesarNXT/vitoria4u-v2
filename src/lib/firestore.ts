@@ -63,10 +63,22 @@ export async function saveOrUpdateDocument(collectionName: string, docId: string
     const path = businessId ? `negocios/${businessId}/${collectionName}/${docId}` : `${collectionName}/${docId}`;
     const docRef = doc(db, path);
     
+    console.log('[FIRESTORE] saveOrUpdateDocument chamado:', {
+        collection: collectionName,
+        docId,
+        path,
+        data,
+        businessId
+    });
+    
     // Remove campos undefined recursivamente (Firestore não aceita undefined, apenas null)
     const sanitizedData = removeUndefined(data);
     
+    console.log('[FIRESTORE] Dados sanitizados:', sanitizedData);
+    
     await setDoc(docRef, sanitizedData, { merge: true });
+    
+    console.log('[FIRESTORE] Documento salvo com sucesso!');
 }
 
 export async function deleteDocument(collectionName: string, docId: string, businessId?: string): Promise<void> {

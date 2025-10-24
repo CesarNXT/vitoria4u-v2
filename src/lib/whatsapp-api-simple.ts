@@ -18,6 +18,7 @@ export interface PairCodeResponse {
   qrCode?: string;
   instanceToken?: string;
   error?: string;
+  message?: string;
 }
 
 export interface StatusResponse {
@@ -124,10 +125,10 @@ export class WhatsAppAPI {
       true // Usa instanceToken
     );
 
+    // Segundo documentação: COM phone deve gerar pairCode
     const pairCode = response.instance?.paircode || response.paircode;
-    const qrCode = response.instance?.qrcode || response.qrcode;
-
-    if (pairCode) {
+    
+    if (pairCode && pairCode.trim() !== '') {
       return {
         success: true,
         pairCode,
@@ -135,15 +136,21 @@ export class WhatsAppAPI {
       };
     }
 
+    // Se pairCode vazio/ausente, API pode ter retornado QR code
+    // Isso indica que o método de pair code falhou
+    const qrCode = response.instance?.qrcode || response.qrcode;
+    
     if (qrCode) {
+      console.warn('[WHATSAPP-API] API retornou QR Code ao invés de Pair Code. Telefone pode estar incorreto.');
       return {
-        success: true,
-        qrCode,
+        success: false,
+        error: 'API retornou QR Code ao invés de Pair Code. Verifique o número do telefone.',
+        qrCode, // Retorna QR mas marca como não sucesso
         instanceToken: this.instanceToken
       };
     }
 
-    throw new Error('Nem PairCode nem QRCode foram gerados');
+    throw new Error('Pair Code não foi gerado pela API');
   }
 
   // ==========================================
@@ -204,7 +211,31 @@ export class WhatsAppAPI {
   }
 
   // ==========================================
-  // PASSO 4: CONFIGURAR WEBHOOK
+  // PASSO 4A: BUSCAR WEBHOOK ATUAL
+  // ==========================================
+
+  async getWebhook(): Promise<{ url: string; enabled: boolean; events: string[] }> {
+
+    if (!this.instanceToken) {
+      throw new Error('Token da instância não configurado');
+    }
+
+    const response = await this.makeRequest(
+      '/webhook',
+      'GET',
+      undefined,
+      true // Usa instanceToken
+    );
+
+    return {
+      url: response.url || '',
+      enabled: response.enabled || false,
+      events: response.events || []
+    };
+  }
+
+  // ==========================================
+  // PASSO 4B: CONFIGURAR WEBHOOK
   // ==========================================
 
   async setupWebhook(webhookUrl: string): Promise<void> {
@@ -219,7 +250,17 @@ export class WhatsAppAPI {
       {
         enabled: true,
         url: webhookUrl,
-        events: ['messages'],
+        events: [
+          'connection',          // Status de conexão
+          'messages',            // Mensagens recebidas (para IA)
+          'call',                // Chamadas (para rejeição)
+          'messages_update',     // Status de entrega/leitura
+          'sender',              // Status de campanhas
+          'message_sent',        // Mensagem enviada
+          'message_delivered',   // Mensagem entregue
+          'message_read',        // Mensagem lida
+          'message_failed'       // Mensagem falhou
+        ],
         excludeMessages: ['wasSentByApi', 'isGroupYes']
       },
       true // Usa instanceToken

@@ -155,6 +155,7 @@ export interface Cliente {
   instanciaWhatsapp?: string;
   observacoes?: string; // Observações/notas sobre o cliente
   planoSaude?: PlanoSaude; // Plano de saúde do cliente (se tiver)
+  matriculaPlano?: string; // Matrícula/Número da carteirinha do plano (opcional, máx 64 chars)
 }
 
 export type PlanFeature = 
@@ -197,8 +198,8 @@ export interface AdminData {
 export interface DataBloqueada {
   id: string;
   reason?: string;
-  startDate: Timestamp;
-  endDate: Timestamp;
+  startDate: Timestamp | Date;
+  endDate: Timestamp | Date;
 }
 
 export type PriceType = 'fixed' | 'on_request' | 'starting_from';
@@ -228,6 +229,22 @@ export interface Profissional {
     workHours?: HorarioTrabalho;
     instanciaWhatsapp?: string;
     notificarAgendamentos?: boolean; // Se true, profissional recebe notificações de agendamentos/cancelamentos
+    datasBloqueadas?: DataBloqueada[]; // Bloqueios de agenda do profissional (férias, folgas, etc)
+}
+
+// Tipos de exceção de horário para profissionais
+export type TipoExcecao = 'dia_completo' | 'horario_parcial';
+
+export interface ExcecaoHorario {
+    id: string;
+    data: Date; // Data específica da exceção
+    tipo: TipoExcecao;
+    motivo?: string; // Ex: "Curso", "Casamento", "Médico"
+    // Para tipo 'horario_parcial':
+    horarioInicio?: string; // Ex: "12:00" (chega mais tarde)
+    horarioFim?: string; // Ex: "17:00" (sai mais cedo)
+    // Para tipo 'dia_completo': profissional não trabalha neste dia
+    createdAt?: Date;
 }
 
 export type HorarioTrabalho = ConfiguracoesNegocio['horariosFuncionamento'];

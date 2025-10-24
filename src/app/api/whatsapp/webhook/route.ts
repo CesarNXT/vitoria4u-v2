@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { validateWebhookOnConnection } from '@/lib/webhook-validator';
 
 /**
  * Webhook do WhatsApp para receber todos os eventos
@@ -20,50 +21,45 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    // console.warn('[WEBHOOK] Recebido da UazAPI:', JSON.stringify(body, null, 2));
+    console.warn('[WEBHOOK] Recebido da UazAPI:', JSON.stringify(body, null, 2));
 
-    // Tipos de eventos que podemos receber:
-    // WEBHOOK GLOBAL (formato novo):
-    // - sender: Atualizações de campanhas (inicio, conclusão, status)
-    // - messages_update: Atualizações de mensagens (entregue, lido, erro)
-    //
-    // WEBHOOK POR INSTÂNCIA (formato antigo):
-    // - message_sent: Mensagem enviada com sucesso
-    // - message_failed: Mensagem falhou
-    // - message_delivered: Mensagem entregue
-    // - message_read: Mensagem lida
-
-    const { event, data } = body;
-
-    // Processar eventos do WEBHOOK GLOBAL
-    if (event === 'connection') {
-      await processConnectionEvent(data);
+    // Mapear formato real da UazAPI
+    const eventType = body.EventType || body.event;
+    
+    // Processar eventos baseado no EventType
+    if (eventType === 'connection') {
+      await processConnectionEvent(body);
     }
 
-    if (event === 'call') {
-      await processCallEvent(data);
+    if (eventType === 'call') {
+      await processCallEvent(body.data || body);
     }
 
-    if (event === 'sender') {
-      await processSenderEvent(data);
+    if (eventType === 'message' || eventType === 'messages') {
+      await processMessageEvent(body.data || body);
     }
 
-    if (event === 'messages_update') {
-      await processMessagesUpdateEvent(data);
+    if (eventType === 'sender') {
+      await processSenderEvent(body.data || body);
+    }
+
+    if (eventType === 'messages_update') {
+      await processMessagesUpdateEvent(body.data || body);
     }
 
     // Processar eventos de mensagem em massa (formato antigo)
-    if (event === 'message_sent' || event === 'message_failed' || event === 'message_delivered') {
-      await processBulkMessageEvent(event, data);
+    if (eventType === 'message_sent' || eventType === 'message_failed' || eventType === 'message_delivered') {
+      await processBulkMessageEvent(eventType, body.data || body);
     }
 
     // Processar eventos de LEMBRETES (formato antigo)
-    if (event === 'message_sent' || event === 'message_failed' || event === 'message_delivered' || event === 'message_read') {
-      await processReminderEvent(event, data);
+    if (eventType === 'message_sent' || eventType === 'message_failed' || eventType === 'message_delivered' || eventType === 'message_read') {
+      await processReminderEvent(eventType, body.data || body);
     }
 
     // Processar RESPOSTAS DE BOTÕES (confirmação de presença)
-    if (event === 'messages' && data?.type === 'buttonsResponseMessage') {
+    const data = body.data || body;
+    if (eventType === 'messages' && data?.type === 'buttonsResponseMessage') {
       await processButtonResponse(data);
     }
 
@@ -291,63 +287,168 @@ Por favor, confirme o agendamento manualmente.`;
 }
 
 /**
+ * Processa eventos MESSAGE (mensagens recebidas)
+ * Encaminha para N8N para processamento de IA
+ */
+async function processMessageEvent(data: any) {
+  try {
+    // Extrair campos do formato real
+    const message = data.message || data;
+    const from = message.sender || message.from;
+    const body = message.text || message.body;
+    const type = message.messageType || message.type;
+    const isGroup = message.isGroup || message.wa_isGroup || false;
+    const instance = data.instanceName || data.instance;
+
+    // Ignorar mensagens de grupo
+    if (isGroup) {
+      console.log('[WEBHOOK-MESSAGE] Ignorando mensagem de grupo');
+      return;
+    }
+
+    // Só processar mensagens de texto
+    if (type !== 'conversation' && type !== 'extendedTextMessage') {
+      return;
+    }
+
+    // Ignorar se não tem texto
+    if (!body || body.trim() === '') {
+      return;
+    }
+
+    // Buscar negócio pelo ID (instance name = businessId)
+    const businessDoc = await adminDb.collection('negocios').doc(instance).get();
+    
+    if (!businessDoc.exists) {
+      console.log('[WEBHOOK-MESSAGE] Negócio não encontrado:', instance);
+      return;
+    }
+    
+    const business = businessDoc.data();
+    
+    // Verificar se IA está ativa
+    if (!business?.iaAtiva) {
+      console.log('[WEBHOOK-MESSAGE] IA não está ativa para:', instance);
+      return;
+    }
+
+    // Verificar se tem feature de IA
+    if (!business.planId) {
+      return;
+    }
+
+    // Encaminhar para N8N para processamento de IA
+    const N8N_WEBHOOK = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da';
+    
+    await fetch(N8N_WEBHOOK, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event: 'message',
+        data: {
+          from,
+          body,
+          type,
+          instance,
+          businessId: businessDoc.id
+        }
+      })
+    });
+
+  } catch (error) {
+    console.error('[WEBHOOK-MESSAGE] Erro ao processar mensagem:', error);
+  }
+}
+
+/**
  * Processa eventos CONNECTION do webhook global
  * Atualiza status da conexão WhatsApp no Firestore
  */
-async function processConnectionEvent(data: any) {
+async function processConnectionEvent(body: any) {
   try {
-    const { instance, state, qr } = data;
+    // Extrair dados do formato real da UazAPI
+    const instanceName = body.instanceName || body.instance?.name;
+    const status = body.instance?.status;
+    const qr = body.instance?.qr || body.instance?.qrcode;
+    const paircode = body.instance?.paircode;
 
-    if (!instance) {
+    if (!instanceName) {
+      console.warn('[WEBHOOK-CONNECTION] Evento sem nome de instância!');
       return;
     }
 
-    // console.warn(`[WEBHOOK-CONNECTION] Instância ${instance} → estado: ${state}`);
+    console.warn(`[WEBHOOK-CONNECTION] Instância ${instanceName} → estado: ${status}`);
 
-    // Mapear estados
+    // Mapear estados da UazAPI para nosso formato
     const connectionStates: Record<string, any> = {
-      'open': { conectado: true, status: 'conectado', qr: null },
+      'connected': { conectado: true, status: 'conectado', qr: null },
       'connecting': { conectado: false, status: 'conectando', qr: qr || null },
-      'close': { conectado: false, status: 'desconectado', qr: null }
+      'disconnected': { conectado: false, status: 'desconectado', qr: null }
     };
 
-    const stateData = connectionStates[state] || { conectado: false, status: state };
+    const stateData = connectionStates[status] || { conectado: false, status: status };
 
     // Buscar negócio que usa esta instância
-    const negociosRef = adminDb.collection('negocios');
-    const snapshot = await negociosRef
-      .where('instanciaWhatsapp', '==', instance)
-      .limit(10)
-      .get();
-
-    if (snapshot.empty) {
-      // Nenhum negócio encontrado
+    // IMPORTANTE: Nome da instância = businessId = ID do documento no Firestore
+    const businessDoc = await adminDb.collection('negocios').doc(instanceName).get();
+    
+    if (!businessDoc.exists) {
+      console.warn(`[WEBHOOK-CONNECTION] ❌ Negócio não encontrado: ${instanceName}`);
       return;
     }
-
-    // Atualizar todos os negócios que usam esta instância
-    const batch = adminDb.batch();
     
-    for (const businessDoc of snapshot.docs) {
-      batch.update(businessDoc.ref, {
-        whatsappConectado: stateData.conectado,
-        whatsappStatus: stateData.status,
-        whatsappQR: stateData.qr,
-        whatsappUltimaAtualizacao: new Date()
+    console.log(`[WEBHOOK-CONNECTION] ✅ Negócio encontrado: ${instanceName} → Estado: ${status}`);
+
+    // Atualizar status no Firestore
+    await businessDoc.ref.update({
+      whatsappConectado: stateData.conectado,
+      whatsappStatus: stateData.status,
+      whatsappQR: stateData.qr,
+      whatsappUltimaAtualizacao: new Date()
+    });
+
+    // Se conectou, validar webhook em background
+    if (status === 'connected') {
+      validateWebhookOnConnection(instanceName).catch(err => {
+        console.error('[WEBHOOK-CONNECTION] Erro ao validar webhook:', err);
       });
     }
 
-    await batch.commit();
-
-    // Negócios atualizados
-
-    // Se desconectou, notificar gestor
-    if (state === 'close') {
-      for (const businessDoc of snapshot.docs) {
-        const business = businessDoc.data();
-        if (business.telefone) {
-          await notifyManagerAboutDisconnection(business);
+    // Se desconectou, deletar instância e limpar dados
+    if (status === 'disconnected') {
+      console.warn(`[WEBHOOK-CONNECTION] 🗑️ Desconexão detectada: ${instanceName}`);
+      
+      const business = businessDoc.data();
+      const lastDisconnectReason = body.instance?.lastDisconnectReason || '';
+      
+      // Deletar instância na UazAPI
+      try {
+        const token = business?.tokenInstancia;
+        if (token) {
+          const { WhatsAppAPI } = await import('@/lib/whatsapp-api-simple');
+          const api = new WhatsAppAPI(instanceName, token);
+          await api.deleteInstance();
+          console.log(`[WEBHOOK-CONNECTION] ✅ Instância ${instanceName} deletada`);
         }
+      } catch (deleteError) {
+        console.error('[WEBHOOK-CONNECTION] Erro ao deletar instância:', deleteError);
+      }
+      
+      // Limpar dados no Firestore
+      await businessDoc.ref.update({
+        whatsappConectado: false,
+        whatsappStatus: 'desconectado',
+        tokenInstancia: '',
+        whatsappQR: null,
+        whatsappUltimaDesconexao: new Date(),
+        whatsappMotivoDesconexao: lastDisconnectReason
+      });
+      
+      // Notificar gestor
+      if (business && business.telefone) {
+        await notifyManagerAboutDisconnection(business, lastDisconnectReason);
       }
     }
 
@@ -359,13 +460,20 @@ async function processConnectionEvent(data: any) {
 /**
  * Notifica gestor sobre desconexão do WhatsApp
  */
-async function notifyManagerAboutDisconnection(business: any) {
+async function notifyManagerAboutDisconnection(business: any, reason?: string) {
   try {
     const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
     const NOTIFICATION_TOKEN = 'b2e97825-2d28-4646-ae38-3357fcbf0e20';
 
+    let extraInfo = '';
+    if (reason && reason.includes('logged out')) {
+      extraInfo = '\n\n⚠️ *Motivo:* Desconectado de outro aparelho';
+    } else if (reason) {
+      extraInfo = `\n\n⚠️ *Motivo:* ${reason}`;
+    }
+
     const message = `⚠️ *WhatsApp Desconectado*\n\n` +
-      `Seu WhatsApp foi desconectado.\n\n` +
+      `Seu WhatsApp foi desconectado.${extraInfo}\n\n` +
       `Para continuar enviando lembretes e mensagens, ` +
       `reconecte seu WhatsApp nas configurações do sistema.\n\n` +
       `🔧 Configurações → WhatsApp`;
@@ -382,7 +490,7 @@ async function notifyManagerAboutDisconnection(business: any) {
       })
     });
 
-    // Gestor notificado
+    console.log(`[WEBHOOK-CONNECTION] 📲 Notificação enviada para ${business.telefone}`);
   } catch (error) {
     console.error('[WEBHOOK-CONNECTION] Erro ao notificar gestor:', error);
   }

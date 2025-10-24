@@ -12,7 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { businessId, name, phone, birthDate, planoSaude } = body;
+        const { businessId, name, phone, birthDate, planoSaude, matriculaPlano } = body;
 
         // Validação básica
         if (!businessId || !name || !phone) {
@@ -101,6 +101,11 @@ export async function POST(request: NextRequest) {
         if (planoSaude) {
             clientData.planoSaude = planoSaude;
         }
+        
+        // Adicionar matrícula do plano se fornecido
+        if (matriculaPlano) {
+            clientData.matriculaPlano = matriculaPlano;
+        }
 
         if (!existingClients.empty) {
             // Atualizar cliente existente
@@ -125,6 +130,14 @@ export async function POST(request: NextRequest) {
             } else {
                 // Se não forneceu plano, remover o plano existente
                 updateData.planoSaude = null;
+            }
+            
+            // Atualizar matrícula do plano se fornecido
+            if (matriculaPlano) {
+                updateData.matriculaPlano = matriculaPlano;
+            } else {
+                // Se não forneceu matrícula, remover a matrícula existente
+                updateData.matriculaPlano = null;
             }
 
             await clientsRef.doc(clientId).update(updateData);

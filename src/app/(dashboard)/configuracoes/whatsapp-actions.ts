@@ -57,18 +57,55 @@ async function waitAndCheckConnection(
       // Atualizar Firestore
       await adminDb.collection('negocios').doc(businessId).update({
         whatsappConectado: true,
-        tokenInstancia: status.instanceToken || ''
+        whatsappStatus: 'conectado'
       })
       
       return true
     } else {
-      // Deletar instância
-      await api.deleteInstance()
+      // NÃO conectou no tempo limite - DELETAR instância
+      console.warn(`[WHATSAPP-CONNECT] ⚠️ Timeout: Instância ${businessId} não conectou em ${timeoutSeconds}s`)
+      
+      try {
+        await api.deleteInstance()
+        console.log(`[WHATSAPP-CONNECT] ✅ Instância ${businessId} deletada`)
+      } catch (deleteError) {
+        console.error('[WHATSAPP-CONNECT] Erro ao deletar instância:', deleteError)
+      }
+      
+      // Limpar dados no Firestore
+      await adminDb.collection('negocios').doc(businessId).update({
+        whatsappConectado: false,
+        whatsappStatus: 'timeout',
+        tokenInstancia: '',
+        whatsappQR: null
+      })
+      
+      // Notificar usuário
+      await sendNotificationSMS(
+        businessPhone, 
+        '⚠️ Tempo esgotado para conexão. Por favor, tente novamente.'
+      )
       
       return false
     }
   } catch (error) {
     console.error('❌ Erro ao verificar status:', error)
+    
+    // Em caso de erro, também deletar instância
+    try {
+      await api.deleteInstance()
+    } catch (deleteError) {
+      console.error('[WHATSAPP-CONNECT] Erro ao deletar instância após erro:', deleteError)
+    }
+    
+    // Limpar dados no Firestore
+    await adminDb.collection('negocios').doc(businessId).update({
+      whatsappConectado: false,
+      whatsappStatus: 'erro',
+      tokenInstancia: '',
+      whatsappQR: null
+    })
+    
     return false
   }
 }
@@ -111,7 +148,8 @@ export async function connectWhatsAppAction(data: {
     
     // Salvar token no Firestore
     await adminDb.collection('negocios').doc(businessId).update({
-      tokenInstancia: token
+      tokenInstancia: token,
+      whatsappStatus: 'criando'
     })
     
     // 3. Aguardar inicialização
@@ -121,17 +159,22 @@ export async function connectWhatsAppAction(data: {
     let result = await api.connectWithPhone(cleanPhone)
     
     // 5. Verificar se paircode foi gerado
-    if (!result.pairCode || result.pairCode === '') {
-      console.warn('⚠️ PairCode vazio ou falhou, tentando QR Code...')
+    if (!result.success || !result.pairCode || result.pairCode === '') {
+      console.warn('⚠️ PairCode não foi gerado, tentando QR Code como fallback...')
+      
+      // Se API retornou QR code quando pedimos pair code, pode ser problema no telefone
+      if (result.qrCode) {
+        console.warn('⚠️ API retornou QR Code ao invés de Pair Code. Possível problema com o telefone.')
+      }
       
       try {
-        // FALLBACK: Tentar QR Code
+        // FALLBACK: Tentar QR Code explicitamente
         result = await api.connectWithQRCode()
         
         if (result.qrCode) {
           // Configurar webhook APENAS se tiver feature de IA
           if (hasIAFeature) {
-            // URL FIXA E CORRETA da webhook N8N
+            // URL FIXA E CORRETA da webhook N8N (onde a IA está)
             const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
             
             // Garantir que a webhook está sendo configurada
@@ -148,6 +191,13 @@ export async function connectWhatsAppAction(data: {
             '4. Escaneie o QR Code que aparecerá na tela do computador\n\n' +
             '_O QR Code será exibido na tela agora._'
           )
+          
+          // IMPORTANTE: Aguardar 60s e verificar conexão (em background)
+          // QR Code MUDA a cada 60s, então se não conectou, precisa gerar novo
+          // Se não conectar, DELETA instância para liberar recursos
+          waitAndCheckConnection(api, businessId, cleanPhone, 60).catch(err => {
+            console.error('Erro no background check (QR Code):', err)
+          })
           
           return {
             success: true,
@@ -191,7 +241,8 @@ export async function connectWhatsAppAction(data: {
     await sendNotificationSMS(cleanPhone, result.pairCode!)
     
     // 8. Aguardar 60s e verificar conexão (em background)
-    // Não aguardar aqui para não travar a resposta
+    // Pair Code MUDA a cada 60s, então se não conectou, precisa gerar novo
+    // Se não conectar, DELETA instância para liberar recursos
     waitAndCheckConnection(api, businessId, cleanPhone, 60).catch(err => {
       console.error('Erro no background check:', err)
     })

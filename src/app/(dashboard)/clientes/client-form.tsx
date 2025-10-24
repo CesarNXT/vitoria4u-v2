@@ -63,6 +63,7 @@ const clientFormSchema = z.object({
     id: z.string(),
     nome: z.string(),
   }).optional(),
+  matriculaPlano: z.string().max(64, 'A matrícula deve ter no máximo 64 caracteres.').optional(),
 })
 
 type ClientFormValues = z.infer<typeof clientFormSchema>
@@ -161,6 +162,7 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
       observacoes: client?.observacoes || '',
       temPlano: client?.planoSaude ? true : false,
       planoSaude: client?.planoSaude || undefined,
+      matriculaPlano: client?.matriculaPlano || '',
     },
     mode: 'onChange',
   })
@@ -475,36 +477,59 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
             />
             
             {temPlano && (
-              <FormField
-                control={form.control}
-                name="planoSaude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Qual plano?</FormLabel>
-                    <Select
-                      value={field.value?.id}
-                      onValueChange={(planoId) => {
-                        const plano = planosSaudeDisponiveis.find(p => p.id === planoId);
-                        field.onChange(plano);
-                      }}
-                    >
+              <>
+                <FormField
+                  control={form.control}
+                  name="planoSaude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Qual plano?</FormLabel>
+                      <Select
+                        value={field.value?.id}
+                        onValueChange={(planoId) => {
+                          const plano = planosSaudeDisponiveis.find(p => p.id === planoId);
+                          field.onChange(plano);
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o plano do cliente" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {planosSaudeDisponiveis.map((plano) => (
+                            <SelectItem key={plano.id} value={plano.id} className="truncate">
+                              {plano.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="matriculaPlano"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Matrícula/Número da Carteirinha (Opcional)</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o plano do cliente" />
-                        </SelectTrigger>
+                        <Input
+                          placeholder="Ex: 123456789012"
+                          maxLength={64}
+                          {...field}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        {planosSaudeDisponiveis.map((plano) => (
-                          <SelectItem key={plano.id} value={plano.id} className="truncate">
-                            {plano.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormDescription className="text-xs">
+                        Número da carteirinha ou matrícula do plano (máx 64 caracteres)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
             )}
           </>
         )}

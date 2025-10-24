@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { StandardDatePicker } from "@/components/ui/standard-date-picker"
-import { cn, formatPhoneNumber, normalizePhoneNumber, capitalizeWords, convertTimestamps, formatServicePrice } from '@/lib/utils';
+import { cn, formatPhoneNumber, formatPhoneInput, normalizePhoneNumber, capitalizeWords, convertTimestamps, formatServicePrice } from '@/lib/utils';
 import { isCategoriaClinica } from '@/lib/categoria-utils';
 import { getAvailableTimes } from '@/lib/availability';
 import { format, getDay, parse, getMonth, isSameDay, isDate } from "date-fns"
@@ -63,6 +63,7 @@ const newClientFormSchema = z.object({
     id: z.string(),
     nome: z.string(),
   }).optional(),
+  matriculaPlano: z.string().max(64, 'A matrícula deve ter no máximo 64 caracteres.').optional(),
 })
 
 type NewClientFormValues = z.infer<typeof newClientFormSchema>
@@ -295,6 +296,7 @@ export default function BookingClient({
                     phone: normalizedPhoneStr,
                     birthDate: data.birthDate?.toISOString(),
                     planoSaude: data.temPlano && data.planoSaude ? data.planoSaude : null,
+                    matriculaPlano: data.matriculaPlano || null,
                 }),
             });
 
@@ -314,6 +316,7 @@ export default function BookingClient({
                 avatarUrl: currentUser?.avatarUrl || undefined,
                 instanciaWhatsapp: businessSettings.id,
                 planoSaude: data.temPlano && data.planoSaude ? data.planoSaude : undefined,
+                matriculaPlano: data.matriculaPlano || undefined,
             };
             
             if (currentUser) {
@@ -519,18 +522,27 @@ const handleCancelAppointment = async (appointmentId: string) => {
             setSelectedTime(null);
             break;
         case 'CONFIRMATION': setStep('DATETIME'); setSelectedTime(null); break;
+        case 'COMPLETED': resetFlow(); break;
         default: break;
         }
     }
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const formatted = formatPhoneNumber(e.target.value);
+        const formatted = formatPhoneInput(e.target.value);
         setPhone(formatted);
         // Validar sempre que o usuário digitar
-        validatePhone(formatted);
-    };
+        if (formatted.replace(/\D/g, '').length === 11) {
+            const normalized = normalizePhoneNumber(formatted);
+            setPhoneError(null); // Limpar erro se o número for válido
+        } else {
+            if (formatted.length > 0) {
+                setPhoneError('Número incompleto. O celular deve ter 11 dígitos.');
+            } else {
+                setPhoneError(null);
+            }
+        }
+    }
 
-    // Função para formatar nomes em Title Case
     const formatNameToTitleCase = (name: string): string => {
         return name
             .toLowerCase()
@@ -637,36 +649,59 @@ const handleCancelAppointment = async (appointmentId: string) => {
                             />
                             
                             {temPlano && (
-                                <FormField
-                                    control={form.control}
-                                    name="planoSaude"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Qual seu plano?</FormLabel>
-                                            <Select
-                                                value={field.value?.id}
-                                                onValueChange={(planoId) => {
-                                                    const plano = businessSettings.planosSaudeAceitos?.find(p => p.id === planoId);
-                                                    field.onChange(plano);
-                                                }}
-                                            >
+                                <>
+                                    <FormField
+                                        control={form.control}
+                                        name="planoSaude"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Qual seu plano?</FormLabel>
+                                                <Select
+                                                    value={field.value?.id}
+                                                    onValueChange={(planoId) => {
+                                                        const plano = businessSettings.planosSaudeAceitos?.find(p => p.id === planoId);
+                                                        field.onChange(plano);
+                                                    }}
+                                                >
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecione seu plano" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {businessSettings.planosSaudeAceitos?.map((plano) => (
+                                                            <SelectItem key={plano.id} value={plano.id} className="truncate">
+                                                                {plano.nome}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    
+                                    <FormField
+                                        control={form.control}
+                                        name="matriculaPlano"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Matrícula/Carteirinha (Opcional)</FormLabel>
                                                 <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Selecione seu plano" />
-                                                    </SelectTrigger>
+                                                    <Input
+                                                        placeholder="Ex: 123456789012"
+                                                        maxLength={64}
+                                                        {...field}
+                                                    />
                                                 </FormControl>
-                                                <SelectContent>
-                                                    {businessSettings.planosSaudeAceitos?.map((plano) => (
-                                                        <SelectItem key={plano.id} value={plano.id} className="truncate">
-                                                            {plano.nome}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                                <FormDescription className="text-xs">
+                                                    Número da sua carteirinha ou matrícula
+                                                </FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </>
                             )}
                         </>
                     )}
@@ -907,8 +942,10 @@ const handleCancelAppointment = async (appointmentId: string) => {
             }
             
             return (date: Date) => {
+                // 1. Não permitir datas no passado
                 if (date < new Date(new Date().setHours(0, 0, 0, 0))) return true;
 
+                // 2. Verificar se o dia da semana está habilitado
                 const dayKey = format(date, 'eeee', { locale: ptBR }).toLowerCase()
                     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                     .replace('-feira', '') as keyof HorarioTrabalho;
@@ -916,10 +953,47 @@ const handleCancelAppointment = async (appointmentId: string) => {
                 const daySchedule = scheduleSource[dayKey];
                 if (!daySchedule?.enabled) return true;
                 
+                // 3. Verificar se já passou do horário de atendimento (para o dia atual)
+                const now = new Date();
+                if (isSameDay(date, now)) {
+                    // Pegar o último horário de atendimento do dia
+                    const lastSlot = daySchedule.slots[daySchedule.slots.length - 1];
+                    if (lastSlot) {
+                        const [endHour, endMinute] = lastSlot.end.split(':').map(Number);
+                        const endTime = new Date(now);
+                        endTime.setHours(endHour || 0, endMinute || 0, 0, 0);
+                        
+                        // Se já passou do último horário, desabilitar
+                        if (now >= endTime) {
+                            return true;
+                        }
+                    }
+                }
+                
+                // 4. Verificar bloqueios de agenda do negócio
+                const businessBlocked = blockedDates.some(block => {
+                    const blockStart = new Date(block.startDate);
+                    const blockEnd = new Date(block.endDate);
+                    return date >= new Date(blockStart.setHours(0,0,0,0)) && 
+                           date <= new Date(blockEnd.setHours(23,59,59,999));
+                });
+                if (businessBlocked) return true;
+                
+                // 5. Verificar bloqueios de agenda do profissional
+                if (selectedProfessional.datasBloqueadas) {
+                    const professionalBlocked = selectedProfessional.datasBloqueadas.some(block => {
+                        const blockStart = new Date(block.startDate);
+                        const blockEnd = new Date(block.endDate);
+                        return date >= new Date(blockStart.setHours(0,0,0,0)) && 
+                               date <= new Date(blockEnd.setHours(23,59,59,999));
+                    });
+                    if (professionalBlocked) return true;
+                }
+                
                 return false;
             };
 
-        }, [selectedProfessional, businessSettings]);
+        }, [selectedProfessional, businessSettings, selectedService, blockedDates]);
 
         return (
             <div className="flex flex-col md:flex-row gap-4 md:gap-8">

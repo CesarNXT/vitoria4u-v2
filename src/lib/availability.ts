@@ -1,7 +1,7 @@
 
 
 import { getBusinessConfig } from './firestore';
-import { startOfDay, endOfDay, addMinutes, format, getDay, isWithinInterval } from 'date-fns';
+import { startOfDay, endOfDay, addMinutes, format, getDay, isWithinInterval, isSameDay } from 'date-fns';
 import type { ConfiguracoesNegocio, Agendamento, Profissional, Servico, HorarioTrabalho, HorarioSlot, DataBloqueada } from '@/lib/types';
 
 
@@ -98,6 +98,24 @@ export async function getAvailableTimes({
 
   if (effectiveWorkSlots.length === 0) {
       return [];
+  }
+  
+  // ✅ Verificar bloqueios de agenda do profissional
+  if (professional.datasBloqueadas && professional.datasBloqueadas.length > 0) {
+    const bloqueioAtivo = professional.datasBloqueadas.find(bloq => {
+      const blockStart = new Date(bloq.startDate);
+      const blockEnd = new Date(bloq.endDate);
+      const checkDate = new Date(date);
+      
+      // Verificar se a data selecionada está dentro do período de bloqueio
+      return checkDate >= startOfDay(blockStart) && checkDate <= endOfDay(blockEnd);
+    });
+    
+    if (bloqueioAtivo) {
+      // Profissional está bloqueado neste dia - não exibir horários
+      console.log(`[AVAILABILITY] Profissional ${professional.name} bloqueado em ${format(date, 'dd/MM/yyyy')}`);
+      return [];
+    }
   }
   
   const interval = 30; // Assuming businessConfig.slotInterval or a default

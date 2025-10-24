@@ -108,6 +108,17 @@ export default function ProfessionalsPage() {
     };
   }, [finalUserId, firestore]);
 
+  // Atualizar selectedProfessional quando professionals mudar (para refletir mudanças do Firestore)
+  useEffect(() => {
+    if (selectedProfessional && professionals.length > 0) {
+      const updatedProfessional = professionals.find(p => p.id === selectedProfessional.id);
+      if (updatedProfessional) {
+        console.log('[PAGE] Atualizando selectedProfessional com dados do Firestore:', updatedProfessional);
+        setSelectedProfessional(serializeTimestamps(updatedProfessional));
+      }
+    }
+  }, [professionals, selectedProfessional?.id]);
+
   const handleCreateNew = () => {
     setSelectedProfessional(null)
     setIsFormModalOpen(true)

@@ -1,0 +1,551 @@
+﻿{
+  "name": "vitoria4u",
+  "active": true,
+  "totalNodes": 66,
+  "trigger": {
+    "parameters": {
+      "httpMethod": "POST",
+      "path": "c0b43248-7690-4273-af55-8a11612849da",
+      "options": {}
+    },
+    "type": "n8n-nodes-base.webhook",
+    "typeVersion": 2.1,
+    "position": [
+      -11248,
+      -16
+    ],
+    "id": "676030ea-0d29-41dc-a3d6-0a036e161bd6",
+    "name": "Webhook",
+    "webhookId": "c0b43248-7690-4273-af55-8a11612849da"
+  },
+  "nodes": [
+    {
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        -5840,
+        0
+      ]
+    },
+    {
+      "name": "N├úo1",
+      "type": "n8n-nodes-base.redis",
+      "position": [
+        -8176,
+        16
+      ]
+    },
+    {
+      "name": "Inserir Mensagem do Atendente",
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "position": [
+        -7456,
+        -176
+      ]
+    },
+    {
+      "name": "Mensagens Fora da IA",
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "position": [
+        -7456,
+        416
+      ]
+    },
+    {
+      "name": "FromMe?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -8400,
+        -80
+      ]
+    },
+    {
+      "name": "Sim",
+      "type": "n8n-nodes-base.redis",
+      "position": [
+        -8176,
+        -160
+      ]
+    },
+    {
+      "name": "AcabouTempodeEspera?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -7936,
+        16
+      ]
+    },
+    {
+      "name": "Propriatario quer finalizar atendimento?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -7072,
+        -176
+      ]
+    },
+    {
+      "name": "Libera IA",
+      "type": "n8n-nodes-base.redis",
+      "position": [
+        -6848,
+        -192
+      ]
+    },
+    {
+      "name": "Wait4",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        -3920,
+        0
+      ]
+    },
+    {
+      "name": "Cria Lista de Conversas",
+      "type": "n8n-nodes-base.redis",
+      "position": [
+        -4288,
+        0
+      ]
+    },
+    {
+      "name": "Consulta Lista De Conversas Antes",
+      "type": "n8n-nodes-base.redis",
+      "position": [
+        -4096,
+        0
+      ]
+    },
+    {
+      "name": "Consulta Lista De Conversas Depois",
+      "type": "n8n-nodes-base.redis",
+      "position": [
+        -3728,
+        0
+      ]
+    },
+    {
+      "name": "O tamanho das listas S├úo Iguais?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -3504,
+        0
+      ]
+    },
+    {
+      "name": "Deleta Lista temporaria",
+      "type": "n8n-nodes-base.redis",
+      "position": [
+        -3264,
+        -16
+      ]
+    },
+    {
+      "name": "Junta as Mensagens",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -3072,
+        -16
+      ]
+    },
+    {
+      "name": "Mensagem de texto",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -4944,
+        -32
+      ]
+    },
+    {
+      "name": "Tipo de mensagem",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -5616,
+        -32
+      ]
+    },
+    {
+      "name": "Mensagem de a├║dio",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -4944,
+        144
+      ]
+    },
+    {
+      "name": "imagem em txt",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -4736,
+        336
+      ]
+    },
+    {
+      "name": "Analyze image1",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "position": [
+        -4944,
+        336
+      ]
+    },
+    {
+      "name": "AI Agent1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -2448,
+        -16
+      ]
+    },
+    {
+      "name": "Redis Chat Memory1",
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "position": [
+        -2352,
+        288
+      ]
+    },
+    {
+      "name": "Google Gemini Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "position": [
+        -2448,
+        176
+      ]
+    },
+    {
+      "name": "dados1",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -10272,
+        -16
+      ]
+    },
+    {
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        -4480,
+        -16
+      ]
+    },
+    {
+      "name": "Cadastro Cliente",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -7072,
+        0
+      ]
+    },
+    {
+      "name": "isText",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -7936,
+        -160
+      ]
+    },
+    {
+      "name": "isText1",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -7696,
+        32
+      ]
+    },
+    {
+      "name": "get_empresas",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "position": [
+        -9840,
+        -32
+      ]
+    },
+    {
+      "name": "get_clientes",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "position": [
+        -8976,
+        -64
+      ]
+    },
+    {
+      "name": "consultar_servicos_disponiveis1",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestoreTool",
+      "position": [
+        -2304,
+        432
+      ]
+    },
+    {
+      "name": "Criar_cliente",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "position": [
+        -6016,
+        -16
+      ]
+    },
+    {
+      "name": "set_cliente",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -6208,
+        -16
+      ]
+    },
+    {
+      "name": "get_agendamentos",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "position": [
+        -2864,
+        -16
+      ]
+    },
+    {
+      "name": "busca_agendamentos",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        -2656,
+        -16
+      ]
+    },
+    {
+      "name": "buscar_cliente",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        -8800,
+        -64
+      ]
+    },
+    {
+      "name": "buscar_empresa",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        -9632,
+        -32
+      ]
+    },
+    {
+      "name": "consulta_agendamentos",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestoreTool",
+      "position": [
+        -2128,
+        432
+      ]
+    },
+    {
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -11248,
+        -16
+      ]
+    },
+    {
+      "name": "Converte Imagem",
+      "type": "n8n-nodes-base.convertToFile",
+      "position": [
+        -5184,
+        336
+      ]
+    },
+    {
+      "name": "Transcrever_audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -5184,
+        144
+      ]
+    },
+    {
+      "name": "obter_arquivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -5392,
+        336
+      ]
+    },
+    {
+      "name": "ler_mensagens",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -8176,
+        240
+      ]
+    },
+    {
+      "name": "Merge2",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        -5184,
+        -32
+      ]
+    },
+    {
+      "name": "catbox.moe",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -6432,
+        -16
+      ]
+    },
+    {
+      "name": "coleta_dados",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -6832,
+        -16
+      ]
+    },
+    {
+      "name": "enviar_midia",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1872,
+        -192
+      ]
+    },
+    {
+      "name": "buscar_instancia",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        -10464,
+        -16
+      ]
+    },
+    {
+      "name": "get_instancias",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -10672,
+        -16
+      ]
+    },
+    {
+      "name": "No Operation, do nothing1",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        -10080,
+        240
+      ]
+    },
+    {
+      "name": "numero_vitoria",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -10080,
+        -16
+      ]
+    },
+    {
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -2112,
+        -16
+      ]
+    },
+    {
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -1872,
+        -16
+      ]
+    },
+    {
+      "name": "Inserir Mensagem Cliente",
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "position": [
+        -7456,
+        16
+      ]
+    },
+    {
+      "name": "No Operation, do nothing",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        -8608,
+        -256
+      ]
+    },
+    {
+      "name": "Cliente IA_Ativo?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -8608,
+        -64
+      ]
+    },
+    {
+      "name": "Code in JavaScript1",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -6640,
+        -16
+      ]
+    },
+    {
+      "name": "enviar_mensagem1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1632,
+        0
+      ]
+    },
+    {
+      "name": "gerente",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -9184,
+        -48
+      ]
+    },
+    {
+      "name": "Call 'gerente'",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [
+        -9184,
+        -208
+      ]
+    },
+    {
+      "name": "verifica_plano",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -9440,
+        -32
+      ]
+    },
+    {
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -11040,
+        -16
+      ]
+    },
+    {
+      "name": "Code in JavaScript2",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -10864,
+        -16
+      ]
+    },
+    {
+      "name": "enviar_mensagem",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        -1952,
+        432
+      ]
+    },
+    {
+      "name": "enviar_mensagem2",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1632,
+        -192
+      ]
+    }
+  ]
+}
