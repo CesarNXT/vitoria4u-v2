@@ -390,17 +390,17 @@ export async function deleteReminders(
 ): Promise<void> {
   
   if (!campaigns || campaigns.length === 0) {
-    console.log('ℹ️ Nenhuma campanha para cancelar');
+    // Nenhuma campanha para cancelar
     return;
   }
 
-  console.log(`🗑️ Cancelando ${campaigns.length} campanhas de lembrete`);
+  // Cancelando campanhas de lembrete
 
   for (const campaign of campaigns) {
     await cancelCampaign(tokenInstancia, campaign.folderId, campaign.type);
   }
 
-  console.log('✅ Todas as campanhas foram canceladas');
+  // Todas as campanhas foram canceladas
 }
 
 /**
