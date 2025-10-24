@@ -13,6 +13,7 @@ const allFeatures: { id: PlanFeature; label: string }[] = [
   { id: 'lembrete_24h', label: 'Lembrete 24h' },
   { id: 'lembrete_2h', label: 'Lembrete 2h' },
   { id: 'feedback_pos_atendimento', label: 'Feedback Pós-Atendimento' },
+  { id: 'solicitacao_feedback', label: 'Solicitação de Feedback' },
   { id: 'lembrete_aniversario', label: 'Lembrete de Aniversário' },
   { id: 'lembrete_profissional', label: 'Lembrete para Profissional' },
   { id: 'disparo_de_mensagens', label: 'Campanhas' },
@@ -21,6 +22,7 @@ const allFeatures: { id: PlanFeature; label: string }[] = [
   { id: 'notificacao_cliente_agendamento', label: 'Confirmação para o Cliente' },
   { id: 'atendimento_whatsapp_ia', label: 'Atendimento com IA' },
   { id: 'escalonamento_humano', label: 'Escalonamento Humano' },
+  { id: 'rejeicao_chamadas', label: 'Rejeição de Chamadas' },
 ];
 
 interface AdminPlanFormProps {

@@ -1011,8 +1011,8 @@ export default function BusinessSettingsForm({
                 control={control}
                 name="iaAtiva"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
+                  <FormItem className="flex flex-col sm:flex-row items-center justify-between rounded-lg border p-4 gap-4">
+                    <div className="space-y-0.5 flex-1">
                       <FormLabel className="text-base">Status da IA</FormLabel>
                       <FormDescription>
                         Ative ou desative o atendimento automático por IA. Quando desativado, a IA não responderá mensagens.
