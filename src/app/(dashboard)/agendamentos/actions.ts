@@ -171,9 +171,8 @@ export async function sendCreationHooks(
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
-        criadoPor: criadoPor,
         telefoneCliente: appointment.cliente.phone?.toString(),
-        isFromPanel: isFromPanel, // Diferencia "Cadastrado" vs "Recebido"
+        isFromPanel: isFromPanel, // Diferencia "Gestor" vs "Cliente"
     });
 
     // 👤 MENSAGENS DO USUÁRIO (Token Dinâmico - SÓ se conectado)
@@ -261,6 +260,7 @@ export async function sendCompletionHooks(
                 tokenInstancia: businessSettings.tokenInstancia,
                 telefoneCliente: appointment.cliente.phone,
                 nomeCliente: appointment.cliente.name,
+                nomeEmpresa: businessSettings.nome,
                 nomeServico: appointment.servico.name,
                 feedbackPlatform: (businessSettings.feedbackPlatform as 'google' | 'instagram' | 'facebook') || 'google',
                 feedbackLink: businessSettings.feedbackLink
@@ -272,7 +272,7 @@ export async function sendCompletionHooks(
 export async function sendCancellationHooks(
     businessSettings: ConfiguracoesNegocio,
     appointment: Agendamento,
-    canceladoPor?: string
+    isFromPanel: boolean = false
 ): Promise<void> {
 
     const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
@@ -284,7 +284,7 @@ export async function sendCancellationHooks(
         nomeCliente: appointment.cliente.name,
         nomeServico: appointment.servico.name,
         dataHoraAtendimento: dataHoraAtendimento,
-        canceladoPor: canceladoPor || 'Cliente',
+        isFromPanel: isFromPanel,
     });
     
     // Notificação para o profissional (automação paga)

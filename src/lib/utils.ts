@@ -159,6 +159,29 @@ export const formatPhoneNumber = (phone: string | number | null | undefined): st
   }
 };
 
+/**
+ * ✅ FORMATAÇÃO APENAS VISUAL (para usar em inputs durante digitação)
+ * NÃO adiciona ou remove dígitos, apenas formata visualmente
+ */
+export const formatPhoneInput = (value: string): string => {
+  if (!value) return '';
+  
+  // Remove tudo que não é número
+  const numbers = value.replace(/\D/g, '');
+  
+  // Limita a 11 dígitos
+  const limited = numbers.slice(0, 11);
+  
+  // Aplica máscara visual baseado no tamanho
+  if (limited.length <= 2) {
+    return `(${limited}`;
+  } else if (limited.length <= 7) {
+    return `(${limited.slice(0, 2)}) ${limited.slice(2)}`;
+  } else {
+    return `(${limited.slice(0, 2)}) ${limited.slice(2, 7)}-${limited.slice(7)}`;
+  }
+};
+
 
 /**
  * ✅ NORMALIZAÇÃO DE TELEFONE - SEMPRE 11 DÍGITOS

@@ -25,7 +25,7 @@ import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { useScrollToError } from '@/lib/form-utils'
 import Image from 'next/image'
-import { cn, formatPhoneNumber } from '@/lib/utils';
+import { cn, formatPhoneNumber, formatPhoneInput } from '@/lib/utils';
 import { handleError, getErrorMessage } from '@/lib/error-handler';
 import { getAuth } from 'firebase/auth'
 
@@ -290,20 +290,20 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
                 name="phone"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Telefone</FormLabel>
-                    <FormControl>
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
                         <Input
-                            placeholder="(99) 99999-9999"
-                            inputMode="numeric"
+                            type="tel"
+                            placeholder="(00) 00000-0000"
                             {...field}
                             maxLength={15}
                             onChange={(e) => {
-                                const formatted = formatPhoneNumber(e.target.value);
+                                const formatted = formatPhoneInput(e.target.value);
                                 field.onChange(formatted);
                             }}
                         />
-                    </FormControl>
-                    <FormMessage />
+                        </FormControl>
+                        <FormMessage />
                     </FormItem>
                 )}
               />

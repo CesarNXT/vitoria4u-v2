@@ -13,10 +13,12 @@ export async function updateBusiness(
   userEmail: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // eslint-disable-next-line no-console
     console.log('🔧 [ADMIN UPDATE] Iniciando update:', { businessId, userEmail, updates });
     
     // Verificar se é admin
     await requireAdmin(userEmail);
+    // eslint-disable-next-line no-console
     console.log('✅ [ADMIN UPDATE] Usuário autorizado como admin');
 
     // Verificar se negócio existe
@@ -27,6 +29,7 @@ export async function updateBusiness(
       throw new Error('Negócio não encontrado');
     }
     
+    // eslint-disable-next-line no-console
     console.log('✅ [ADMIN UPDATE] Negócio encontrado:', businessDoc.data()?.nome);
 
     // Preparar dados para update
@@ -37,23 +40,27 @@ export async function updateBusiness(
 
     if (updates.planId) {
       updateData.planId = updates.planId;
+      // eslint-disable-next-line no-console
       console.log('📝 [ADMIN UPDATE] Atualizando planId:', updates.planId);
     }
 
     if (updates.access_expires_at) {
       // Converter Date para Timestamp do Firestore
       updateData.access_expires_at = Timestamp.fromDate(updates.access_expires_at);
+      // eslint-disable-next-line no-console
       console.log('📝 [ADMIN UPDATE] Atualizando access_expires_at:', updates.access_expires_at);
     }
 
     // Atualizar no Firestore usando Admin SDK
     await businessRef.update(updateData);
     
+    // eslint-disable-next-line no-console
     console.log('✅ [ADMIN UPDATE] Update realizado com sucesso!');
     
     // Verificar se foi realmente salvo
     const updatedDoc = await businessRef.get();
     const savedData = updatedDoc.data();
+    // eslint-disable-next-line no-console
     console.log('✅ [ADMIN UPDATE] Dados salvos confirmados:', {
       planId: savedData?.planId,
       access_expires_at: savedData?.access_expires_at,

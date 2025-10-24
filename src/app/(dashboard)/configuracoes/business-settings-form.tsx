@@ -110,6 +110,8 @@ const businessSettingsSchema = z.object({
   }),
   habilitarLembrete24h: z.boolean().optional(),
   habilitarLembrete2h: z.boolean().optional(),
+  rejeitarChamadasAutomaticamente: z.boolean().optional(),
+  mensagemRejeicaoChamada: z.string().optional(),
   habilitarAniversario: z.boolean().optional(),
   habilitarFeedback: z.boolean().optional(),
   feedbackPlatform: z.enum(['google', 'instagram']).optional(),
@@ -225,6 +227,8 @@ export default function BusinessSettingsForm({
           : defaultHorarios,
       habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
       habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
+      rejeitarChamadasAutomaticamente: settings?.rejeitarChamadasAutomaticamente ?? false,
+      mensagemRejeicaoChamada: settings?.mensagemRejeicaoChamada || '📱 *Olá!*\n\nNo momento não estou disponível para chamadas.\n\nPor favor, envie uma *mensagem de texto* e retornarei assim que possível!\n\nObrigado pela compreensão. 😊',
       habilitarAniversario: settings?.habilitarAniversario ?? false,
       habilitarFeedback: settings?.habilitarFeedback ?? false,
       feedbackPlatform: settings?.feedbackPlatform || 'google',
@@ -1243,6 +1247,55 @@ export default function BusinessSettingsForm({
                           )}
                         />
                       )}
+                      
+                      {/* Rejeição Automática de Chamadas */}
+                      <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
+                        <FormField
+                          control={control}
+                          name="rejeitarChamadasAutomaticamente"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                              <div className="space-y-0.5 flex-1">
+                                <FormLabel className="text-base">📞 Rejeitar Chamadas Automaticamente</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  <strong>Como funciona:</strong> Rejeita chamadas de voz/vídeo e envia mensagem automática.<br/>
+                                  <strong>Para que serve:</strong> Evita interrupções e incentiva contato via mensagem de texto.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {watch('rejeitarChamadasAutomaticamente') && (
+                          <FormField
+                            control={control}
+                            name="mensagemRejeicaoChamada"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Mensagem de Resposta</FormLabel>
+                                <FormControl>
+                                  <textarea
+                                    {...field}
+                                    rows={6}
+                                    maxLength={1000}
+                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="Digite a mensagem que será enviada quando alguém ligar..."
+                                  />
+                                </FormControl>
+                                <p className="text-xs text-muted-foreground">
+                                  {field.value?.length || 0} / 1000 caracteres
+                                </p>
+                                <FormDescription>
+                                  Esta mensagem será enviada automaticamente quando alguém ligar para seu WhatsApp.
+                                </FormDescription>
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                      </div>
                       
                       {/* Lembrete Aniversário - Só aparece se plano tiver */}
                       {hasFeature('lembrete_aniversario') && (

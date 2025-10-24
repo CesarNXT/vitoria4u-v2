@@ -86,6 +86,21 @@ export interface ConfiguracoesNegocio {
   planosSaudeAceitos?: PlanoSaude[]; // Planos de saúde/odontológicos aceitos
   notificarClienteAgendamento?: boolean; // Enviar confirmação de agendamento para o cliente
   notificarGestorAgendamento?: boolean; // Notificar gestor sobre agendamentos/cancelamentos (não requer WhatsApp)
+  
+  // Rejeição automática de chamadas
+  rejeitarChamadasAutomaticamente?: boolean; // Rejeitar chamadas automaticamente
+  mensagemRejeicaoChamada?: string; // Mensagem enviada após rejeitar chamada
+  
+  // Status da conexão WhatsApp (atualizados via webhook)
+  whatsappStatus?: 'conectado' | 'desconectado' | 'conectando';
+  whatsappQR?: string | null;
+  whatsappUltimaAtualizacao?: Timestamp;
+}
+
+export interface ReminderCampaign {
+  type: '24h' | '2h';
+  folderId: string;
+  scheduledFor: Date;
 }
 
 export interface Agendamento {
@@ -103,6 +118,31 @@ export interface Agendamento {
   canceledBy?: string;
   tipoAtendimento?: 'particular' | 'plano'; // Tipo de atendimento
   planoSaude?: PlanoSaude; // Plano de saúde usado (se tipoAtendimento === 'plano')
+  
+  // Sistema de lembretes via UazAPI
+  reminderCampaigns?: ReminderCampaign[]; // IDs das campanhas agendadas na UazAPI
+  
+  // Status Lembrete 24h (atualizados via webhook)
+  lembrete24hEnviado?: boolean;
+  lembrete24hEnviadoEm?: Timestamp;
+  lembrete24hEntregue?: boolean;
+  lembrete24hEntregueEm?: Timestamp;
+  lembrete24hLido?: boolean;
+  lembrete24hLidoEm?: Timestamp;
+  lembrete24hErro?: boolean;
+  lembrete24hErroMotivo?: string;
+  lembrete24hErroEm?: Timestamp;
+  
+  // Status Lembrete 2h (atualizados via webhook)
+  lembrete2hEnviado?: boolean;
+  lembrete2hEnviadoEm?: Timestamp;
+  lembrete2hEntregue?: boolean;
+  lembrete2hEntregueEm?: Timestamp;
+  lembrete2hLido?: boolean;
+  lembrete2hLidoEm?: Timestamp;
+  lembrete2hErro?: boolean;
+  lembrete2hErroMotivo?: string;
+  lembrete2hErroEm?: Timestamp;
 }
 
 export interface Cliente {

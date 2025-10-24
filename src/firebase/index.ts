@@ -7,7 +7,9 @@ import { getFirestore, initializeFirestore, memoryLocalCache, connectFirestoreEm
 
 // 🔇 Suprimir avisos de OAuth em desenvolvimento local
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  // eslint-disable-next-line no-console
   const originalConsoleInfo = console.info;
+  // eslint-disable-next-line no-console
   console.info = function(...args) {
     // Ignorar avisos de OAuth em desenvolvimento local (IP local)
     if (args[0]?.includes?.('not authorized for OAuth operations')) {

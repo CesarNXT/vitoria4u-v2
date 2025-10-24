@@ -44,3 +44,12 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# Windows System Files
+[Pp]agefile.sys
+[Hh]iberfil.sys
+[Ss]wapfile.sys
+DumpStack.log.tmp
+System Volume Information/
+WcSandboxState/
+$*

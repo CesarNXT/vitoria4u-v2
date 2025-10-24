@@ -28,7 +28,6 @@ async function sendNotificationSMS(phone: string, text: string) {
       },
       body: JSON.stringify({ number: phone, text })
     })
-    )
   } catch (error) {
     console.warn('⚠️ Erro ao enviar SMS:', error)
   }
@@ -82,7 +81,6 @@ export async function connectWhatsAppAction(data: {
   businessId: string
   businessPhone: string
 }) {
-  ')
   const { businessId, businessPhone } = data
   
   // Formatar telefone (remover caracteres não numéricos)
@@ -120,7 +118,6 @@ export async function connectWhatsAppAction(data: {
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     // 4. Conectar com telefone (tentar paircode primeiro)
-    ...')
     let result = await api.connectWithPhone(cleanPhone)
     
     // 5. Verificar se paircode foi gerado
@@ -136,12 +133,9 @@ export async function connectWhatsAppAction(data: {
           if (hasIAFeature) {
             // URL FIXA E CORRETA da webhook N8N
             const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-            :', webhookUrl)
             
             // Garantir que a webhook está sendo configurada
             const webhookResult = await api.setupWebhook(webhookUrl)
-            } else {
-            ')
           }
           
           // Enviar instrução via SMS
@@ -185,12 +179,11 @@ export async function connectWhatsAppAction(data: {
     if (hasIAFeature) {
       // URL FIXA E CORRETA da webhook N8N
       const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-      :', webhookUrl)
       
       // Garantir que a webhook está sendo configurada
       const webhookResult = await api.setupWebhook(webhookUrl)
       } else {
-      ')
+        // IA feature não disponível
     }
     
     // Enviar paircode via SMS
@@ -250,7 +243,6 @@ export async function verifyAndFixWebhookAction(data: {
     if (hasIAFeature) {
       // URL FIXA E CORRETA da webhook N8N
       const webhookUrl = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da'
-      :', webhookUrl)
       
       await api.setupWebhook(webhookUrl)
       return {
@@ -286,7 +278,6 @@ export async function disconnectWhatsAppAction(data: {
   instanceToken: string
   businessPhone: string
 }) {
-  ')
   const { businessId, instanceToken, businessPhone } = data
   
   try {

@@ -175,20 +175,23 @@ export async function POST(req: NextRequest) {
             return new NextResponse('Arquivo muito grande. Máximo: 200MB', { status: 400 });
         }
         
-        // 🎯 ESTRATÉGIA: Tentar múltiplos serviços com fallback
+        // 🎯 ESTRATÉGIA: Usar Firebase Storage primeiro (mais confiável)
         let uploadUrl: string | null = null;
         
-        // Tentativa 1: Catbox.moe (tenta com FormData original)
-        uploadUrl = await uploadToCatbox(formData);
-        
-        // Tentativa 2: ImgBB (se Catbox falhou)
-        if (!uploadUrl) {
-            uploadUrl = await uploadToImgBB(file);
-        }
-        
-        // Tentativa 3: Firebase Storage (garantido)
-        if (!uploadUrl) {
+        // Tentativa 1: Firebase Storage (garantido e rápido)
+        try {
             uploadUrl = await uploadToFirebase(file, userId);
+            console.log('✅ [UPLOAD] Upload bem-sucedido no Firebase Storage');
+        } catch (error) {
+            console.error('❌ [UPLOAD] Firebase falhou, tentando fallback...');
+            
+            // Tentativa 2: Catbox.moe (fallback)
+            uploadUrl = await uploadToCatbox(formData);
+            
+            // Tentativa 3: ImgBB (último recurso)
+            if (!uploadUrl) {
+                uploadUrl = await uploadToImgBB(file);
+            }
         }
         
         if (!uploadUrl) {

@@ -11,14 +11,16 @@ if (!admin.apps.length) {
   try {
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
     
     if (serviceAccountKey) {
       try {
         const serviceAccount = JSON.parse(serviceAccountKey);
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
-          storageBucket: `${serviceAccount.project_id}.appspot.com`,
+          storageBucket: storageBucket || `${serviceAccount.project_id}.appspot.com`,
         });
+        console.log('[Firebase Admin] ✅ Inicializado com storage bucket:', storageBucket || `${serviceAccount.project_id}.appspot.com`);
         } catch (parseError) {
         console.error('[Firebase Admin] ❌ Erro ao parsear service account key:', parseError);
         throw parseError;
@@ -26,8 +28,9 @@ if (!admin.apps.length) {
     } else if (projectId) {
       // Tenta ADC com projectId do env
       admin.initializeApp({
-        storageBucket: `${projectId}.appspot.com`,
+        storageBucket: storageBucket || `${projectId}.appspot.com`,
       });
+      console.log('[Firebase Admin] ✅ Inicializado com storage bucket:', storageBucket || `${projectId}.appspot.com`);
     } else {
       // Último recurso - sem bucket configurado
       console.warn('[Firebase Admin] ⚠️ Inicializando sem storage bucket configurado');

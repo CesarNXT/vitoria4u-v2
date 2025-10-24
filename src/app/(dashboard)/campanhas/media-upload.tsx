@@ -123,7 +123,7 @@ export function MediaUpload({ tipo, mediaUrl, onUploadComplete, onRemove }: Medi
 
       const token = await user.getIdToken();
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/upload-campanha', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

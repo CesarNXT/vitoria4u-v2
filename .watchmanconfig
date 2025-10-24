@@ -1,0 +1,12 @@
+{
+  "ignore_dirs": [
+    "node_modules",
+    ".next",
+    ".git",
+    "C:\\pagefile.sys",
+    "C:\\hiberfil.sys",
+    "C:\\swapfile.sys",
+    "C:\\System Volume Information",
+    "C:\\WcSandboxState"
+  ]
+}

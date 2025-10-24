@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
 
     if (businessSnap.exists) {
       // Já existe, não sobrescrever
+      // eslint-disable-next-line no-console
       console.log('✅ [SETUP-BUSINESS] Negócio já existe:', userId);
       return NextResponse.json({ 
         success: true, 
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
 
     await businessRef.set(businessData);
 
+    // eslint-disable-next-line no-console
     console.log(`✅ [SETUP-BUSINESS] Negócio criado com trial de ${trial.days} dias:`, userId);
 
     return NextResponse.json({ 

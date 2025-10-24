@@ -57,45 +57,22 @@ import { Timestamp } from 'firebase/firestore'
 import { isSameDay, startOfDay, isDate, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-// ✅ Stub functions for missing notification and reminder functions
-// TODO: Implement these functions properly or connect to existing API routes
-const createReminders = async (userId: string, appointmentId: string, appointment: any, settings: any) => {
-  // Stub function
-};
+// ✅ Import real functions from actions
+import { 
+  sendCreationHooks,
+  sendReminderHooksOnly,
+  sendCancellationHooks,
+  sendDeletionHooks,
+  sendClientConfirmation,
+  sendCompletionHooks
+} from './actions';
 
-const updateReminders = async (userId: string, appointmentId: string, appointment: any, settings: any) => {
-  // Stub function
-};
-
-const deleteReminders = async (appointmentId: string) => {
-  // Stub function
-};
-
-const sendCreationHooks = async (settings: any, appointment: any, source: string, isGestor: boolean) => {
-  // Stub function
-};
-
-const sendReminderHooksOnly = async (settings: any, appointment: any) => {
-  // Stub function
-};
-
-const sendCancellationHooks = async (settings: any, appointment: any, source: string) => {
-  // Stub function
-};
-
-const sendCompletionHooks = async (settings: any, appointment: any) => {
-  const { sendCompletionHooks: realSendCompletionHooks } = await import('./actions');
-  await realSendCompletionHooks(settings, appointment);
-};
-
-const sendClientConfirmation = async (settings: any, appointment: any) => {
-  const { sendClientConfirmation: realSendClientConfirmation } = await import('./actions');
-  await realSendClientConfirmation(settings, appointment);
-};
-
-const sendDeletionHooks = async (settings: any, appointment: any) => {
-  // Stub function
-};
+// ✅ Sistema de lembretes via UazAPI
+import { 
+  createReminders, 
+  updateReminders, 
+  deleteReminders 
+} from '@/lib/uazapi-reminders';
 
 // ✅ Função refatorada para usar DateTime
 function serializeTimestamps<T>(obj: T): T {
@@ -372,17 +349,44 @@ export default function AgendamentosPage() {
             });
         }
         
-        // Criar ou atualizar reminders
+        // Notificar gestor sobre novo agendamento criado pelo painel
+        if (!isEditing && data.status === 'Agendado') {
+          try {
+            const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
+            await sendCreationHooks(serializableSettings, finalData as any, undefined, true);
+          } catch (error) {
+            // Erro silencioso - logar apenas no servidor
+          }
+        }
+        
+        // Criar ou atualizar reminders via UazAPI
         if (data.status === 'Agendado') {
           try {
-            // ✅ Já serializado acima com deepSerializeForServerFunction
+            let reminderCampaigns: any[] = [];
+            
             if (!isEditing) {
-              await createReminders(finalUserId, newId, serializableAppointment, serializableSettings);
+              // Criar novos lembretes e obter os folder_ids
+              reminderCampaigns = await createReminders(finalUserId, newId, serializableAppointment, serializableSettings);
             } else {
-              await updateReminders(finalUserId, newId, serializableAppointment, serializableSettings);
+              // Atualizar lembretes (cancela antigos e cria novos)
+              const oldCampaigns = selectedAppointment?.reminderCampaigns || [];
+              reminderCampaigns = await updateReminders(finalUserId, newId, serializableAppointment, serializableSettings, oldCampaigns);
+            }
+            
+            // Salvar os folder_ids no agendamento para controle futuro
+            if (reminderCampaigns.length > 0) {
+              await saveOrUpdateDocument('agendamentos', newId, {
+                ...serializableAppointment,
+                reminderCampaigns: reminderCampaigns.map(c => ({
+                  type: c.type,
+                  folderId: c.folderId,
+                  scheduledFor: c.scheduledFor
+                }))
+              }, finalUserId);
             }
           } catch (error) {
-            // Silencioso
+            console.error('Erro ao criar/atualizar lembretes:', error);
+            // Não bloqueia o fluxo
           }
         }
         
@@ -420,15 +424,18 @@ export default function AgendamentosPage() {
         if (selectedAppointment?.status !== 'Cancelado' && data.status === 'Cancelado') {
             const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
             
-            // Deletar reminders quando cancelar
+            // Cancelar campanhas de lembrete na UazAPI
             try {
-              await deleteReminders(newId);
+              if (businessSettings.tokenInstancia && selectedAppointment?.reminderCampaigns) {
+                await deleteReminders(businessSettings.tokenInstancia, selectedAppointment.reminderCampaigns);
+              }
             } catch (error) {
-              // Silencioso
+              console.error('Erro ao cancelar lembretes:', error);
+              // Não bloqueia o fluxo
             }
             
             try {
-                await sendCancellationHooks(serializableSettings, finalData as any, 'Gestor (Painel)');
+                await sendCancellationHooks(serializableSettings, finalData as any, true);
             } catch (error) {
                 // Erro silencioso - logar apenas no servidor
             }
@@ -602,11 +609,14 @@ const handleDeleteConfirm = async () => {
 
         const serializableSettings = JSON.parse(JSON.stringify(convertTimestamps(businessSettings)));
         
-        // Deletar reminders antes de deletar o agendamento
+        // Cancelar campanhas de lembrete na UazAPI
         try {
-            await deleteReminders(appointmentToDelete.id);
+            if (businessSettings.tokenInstancia && appointmentToDelete.reminderCampaigns) {
+                await deleteReminders(businessSettings.tokenInstancia, appointmentToDelete.reminderCampaigns);
+            }
         } catch (error) {
-            // Silencioso
+            console.error('Erro ao cancelar lembretes:', error);
+            // Não bloqueia o fluxo
         }
         
         await sendDeletionHooks(serializableSettings, serializableAppointment as any);

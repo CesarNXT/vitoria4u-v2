@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { CalendarIcon, Loader2, Upload, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { cn, formatPhoneNumber } from '@/lib/utils'
+import { cn, formatPhoneNumber, formatPhoneInput } from '@/lib/utils'
 import { handleError, getErrorMessage } from '@/lib/error-handler'
 import type { Cliente, PlanoSaude, ConfiguracoesNegocio } from '@/lib/types'
 import { useState, useEffect } from 'react'
@@ -349,11 +349,11 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
                 <FormControl>
                   <Input
                     type="tel"
-                    placeholder="(99) 99999-9999"
+                    placeholder="(00) 00000-0000"
                     maxLength={15}
                     {...field}
                     onChange={(e) => {
-                      const formatted = formatPhoneNumber(e.target.value);
+                      const formatted = formatPhoneInput(e.target.value);
                       field.onChange(formatted);
                     }}
                   />

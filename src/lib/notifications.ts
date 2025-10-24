@@ -36,20 +36,19 @@ export async function notifyNewAppointment(data: {
   nomeCliente: string
   nomeServico: string
   dataHoraAtendimento: string
-  criadoPor?: string
   telefoneCliente?: string
   isFromPanel?: boolean
 }): Promise<void> {
-  const titulo = data.isFromPanel 
-    ? '*📢 Novo Agendamento Cadastrado 📢*'
-    : '*📢 Novo Agendamento Recebido 📢*'
+  const agendadoPor = data.isFromPanel ? 'Gestor' : 'Cliente'
   
-  const message = `${titulo}
+  const message = `*📋 Novo Agendamento*
 
 *📅 Data e hora:* ${data.dataHoraAtendimento}
 
 *👤 Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n*📱 Telefone:* ${formatPhoneForDisplay(data.telefoneCliente)}` : ''}
-*💼 Procedimento:* ${data.nomeServico}${data.criadoPor ? `\n\n*📋 Agendado por:* ${data.criadoPor}` : ''}`
+*💼 Procedimento:* ${data.nomeServico}
+
+*📝 Agendado por:* ${agendadoPor}`
 
   await sendSMS(data.telefoneEmpresa, message)
 }
@@ -63,6 +62,7 @@ export async function notifyClientAppointmentConfirmation(data: {
   categoriaEmpresa?: string
   dataHoraAtendimento: string
   nomeServico: string
+  nomeProfissional?: string
   criadoPor?: string
 }): Promise<void> {
   try {
@@ -209,18 +209,41 @@ Obrigado por escolher ${data.nomeEmpresa}! 💙`
   }
 }
 
-// Notifica cliente sobre cancelamento
+// Notifica gestor sobre cancelamento
 export async function notifyCancellation(data: {
   telefoneEmpresa: string
   nomeCliente: string
   dataHoraAtendimento: string
   nomeServico: string
+  isFromPanel?: boolean
 }): Promise<void> {
+  const canceladoPor = data.isFromPanel ? 'Gestor' : 'Cliente'
+  
   const message = `*❌ Agendamento Cancelado*
 
 *👤 Cliente:* ${data.nomeCliente}
 *📅 Data e hora:* ${data.dataHoraAtendimento}
-*💼 Procedimento:* ${data.nomeServico}`
+*💼 Procedimento:* ${data.nomeServico}
+
+*📝 Cancelado pelo ${canceladoPor}*`
+
+  await sendSMS(data.telefoneEmpresa, message)
+}
+
+// Notifica sobre agendamento excluído
+export async function notifyDeletedAppointment(data: {
+  telefoneEmpresa: string
+  nomeCliente: string
+  dataHoraAtendimento: string
+  nomeServico: string
+}): Promise<void> {
+  const message = `*🗑️ Agendamento Excluído*
+
+*👤 Cliente:* ${data.nomeCliente}
+*📅 Data e hora:* ${data.dataHoraAtendimento}
+*💼 Procedimento:* ${data.nomeServico}
+
+⚠️ *Certifique-se de que esta ação não foi um erro.*`
 
   await sendSMS(data.telefoneEmpresa, message)
 }
@@ -343,6 +366,8 @@ export async function notifyFeedbackRequest(data: {
   telefoneCliente: string | number
   nomeCliente: string
   nomeEmpresa: string
+  nomeServico?: string
+  feedbackPlatform?: 'google' | 'instagram' | 'facebook'
   feedbackLink: string
 }): Promise<void> {
   await requestFeedback(data);

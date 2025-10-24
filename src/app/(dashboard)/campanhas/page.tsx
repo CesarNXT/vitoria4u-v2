@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePlan } from '@/contexts/PlanContext';
+import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import { FeatureLocked } from '@/components/feature-locked';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { DataTable } from '@/components/data-table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { CampaignForm } from './campaign-form';
 import { columns } from './columns';
@@ -21,9 +23,10 @@ import {
   getCampanhaDetailsAction
 } from './actions';
 import { Cliente, Campanha, CampanhaContato } from '@/lib/types';
-import { Loader2, Plus, AlertCircle, BarChart3 } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, BarChart3, Send, Play, Pause, Trash2, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 // Helper: Converter qualquer formato de data em Date válido
 function toDate(value: any): Date {
@@ -51,8 +54,9 @@ function toDate(value: any): Date {
 
 export default function CampanhasPage() {
   const { canUseFeature, isLoading: planLoading } = usePlan();
+  const { businessUserId } = useBusinessUser();
 
-  // Estados
+  // Estados - Campanhas Firestore
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -60,6 +64,12 @@ export default function CampanhasPage() {
   const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedCampanha, setSelectedCampanha] = useState<Campanha | null>(null);
+
+  // Estados - Campanhas em Massa (UazAPI)
+  const [massaCampaigns, setMassaCampaigns] = useState<any[]>([]);
+  const [isLoadingMassa, setIsLoadingMassa] = useState(false);
+  const [tokenInstancia, setTokenInstancia] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('firestore');
 
   // Verificar feature
   const featureCheck = canUseFeature('disparo_de_mensagens');
@@ -95,6 +105,89 @@ export default function CampanhasPage() {
       });
     } finally {
       setIsLoadingData(false);
+    }
+  };
+
+  // Carregar token da instância
+  useEffect(() => {
+    if (!businessUserId) return;
+    
+    const loadToken = async () => {
+      try {
+        const { getBusinessConfig } = await import('@/lib/firestore');
+        const config = await getBusinessConfig(businessUserId);
+        setTokenInstancia(config?.tokenInstancia || '');
+      } catch (error) {
+        console.error('Erro ao carregar token:', error);
+      }
+    };
+    
+    loadToken();
+  }, [businessUserId]);
+
+  // Carregar campanhas em massa
+  const loadMassaCampaigns = async () => {
+    if (!tokenInstancia) return;
+    
+    setIsLoadingMassa(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_WHATSAPP_API_URL}/sender/listfolders`, {
+        headers: {
+          'token': tokenInstancia,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMassaCampaigns(data.folders || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar campanhas em massa:', error);
+    } finally {
+      setIsLoadingMassa(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tokenInstancia && activeTab === 'massa') {
+      loadMassaCampaigns();
+      // Atualizar a cada 30 segundos
+      const interval = setInterval(loadMassaCampaigns, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [tokenInstancia, activeTab]);
+
+  // Controlar campanha em massa
+  const handleControlMassaCampaign = async (folderId: string, action: 'stop' | 'continue' | 'delete') => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_WHATSAPP_API_URL}/sender/edit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'token': tokenInstancia,
+        },
+        body: JSON.stringify({ folder_id: folderId, action }),
+      });
+
+      if (response.ok) {
+        const actionText = {
+          stop: 'pausada',
+          continue: 'retomada',
+          delete: 'deletada'
+        }[action];
+        
+        toast({
+          title: 'Sucesso',
+          description: `Campanha ${actionText} com sucesso.`,
+        });
+        loadMassaCampaigns();
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível executar a ação.',
+      });
     }
   };
 
@@ -245,6 +338,21 @@ export default function CampanhasPage() {
         </Button>
       </div>
 
+      {/* Tabs para alternar entre campanhas */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="firestore">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Campanhas Agendadas
+          </TabsTrigger>
+          <TabsTrigger value="massa">
+            <Send className="mr-2 h-4 w-4" />
+            Envio em Massa
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="firestore" className="space-y-4 mt-6">{/* Conteúdo das campanhas firestore */}
+
       {/* Avisos importantes */}
       <Alert>
         <AlertCircle className="h-4 w-4" />
@@ -324,6 +432,128 @@ export default function CampanhasPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Tab: Campanhas em Massa */}
+        <TabsContent value="massa" className="space-y-4 mt-6">
+          {!tokenInstancia ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>⚠️ WhatsApp Não Conectado</CardTitle>
+                <CardDescription>
+                  Você precisa conectar o WhatsApp nas configurações para usar envio em massa.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => window.location.href = '/configuracoes'}>
+                  Ir para Configurações
+                </Button>
+              </CardContent>
+            </Card>
+          ) : isLoadingMassa ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {massaCampaigns.length === 0 ? (
+                <Card className="col-span-full">
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <p className="text-muted-foreground mb-4">Nenhuma campanha em massa encontrada</p>
+                    <p className="text-sm text-muted-foreground">
+                      Crie uma em &quot;Campanhas em Massa&quot; no menu lateral
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                massaCampaigns.map((campaign) => {
+                  const progress = campaign.total_messages ? Math.round((campaign.sent_messages || 0) / campaign.total_messages * 100) : 0;
+                  const canPause = campaign.status === 'sending' || campaign.status === 'scheduled';
+                  const canResume = campaign.status === 'paused';
+                  const canDelete = campaign.status !== 'deleting';
+                  
+                  return (
+                    <Card key={campaign.folder_id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg mb-2">
+                              {campaign.info || `Campanha ${campaign.folder_id}`}
+                            </CardTitle>
+                            <Badge variant={
+                              campaign.status === 'sending' ? 'default' :
+                              campaign.status === 'paused' ? 'outline' :
+                              campaign.status === 'done' ? 'secondary' :
+                              campaign.status === 'deleting' ? 'destructive' : 'secondary'
+                            }>
+                              {campaign.status === 'scheduled' && 'Agendada'}
+                              {campaign.status === 'sending' && 'Enviando'}
+                              {campaign.status === 'paused' && 'Pausada'}
+                              {campaign.status === 'done' && 'Concluída'}
+                              {campaign.status === 'deleting' && 'Deletando'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Progresso</span>
+                            <span className="font-medium">{progress}%</span>
+                          </div>
+                          <div className="w-full bg-secondary rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full transition-all"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Enviadas: {campaign.sent_messages || 0}</span>
+                            <span>Total: {campaign.total_messages || 0}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {canPause && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleControlMassaCampaign(campaign.folder_id, 'stop')}
+                            >
+                              <Pause className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canResume && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleControlMassaCampaign(campaign.folder_id, 'continue')}
+                            >
+                              <Play className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                if (confirm('Tem certeza que deseja deletar esta campanha?')) {
+                                  handleControlMassaCampaign(campaign.folder_id, 'delete');
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Dialog: Nova Campanha */}
       <Dialog open={showNewCampaignDialog} onOpenChange={setShowNewCampaignDialog}>

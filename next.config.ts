@@ -94,6 +94,16 @@ const nextConfig = {
       },
     ];
   },
+  // Configuração do Webpack para evitar erros de Watchpack no Windows
+  // @ts-ignore - Next.js webpack config
+  webpack: (config: any, { isServer }: { isServer: boolean }) => {
+    // Ignorar arquivos de sistema do Windows que causam erros de Watchpack
+    config.watchOptions = {
+      ...(config.watchOptions || {}),
+      ignored: /node_modules|\.next|\.git|pagefile\.sys|hiberfil\.sys|swapfile\.sys|System Volume Information|WcSandboxState|DumpStack\.log/,
+    };
+    return config;
+  },
 };
 
 module.exports = nextConfig;

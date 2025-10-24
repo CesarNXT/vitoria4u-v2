@@ -15,7 +15,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Calendar, Users, Briefcase, Wrench, BarChart3, Settings, LogOut, Sun, Gem, Moon, Loader2, ArrowLeft, Shield } from 'lucide-react';
+import { Home, Calendar, Users, Briefcase, Wrench, BarChart3, Settings, LogOut, Sun, Gem, Moon, Loader2, ArrowLeft, Shield, Send } from 'lucide-react';
 import Link from 'next/link';
 import type { ConfiguracoesNegocio, User } from '@/lib/types';
 import { cn, isAdminUser } from '@/lib/utils';
