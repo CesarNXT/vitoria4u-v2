@@ -24,8 +24,6 @@ export async function GET(req: NextRequest) {
       .where('tokenInstancia', '!=', '')
       .get();
     
-    console.log(`[CLEANUP] Encontradas ${snapshot.size} instâncias para verificar`);
-    
     for (const doc of snapshot.docs) {
       const businessId = doc.id;
       const data = doc.data();
@@ -52,7 +50,7 @@ export async function GET(req: NextRequest) {
       
       if (shouldDelete && token) {
         try {
-          console.log(`[CLEANUP] 🗑️ Deletando instância: ${businessId} (status: ${status}, ${Math.round(minutesSinceUpdate)}min atrás)`);
+          console.warn(`[CLEANUP] 🗑️ Deletando instância: ${businessId} (status: ${status}, ${Math.round(minutesSinceUpdate)}min atrás)`);
           
           const api = new WhatsAppAPI(businessId, token);
           await api.deleteInstance();
@@ -66,7 +64,7 @@ export async function GET(req: NextRequest) {
           });
           
           deletedInstances.push(businessId);
-          console.log(`[CLEANUP] ✅ Instância ${businessId} deletada`);
+          console.warn(`[CLEANUP] ✅ Instância ${businessId} deletada`);
           
         } catch (error: any) {
           console.error(`[CLEANUP] ❌ Erro ao deletar ${businessId}:`, error.message);
@@ -93,8 +91,6 @@ export async function GET(req: NextRequest) {
       errors: errors.length,
       errorDetails: errors
     };
-    
-    console.log(`[CLEANUP] 🧹 Limpeza concluída:`, result);
     
     return NextResponse.json(result);
     

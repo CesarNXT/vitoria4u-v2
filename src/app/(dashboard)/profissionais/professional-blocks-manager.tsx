@@ -32,15 +32,12 @@ export function ProfessionalBlocksManager({
 
   // Sincronizar estado local com props
   useEffect(() => {
-    console.log('[BLOQUEIOS-MANAGER] Props bloqueios mudaram:', bloqueios);
     setLocalBloqueios(bloqueios);
   }, [bloqueios]);
 
   const handleAddBloqueio = async (data: Omit<DataBloqueada, 'id'>) => {
     try {
       setIsSaving(true);
-      
-      console.log('[BLOQUEIOS-MANAGER] Dados recebidos do formulário:', data);
 
       const novoBloqueio: DataBloqueada = {
         id: editingBloqueio?.id || `block_${Date.now()}`,
@@ -48,8 +45,6 @@ export function ProfessionalBlocksManager({
         startDate: data.startDate,
         endDate: data.endDate,
       };
-      
-      console.log('[BLOQUEIOS-MANAGER] Novo bloqueio criado:', novoBloqueio);
 
       let novosBloqueios: DataBloqueada[];
       
@@ -77,14 +72,10 @@ export function ProfessionalBlocksManager({
       novosBloqueios.sort((a, b) => 
         new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
       );
-      
-      console.log('[BLOQUEIOS-MANAGER] Array atualizado de bloqueios:', novosBloqueios);
 
       setLocalBloqueios(novosBloqueios);
       
-      console.log('[BLOQUEIOS-MANAGER] Chamando onSave...');
       await onSave(novosBloqueios);
-      console.log('[BLOQUEIOS-MANAGER] onSave completado');
 
       setIsDialogOpen(false);
       setEditingBloqueio(null);

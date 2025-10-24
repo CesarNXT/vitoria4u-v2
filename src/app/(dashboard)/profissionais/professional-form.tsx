@@ -443,17 +443,12 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
                       return;
                     }
                     
-                    console.log('[BLOQUEIOS] Salvando bloqueios:', bloqueios);
-                    console.log('[BLOQUEIOS] Professional ID:', professional.id);
-                    
                     await saveOrUpdateDocument(
                       'profissionais',
                       professional.id,
                       { datasBloqueadas: bloqueios },
                       userId
                     );
-                    
-                    console.log('[BLOQUEIOS] Bloqueios salvos com sucesso!');
                     
                     toast({
                       title: 'Bloqueios salvos!',

@@ -302,7 +302,6 @@ async function processMessageEvent(data: any) {
 
     // Ignorar mensagens de grupo
     if (isGroup) {
-      console.log('[WEBHOOK-MESSAGE] Ignorando mensagem de grupo');
       return;
     }
 
@@ -320,7 +319,6 @@ async function processMessageEvent(data: any) {
     const businessDoc = await adminDb.collection('negocios').doc(instance).get();
     
     if (!businessDoc.exists) {
-      console.log('[WEBHOOK-MESSAGE] Negócio não encontrado:', instance);
       return;
     }
     
@@ -328,7 +326,6 @@ async function processMessageEvent(data: any) {
     
     // Verificar se IA está ativa
     if (!business?.iaAtiva) {
-      console.log('[WEBHOOK-MESSAGE] IA não está ativa para:', instance);
       return;
     }
 
@@ -398,8 +395,6 @@ async function processConnectionEvent(body: any) {
       console.warn(`[WEBHOOK-CONNECTION] ❌ Negócio não encontrado: ${instanceName}`);
       return;
     }
-    
-    console.log(`[WEBHOOK-CONNECTION] ✅ Negócio encontrado: ${instanceName} → Estado: ${status}`);
 
     // Atualizar status no Firestore
     await businessDoc.ref.update({
@@ -430,7 +425,6 @@ async function processConnectionEvent(body: any) {
           const { WhatsAppAPI } = await import('@/lib/whatsapp-api-simple');
           const api = new WhatsAppAPI(instanceName, token);
           await api.deleteInstance();
-          console.log(`[WEBHOOK-CONNECTION] ✅ Instância ${instanceName} deletada`);
         }
       } catch (deleteError) {
         console.error('[WEBHOOK-CONNECTION] Erro ao deletar instância:', deleteError);
@@ -489,8 +483,6 @@ async function notifyManagerAboutDisconnection(business: any, reason?: string) {
         text: message
       })
     });
-
-    console.log(`[WEBHOOK-CONNECTION] 📲 Notificação enviada para ${business.telefone}`);
   } catch (error) {
     console.error('[WEBHOOK-CONNECTION] Erro ao notificar gestor:', error);
   }

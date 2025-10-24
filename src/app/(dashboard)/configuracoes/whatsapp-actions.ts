@@ -67,7 +67,7 @@ async function waitAndCheckConnection(
       
       try {
         await api.deleteInstance()
-        console.log(`[WHATSAPP-CONNECT] ✅ Instância ${businessId} deletada`)
+        console.warn(`[WHATSAPP-CONNECT] ✅ Instância ${businessId} deletada`)
       } catch (deleteError) {
         console.error('[WHATSAPP-CONNECT] Erro ao deletar instância:', deleteError)
       }

@@ -113,7 +113,6 @@ export async function getAvailableTimes({
     
     if (bloqueioAtivo) {
       // Profissional está bloqueado neste dia - não exibir horários
-      console.log(`[AVAILABILITY] Profissional ${professional.name} bloqueado em ${format(date, 'dd/MM/yyyy')}`);
       return [];
     }
   }

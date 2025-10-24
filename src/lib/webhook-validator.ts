@@ -243,16 +243,12 @@ export async function validateWebhookOnConnection(
   businessId: string
 ): Promise<void> {
   try {
-    console.log(`[WEBHOOK-VALIDATOR] Validando webhook após conexão: ${businessId}`)
-    
     // Aguardar 5s para instância estabilizar
     await new Promise(resolve => setTimeout(resolve, 5000))
 
-    const result = await validateAndFixWebhook(businessId)
+    const result = await validateAndFixWebhook(businessId);
 
-    if (result.success) {
-      console.log(`[WEBHOOK-VALIDATOR] ✅ Webhook validada: ${businessId}`)
-    } else {
+    if (!result.success) {
       console.error(`[WEBHOOK-VALIDATOR] ❌ Falha ao validar: ${businessId} - ${result.message}`)
     }
   } catch (error) {
