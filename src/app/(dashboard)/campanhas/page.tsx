@@ -28,6 +28,9 @@ import { Loader2, Plus, AlertCircle, BarChart3, Send, Play, Pause, Trash2, Eye, 
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MoreVertical } from 'lucide-react';
 
 // Helper: Converter qualquer formato de data em Date válido
 function toDate(value: any): Date {
@@ -53,9 +56,49 @@ function toDate(value: any): Date {
   return new Date(value);
 }
 
+// Helper para normalizar status de campanha
+function getStatusDisplay(status: string): string {
+  const statusMap: Record<string, string> = {
+    'scheduled': 'Agendada',
+    'agendada': 'Agendada',
+    'Agendada': 'Agendada',
+    'sending': 'Enviando',
+    'enviando': 'Enviando',
+    'Em Andamento': 'Enviando',
+    'paused': 'Pausada',
+    'pausada': 'Pausada',
+    'done': 'Concluída',
+    'concluida': 'Concluída',
+    'Concluída': 'Concluída',
+    'deleting': 'Deletando',
+    'failed': 'Erro',
+    'Erro': 'Erro',
+  };
+  return statusMap[status] || status;
+}
+
+// Helper para verificar se pode pausar
+function canPause(status: string): boolean {
+  const s = status.toLowerCase();
+  return s === 'scheduled' || s === 'agendada' || s === 'sending' || s === 'enviando' || s === 'em andamento';
+}
+
+// Helper para verificar se pode continuar
+function canContinue(status: string): boolean {
+  const s = status.toLowerCase();
+  return s === 'paused' || s === 'pausada';
+}
+
+// Helper para verificar se pode deletar
+function canDelete(status: string): boolean {
+  const s = status.toLowerCase();
+  return s !== 'done' && s !== 'concluida' && s !== 'concluída' && s !== 'deleting';
+}
+
 export default function CampanhasPage() {
   const { canUseFeature, isLoading: planLoading } = usePlan();
   const { businessUserId } = useBusinessUser();
+  const isMobile = useIsMobile();
 
   // Estados - Campanhas Firestore
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -395,6 +438,89 @@ export default function CampanhasPage() {
                 <Plus className="h-4 w-4 mr-2" />
                 Criar Primeira Campanha
               </Button>
+            </div>
+          ) : isMobile ? (
+            <div className="space-y-4">
+              {campanhas.map((campanha) => (
+                <Card key={campanha.id} className="relative">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0 pr-2">
+                        <CardTitle className="text-base truncate">{campanha.nome}</CardTitle>
+                        <CardDescription className="text-xs mt-1">
+                          {format(toDate(campanha.dataAgendamento), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewDetails(campanha)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver Detalhes
+                          </DropdownMenuItem>
+                          {canPause(campanha.status) && (
+                            <DropdownMenuItem onClick={() => handlePauseCampanha(campanha.id)}>
+                              <Pause className="h-4 w-4 mr-2" />
+                              Pausar
+                            </DropdownMenuItem>
+                          )}
+                          {canContinue(campanha.status) && (
+                            <DropdownMenuItem onClick={() => handleContinueCampanha(campanha.id)}>
+                              <Play className="h-4 w-4 mr-2" />
+                              Continuar
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete(campanha.status) && (
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteCampanha(campanha.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <Badge variant={
+                        getStatusDisplay(campanha.status) === 'Concluída' ? 'default' :
+                        getStatusDisplay(campanha.status) === 'Enviando' ? 'secondary' :
+                        getStatusDisplay(campanha.status) === 'Pausada' ? 'outline' :
+                        getStatusDisplay(campanha.status) === 'Deletando' ? 'destructive' :
+                        'default'
+                      }>
+                        {getStatusDisplay(campanha.status)}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Tipo</span>
+                      <span className="text-sm font-medium capitalize">{campanha.tipo}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="text-lg font-semibold">{campanha.totalContatos}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground">Enviados</p>
+                        <p className="text-lg font-semibold text-green-600">{campanha.enviados || 0}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground">Falhas</p>
+                        <p className="text-lg font-semibold text-red-600">{campanha.falhas || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : (
             <DataTable 

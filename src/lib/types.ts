@@ -265,6 +265,7 @@ export interface SystemConfig {
 
 export type CampanhaTipo = 'texto' | 'imagem' | 'audio' | 'video';
 export type CampanhaStatus = 'Agendada' | 'Em Andamento' | 'Concluída' | 'Cancelada' | 'Expirada' | 'Erro';
+export type CampanhaStatusLegacy = 'agendada' | 'enviando' | 'pausada' | 'concluida'; // Status antigos em português minúsculo
 export type UazapiCampanhaStatus = 'scheduled' | 'sending' | 'paused' | 'done' | 'failed' | 'deleting';
 
 export interface CampanhaContato {
@@ -295,7 +296,9 @@ export interface Campanha {
   totalContatos: number;
   contatosEnviados: number;
   contatosFalhados?: number;
-  status: CampanhaStatus | UazapiCampanhaStatus; // Aceita ambos os formatos
+  enviados?: number; // Alias para contatosEnviados
+  falhas?: number; // Alias para contatosFalhados
+  status: CampanhaStatus | CampanhaStatusLegacy | UazapiCampanhaStatus; // Aceita todos os formatos
   dataAgendamento: Timestamp;
   horaInicio?: string; // Ex: "08:00"
   dataInicioExecucao?: Timestamp; // Quando começou a executar
