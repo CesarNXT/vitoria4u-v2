@@ -108,28 +108,29 @@ export async function notifyClientCancellation(data: {
   nomeProfissional?: string
 }): Promise<void> {
   try {
-    const cleanPhone = data.telefoneCliente.toString().replace(/\D/g, '')
-    const firstName = data.nomeCliente.split(' ')[0]
-    const categoria = data.categoriaEmpresa || 'estabelecimento'
+    const { telefoneCliente, nomeCliente, nomeEmpresa, categoriaEmpresa, dataHoraAtendimento, nomeServico, tokenInstancia } = data
+    const cleanPhone = telefoneCliente.toString().replace(/\D/g, '')
+    const firstName = nomeCliente.split(' ')[0]
+    const categoria = categoriaEmpresa || 'estabelecimento'
     
     const message = `❌ *Olá, ${firstName}!*
 
 Seu agendamento foi cancelado.
 
 📅 *Data e Hora*
-${data.dataHoraAtendamento}
+${dataHoraAtendimento}
 
 🏢 *${categoria}*
-${data.nomeEmpresa}
+${nomeEmpresa}
 
 💼 *Procedimento*
-${data.nomeServico}
+${nomeServico}
 
 Se desejar reagendar, entre em contato conosco.`
 
     const response = await fetch(`${API_BASE}/send/text`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'token': data.tokenInstancia },
+      headers: { 'Content-Type': 'application/json', 'token': tokenInstancia },
       body: JSON.stringify({ number: cleanPhone, text: message })
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
