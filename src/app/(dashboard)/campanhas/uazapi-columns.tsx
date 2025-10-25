@@ -9,18 +9,10 @@ import {
   Play,
   Pause
 } from "lucide-react";
+import { Campanha, UazapiCampanhaStatus } from "@/lib/types";
 
-// Tipos UAZAPI
-type UazapiCampanhaStatus = 'scheduled' | 'sending' | 'paused' | 'done' | 'deleting';
-
-interface UazapiCampanha {
-  id: string;
-  nome: string;
-  status: UazapiCampanhaStatus;
-  totalContatos: number;
-  contatosEnviados: number;
-  criadaEm?: number;
-}
+// Usar o tipo Campanha do types.ts
+type UazapiCampanha = Campanha;
 
 // Status visual
 const statusConfig: Record<UazapiCampanhaStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -28,6 +20,7 @@ const statusConfig: Record<UazapiCampanhaStatus, { label: string; variant: "defa
   "sending": { label: "Enviando", variant: "default" },
   "paused": { label: "Pausada", variant: "outline" },
   "done": { label: "Concluída", variant: "outline" },
+  "failed": { label: "Falha", variant: "destructive" },
   "deleting": { label: "Deletando", variant: "destructive" },
 };
 

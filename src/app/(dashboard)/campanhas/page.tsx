@@ -22,8 +22,9 @@ import {
   deleteCampanhaAction,
   getCampanhaDetailsAction
 } from './uazapi-sender-actions';
+import { syncCampaignStatus } from './sync-campaign-status';
 import { Cliente, Campanha, CampanhaContato } from '@/lib/types';
-import { Loader2, Plus, AlertCircle, BarChart3, Send, Play, Pause, Trash2, Eye, Calendar, Clock, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, BarChart3, Send, Play, Pause, Trash2, Eye, Calendar, Clock, CheckCircle2, TrendingUp, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -128,7 +129,7 @@ export default function CampanhasPage() {
       if (result.success) {
         toast({
           title: "Campanha criada!",
-          description: result.message,
+          description: ('message' in result ? result.message : undefined) || 'Campanha criada com sucesso',
         });
         setShowNewCampaignDialog(false);
         await loadData();
@@ -136,7 +137,7 @@ export default function CampanhasPage() {
         toast({
           variant: "destructive",
           title: "Erro ao criar campanha",
-          description: result.error,
+          description: ('error' in result ? result.error : undefined) || 'Erro desconhecido',
         });
       }
     } catch (error) {

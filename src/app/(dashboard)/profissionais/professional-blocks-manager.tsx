@@ -133,16 +133,7 @@ export function ProfessionalBlocksManager({
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarX className="h-5 w-5" />
-                Bloqueios de Agenda
-              </CardTitle>
-              <CardDescription>
-                Bloqueie períodos específicos na agenda de <strong>{profissionalNome}</strong>
-              </CardDescription>
-            </div>
+          <div className="flex items-center justify-end">
             <Button size="sm" onClick={() => setIsDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Bloqueio
@@ -276,7 +267,7 @@ export function ProfessionalBlocksManager({
 
       {/* Dialog de Formulário de Bloqueio */}
       <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>
               {editingBloqueio ? 'Editar Bloqueio' : 'Novo Bloqueio'}
@@ -286,13 +277,15 @@ export function ProfessionalBlocksManager({
             </DialogDescription>
           </DialogHeader>
 
-          <AppointmentBlockForm
-            key={editingBloqueio?.id || 'new-block-form'}
-            block={editingBloqueio}
-            onSubmit={handleAddBloqueio}
-            isSubmitting={isSaving}
-            isPastBlock={editingBloqueio ? isBefore(new Date(editingBloqueio.endDate), now) : false}
-          />
+          <div className="overflow-y-auto flex-1 pr-2">
+            <AppointmentBlockForm
+              key={editingBloqueio?.id || 'new-block-form'}
+              block={editingBloqueio}
+              onSubmit={handleAddBloqueio}
+              isSubmitting={isSaving}
+              isPastBlock={editingBloqueio ? isBefore(new Date(editingBloqueio.endDate), now) : false}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </>

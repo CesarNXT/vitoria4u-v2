@@ -919,14 +919,14 @@ return (
 
         {/* Dialog for Managing Blocked Dates */}
         <Dialog open={isBlockDateDialogOpen} onOpenChange={setIsBlockDateDialogOpen}>
-            <DialogContent className="max-w-[95vw] sm:max-w-lg">
+            <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>Gerenciar Bloqueios de Agenda</DialogTitle>
                     <DialogDescription>
                         Adicione, edite ou remova bloqueios na agenda. Limite de {MAX_BLOCKED_DATES} bloqueios futuros.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-4">
+                <div className="py-4 space-y-4 overflow-y-auto flex-1">
                     <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
                         {blockedDates.length > 0 ? (
                             blockedDates

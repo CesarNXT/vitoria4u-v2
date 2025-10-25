@@ -83,7 +83,14 @@ export default function NotificationsModal({ open, onClose, settings, onSave, us
   const handleSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      await onSave(data);
+      // Converter numeroEscalonamento para número se existir
+      const dataToSave = {
+        ...data,
+        numeroEscalonamento: data.numeroEscalonamento 
+          ? parseInt(data.numeroEscalonamento.toString().replace(/\D/g, ''), 10)
+          : null,
+      };
+      await onSave(dataToSave);
     } finally {
       setIsLoading(false);
     }

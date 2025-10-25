@@ -18,7 +18,7 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
-import { CalendarIcon, Loader2, Upload, X } from 'lucide-react'
+import { CalendarIcon, Loader2, Upload, X, Search, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn, formatPhoneNumber, formatPhoneInput } from '@/lib/utils'
@@ -28,6 +28,7 @@ import { useState, useEffect } from 'react'
 import { isCategoriaClinica } from '@/lib/categoria-utils'
 import { useScrollToError } from '@/lib/form-utils'
 import { useToast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/hooks/use-mobile'
 import Image from 'next/image'
 import { CaptionProps, useDayPicker, useNavigation } from 'react-day-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -144,9 +145,12 @@ function CustomCaption(props: CaptionProps) {
 
 export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }: ClientFormProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [isUploading, setIsUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(client?.avatarUrl || null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isPlanoModalOpen, setIsPlanoModalOpen] = useState(false);
+  const [planoSearchQuery, setPlanoSearchQuery] = useState('');
 
   const isClinica = isCategoriaClinica(businessSettings?.categoria);
   const planosSaudeDisponiveis = businessSettings?.planosSaudeAceitos || [];
@@ -168,6 +172,18 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
   })
 
   const temPlano = form.watch('temPlano');
+
+  // Filtrar planos pela pesquisa
+  const planosFiltrados = planosSaudeDisponiveis.filter((plano) =>
+    plano.nome.toLowerCase().includes(planoSearchQuery.toLowerCase())
+  );
+
+  // Limpar pesquisa ao fechar modal
+  useEffect(() => {
+    if (!isPlanoModalOpen) {
+      setPlanoSearchQuery('');
+    }
+  }, [isPlanoModalOpen]);
 
   // Scroll automático para primeiro erro
   useScrollToError(form.formState.errors);
@@ -484,26 +500,16 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Qual plano?</FormLabel>
-                      <Select
-                        value={field.value?.id}
-                        onValueChange={(planoId) => {
-                          const plano = planosSaudeDisponiveis.find(p => p.id === planoId);
-                          field.onChange(plano);
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o plano do cliente" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {planosSaudeDisponiveis.map((plano) => (
-                            <SelectItem key={plano.id} value={plano.id} className="truncate">
-                              {plano.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          onClick={() => setIsPlanoModalOpen(true)}
+                        >
+                          {field.value?.nome || "Selecione o plano do cliente"}
+                        </Button>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -539,6 +545,70 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
           {client ? 'Salvar Alterações' : 'Cadastrar Cliente'}
         </Button>
       </form>
+
+      {/* Modal de Seleção de Plano */}
+      <Dialog open={isPlanoModalOpen} onOpenChange={setIsPlanoModalOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Selecionar Plano de Saúde</DialogTitle>
+            <DialogDescription>
+              Escolha o plano de saúde do cliente
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar plano..."
+                value={planoSearchQuery}
+                onChange={(e) => setPlanoSearchQuery(e.target.value)}
+                autoFocus={!isMobile}
+                className="w-full pl-9 pr-9"
+              />
+              {planoSearchQuery && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+                  onClick={() => setPlanoSearchQuery('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+              {planosFiltrados.length > 0 ? (
+                planosFiltrados.map((plano) => {
+                  const isSelected = form.watch('planoSaude')?.id === plano.id;
+                  return (
+                    <Button
+                      key={plano.id}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      className="w-full justify-between text-left"
+                      onClick={() => {
+                        form.setValue('planoSaude', plano);
+                        setIsPlanoModalOpen(false);
+                        setPlanoSearchQuery('');
+                      }}
+                    >
+                      <span className="truncate">{plano.nome}</span>
+                      {isSelected && <Check className="h-4 w-4 ml-2 shrink-0" />}
+                    </Button>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhum plano encontrado
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Form>
   )
 }

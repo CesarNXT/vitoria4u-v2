@@ -639,19 +639,32 @@ async function sendAutoReplyMessage(
  */
 async function processSenderEvent(data: any) {
   try {
-    const { folder_id, status, sent_count, failed_count, total_messages } = data;
+    // UazAPI envia "folderID" (camelCase), não "folder_id" (snake_case)
+    const folder_id = data.folderID || data.folder_id;
+    const status = data.status;
+    const sent_count = data.sentCount || data.sent_count || 0;
+    const failed_count = data.failedCount || data.failed_count || 0;
+    const total_messages = data.messageCount || data.total_messages || 0;
+    const businessId = data.instanceName; // ← ID do negócio
 
     if (!folder_id) {
+      console.warn('[WEBHOOK-SENDER] Evento sender sem folderID, ignorando');
+      return;
+    }
+
+    if (!businessId) {
+      console.warn('[WEBHOOK-SENDER] Evento sender sem instanceName (businessId), ignorando');
       return;
     }
 
     console.log(`📊 [WEBHOOK-SENDER] Campanha ${folder_id} → status: ${status}, ${sent_count}/${total_messages} enviadas`);
+    console.log(`📊 [WEBHOOK-SENDER] BusinessId: ${businessId}`);
 
     // ✅ PROCESSAR CAMPANHAS EM MASSA (collection 'campanhas')
-    await processCampaignUpdate(folder_id, status, sent_count, failed_count, total_messages);
+    await processCampaignUpdate(businessId, folder_id, status, sent_count, failed_count, total_messages);
 
     // ✅ PROCESSAR LEMBRETES (agendamentos)
-    await processReminderCampaignUpdate(folder_id, status);
+    await processReminderCampaignUpdate(businessId, folder_id, status);
 
   } catch (error) {
     console.error('[WEBHOOK-SENDER] Erro ao processar evento sender:', error);
@@ -662,6 +675,7 @@ async function processSenderEvent(data: any) {
  * Atualiza status de CAMPANHAS EM MASSA
  */
 async function processCampaignUpdate(
+  businessId: string,
   folder_id: string,
   status: string,
   sent_count: number,
@@ -669,8 +683,12 @@ async function processCampaignUpdate(
   total_messages: number
 ) {
   try {
-    // Buscar campanha na collection 'campanhas'
-    const campanhasRef = adminDb.collectionGroup('campanhas');
+    // Buscar campanha DIRETAMENTE na collection do negócio (sem collectionGroup)
+    const campanhasRef = adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('campanhas');
+    
     const snapshot = await campanhasRef
       .where('folder_id', '==', folder_id)
       .limit(1)
@@ -707,10 +725,29 @@ async function processCampaignUpdate(
 
     // Atualizar campanha
     await campanhaDoc.ref.update(updateData);
+    
+    console.log(`✅ [WEBHOOK-SENDER] Campanha ${folder_id} atualizada no Firestore:`, {
+      status: updateData.status,
+      sent_count: updateData.sent_count,
+      failed_count: updateData.failed_count,
+    });
 
-    // Atualizar status individual dos contatos
-    if (sent_count > 0 || failed_count > 0) {
-      await updateIndividualContactStatus(campanhaDoc.ref, sent_count, failed_count);
+    // 🔄 SINCRONIZAR com UazAPI para pegar progresso real
+    // Webhook não envia sentCount incremental, então fazemos polling
+    if (status === 'sending' || status === 'done') {
+      console.log(`🔄 [WEBHOOK-SENDER] Iniciando sincronização com UazAPI para obter progresso real...`);
+      
+      // Importar e chamar função de sync (dinâmico para evitar circular dependency)
+      try {
+        const { syncCampaignStatus } = await import('@/app/(dashboard)/campanhas/sync-campaign-status');
+        
+        // Executar em background (não esperar)
+        syncCampaignStatus(businessId, campanhaDoc.id, folder_id).catch(err => {
+          console.error('[WEBHOOK-SENDER] ❌ Erro ao sincronizar campanha:', err);
+        });
+      } catch (err) {
+        console.error('[WEBHOOK-SENDER] ❌ Erro ao importar sync:', err);
+      }
     }
 
   } catch (error) {
@@ -760,10 +797,14 @@ async function updateIndividualContactStatus(
 /**
  * Atualiza status de LEMBRETES nos agendamentos
  */
-async function processReminderCampaignUpdate(folder_id: string, status: string) {
+async function processReminderCampaignUpdate(businessId: string, folder_id: string, status: string) {
   try {
-    // Buscar agendamentos com esta campanha
-    const agendamentosRef = adminDb.collectionGroup('agendamentos');
+    // Buscar agendamentos DIRETAMENTE na collection do negócio (sem collectionGroup)
+    const agendamentosRef = adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('agendamentos');
+    
     const snapshot = await agendamentosRef
       .where('reminderCampaigns', 'array-contains', { 
         folderId: folder_id 

@@ -30,7 +30,8 @@ const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.
  */
 interface ReminderMessage {
   type: '24h' | '2h';
-  messageId: string;
+  messageId?: string; // Opcional para compatibilidade
+  folderId?: string; // Legado
   scheduledFor: Date;
 }
 

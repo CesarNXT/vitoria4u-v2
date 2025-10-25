@@ -589,13 +589,67 @@ export async function getCampanhaDetailsAction(folderId: string) {
 /**
  * Pausar campanha
  */
-export async function pauseCampanhaAction(folderId: string) {
+export async function pauseCampanhaAction(campaignId: string) {
+  console.log(`⏸️ [PAUSE] Tentando pausar campanha: ${campaignId}`);
+  
   try {
     const userId = await validateSession();
     const businessId = await getBusinessId(userId);
-    const { token } = await getWhatsAppConfig(businessId);
 
+    console.log(`⏸️ [PAUSE] BusinessId: ${businessId}, CampaignId: ${campaignId}`);
+
+    // Buscar folder_id no Firestore
+    const campanhaDoc = await adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('campanhas')
+      .doc(campaignId)
+      .get();
+
+    if (!campanhaDoc.exists) {
+      console.error(`❌ [PAUSE] Campanha não encontrada no Firestore: ${campaignId}`);
+      return {
+        success: false,
+        error: 'Campanha não encontrada',
+      };
+    }
+
+    const campanhaData = campanhaDoc.data();
+    const folderId = campanhaData?.folder_id;
+    const status = campanhaData?.status;
+
+    console.log(`⏸️ [PAUSE] Campanha encontrada - Status: ${status}, FolderId: ${folderId}`);
+
+    if (!folderId) {
+      console.error(`❌ [PAUSE] Campanha sem folder_id`);
+      return {
+        success: false,
+        error: 'Campanha ainda não foi criada na UazAPI. Aguarde o processamento.',
+      };
+    }
+
+    // Verificar se pode pausar
+    if (status === 'done') {
+      console.error(`❌ [PAUSE] Campanha já foi concluída`);
+      return {
+        success: false,
+        error: 'Não é possível pausar uma campanha concluída.',
+      };
+    }
+
+    if (status === 'paused') {
+      console.warn(`⚠️ [PAUSE] Campanha já está pausada`);
+      return {
+        success: false,
+        error: 'Campanha já está pausada.',
+      };
+    }
+
+    const { token } = await getWhatsAppConfig(businessId);
     const apiUrl = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://uazapi.com';
+    
+    console.log(`⏸️ [PAUSE] Enviando requisição para UazAPI...`);
+    
     const response = await fetch(`${apiUrl}/sender/edit`, {
       method: 'POST',
       headers: {
@@ -608,9 +662,34 @@ export async function pauseCampanhaAction(folderId: string) {
       }),
     });
 
+    const responseText = await response.text();
+    console.log(`⏸️ [PAUSE] Resposta UazAPI [${response.status}]: ${responseText}`);
+
     if (!response.ok) {
-      throw new Error('Erro ao pausar campanha');
+      let errorMsg = 'Erro ao pausar campanha na UazAPI';
+      try {
+        const errorData = JSON.parse(responseText);
+        errorMsg = errorData.message || errorData.error || errorMsg;
+      } catch (e) {
+        errorMsg = responseText || errorMsg;
+      }
+      
+      console.error(`❌ [PAUSE] Erro da UazAPI: ${errorMsg}`);
+      
+      return {
+        success: false,
+        error: errorMsg,
+      };
     }
+
+    // Atualizar status no Firestore
+    console.log(`⏸️ [PAUSE] Atualizando status no Firestore...`);
+    await campanhaDoc.ref.update({
+      status: 'paused',
+      updated_at: new Date(),
+    });
+
+    console.log(`✅ [PAUSE] Campanha pausada com sucesso!`);
 
     return {
       success: true,
@@ -618,11 +697,12 @@ export async function pauseCampanhaAction(folderId: string) {
     };
 
   } catch (error: any) {
-    console.error('Erro ao pausar campanha:', error);
+    console.error('❌ [PAUSE] Erro inesperado ao pausar campanha:', error);
+    console.error('❌ [PAUSE] Stack trace:', error.stack);
     
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erro ao pausar campanha'
+      error: error instanceof Error ? error.message : 'Erro desconhecido ao pausar campanha'
     };
   }
 }
@@ -630,12 +710,36 @@ export async function pauseCampanhaAction(folderId: string) {
 /**
  * Continuar campanha pausada
  */
-export async function continueCampanhaAction(folderId: string) {
+export async function continueCampanhaAction(campaignId: string) {
   try {
     const userId = await validateSession();
     const businessId = await getBusinessId(userId);
-    const { token } = await getWhatsAppConfig(businessId);
 
+    // Buscar folder_id no Firestore
+    const campanhaDoc = await adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('campanhas')
+      .doc(campaignId)
+      .get();
+
+    if (!campanhaDoc.exists) {
+      return {
+        success: false,
+        error: 'Campanha não encontrada',
+      };
+    }
+
+    const folderId = campanhaDoc.data()?.folder_id;
+
+    if (!folderId) {
+      return {
+        success: false,
+        error: 'Campanha sem folder_id (não foi enviada para UazAPI)',
+      };
+    }
+
+    const { token } = await getWhatsAppConfig(businessId);
     const apiUrl = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://uazapi.com';
     const response = await fetch(`${apiUrl}/sender/edit`, {
       method: 'POST',
@@ -652,6 +756,12 @@ export async function continueCampanhaAction(folderId: string) {
     if (!response.ok) {
       throw new Error('Erro ao continuar campanha');
     }
+
+    // Atualizar status no Firestore
+    await campanhaDoc.ref.update({
+      status: 'sending',
+      updated_at: new Date(),
+    });
 
     return {
       success: true,
@@ -671,28 +781,55 @@ export async function continueCampanhaAction(folderId: string) {
 /**
  * Deletar campanha
  */
-export async function deleteCampanhaAction(folderId: string) {
+export async function deleteCampanhaAction(campaignId: string) {
   try {
     const userId = await validateSession();
     const businessId = await getBusinessId(userId);
-    const { token } = await getWhatsAppConfig(businessId);
 
-    const apiUrl = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://uazapi.com';
-    const response = await fetch(`${apiUrl}/sender/edit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'token': token,
-      },
-      body: JSON.stringify({
-        folder_id: folderId,
-        action: 'delete',
-      }),
-    });
+    // 1️⃣ Buscar campanha no Firestore
+    const campanhaRef = adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('campanhas')
+      .doc(campaignId);
 
-    if (!response.ok) {
-      throw new Error('Erro ao deletar campanha');
+    const campanhaDoc = await campanhaRef.get();
+
+    if (!campanhaDoc.exists) {
+      return {
+        success: false,
+        error: 'Campanha não encontrada',
+      };
     }
+
+    const campanha = campanhaDoc.data();
+    const folderId = campanha?.folder_id;
+
+    // 2️⃣ Deletar na UazAPI (se tiver folder_id)
+    if (folderId) {
+      const { token } = await getWhatsAppConfig(businessId);
+      const apiUrl = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://uazapi.com';
+      
+      const response = await fetch(`${apiUrl}/sender/edit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'token': token,
+        },
+        body: JSON.stringify({
+          folder_id: folderId,
+          action: 'delete',
+        }),
+      });
+
+      // Não falhar se UazAPI retornar erro (campanha pode já ter sido deletada)
+      if (!response.ok) {
+        console.warn(`Aviso: Erro ao deletar campanha ${folderId} na UazAPI, mas continuando...`);
+      }
+    }
+
+    // 3️⃣ Deletar do Firestore
+    await campanhaRef.delete();
 
     return {
       success: true,

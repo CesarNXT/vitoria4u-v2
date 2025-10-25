@@ -108,15 +108,16 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
             return allTimeOptions;
         }
 
-        const options: string[] = [];
+        const optionsSet = new Set<string>();
         businessDaySchedule.slots.forEach(slot => {
             const startIndex = allTimeOptions.indexOf(slot.start);
             const endIndex = allTimeOptions.indexOf(slot.end);
             if(startIndex !== -1 && endIndex !== -1) {
-                 options.push(...allTimeOptions.slice(startIndex, endIndex + 1));
+                 allTimeOptions.slice(startIndex, endIndex + 1).forEach(time => optionsSet.add(time));
             }
         });
-        return options.length > 0 ? options : allTimeOptions;
+        const uniqueOptions = Array.from(optionsSet).sort();
+        return uniqueOptions.length > 0 ? uniqueOptions : allTimeOptions;
 
     }, [isProfessionalForm, businessDaySchedule]);
 

@@ -99,9 +99,13 @@ export interface ConfiguracoesNegocio {
 
 export interface ReminderCampaign {
   type: '24h' | '2h';
-  folderId: string;
+  folderId?: string; // Manter por compatibilidade
+  messageId?: string; // Novo formato
   scheduledFor: Date;
 }
+
+// Alias para novo formato
+export type ReminderMessage = ReminderCampaign;
 
 export interface Agendamento {
   id: string;
@@ -261,6 +265,7 @@ export interface SystemConfig {
 
 export type CampanhaTipo = 'texto' | 'imagem' | 'audio' | 'video';
 export type CampanhaStatus = 'Agendada' | 'Em Andamento' | 'Concluída' | 'Cancelada' | 'Expirada' | 'Erro';
+export type UazapiCampanhaStatus = 'scheduled' | 'sending' | 'paused' | 'done' | 'failed' | 'deleting';
 
 export interface CampanhaContato {
   clienteId: string;
@@ -280,7 +285,8 @@ export interface CampanhaEnvio {
 
 export interface Campanha {
   id: string;
-  businessId: string;
+  businessId?: string;
+  folder_id?: string; // ID da campanha na UazAPI
   nome: string;
   tipo: CampanhaTipo;
   mensagem?: string; // Para tipo texto
@@ -288,17 +294,37 @@ export interface Campanha {
   contatos: CampanhaContato[];
   totalContatos: number;
   contatosEnviados: number;
-  status: CampanhaStatus;
+  contatosFalhados?: number;
+  status: CampanhaStatus | UazapiCampanhaStatus; // Aceita ambos os formatos
   dataAgendamento: Timestamp;
-  horaInicio: string; // Ex: "08:00"
+  horaInicio?: string; // Ex: "08:00"
   dataInicioExecucao?: Timestamp; // Quando começou a executar
   dataConclusao?: Timestamp; // Quando terminou
   tempoEstimadoConclusao?: string; // Ex: "2h 30min"
-  instanciaWhatsapp: string;
-  tokenInstancia: string;
+  instanciaWhatsapp?: string;
+  tokenInstancia?: string;
   envios: CampanhaEnvio[];
-  createdAt: Timestamp;
+  createdAt?: Timestamp;
+  criadaEm?: Timestamp; // Alias
   updatedAt?: Timestamp;
   canceledAt?: Timestamp;
   erro?: string; // Erro geral da campanha
+}
+
+// Tipo específico para UazAPI
+export interface UazapiCampanha {
+  id: string;
+  folder_id?: string;
+  nome: string;
+  tipo: CampanhaTipo;
+  status: UazapiCampanhaStatus;
+  totalContatos: number;
+  contatosEnviados: number;
+  contatosFalhados?: number;
+  mensagem?: string;
+  mediaUrl?: string;
+  dataAgendamento?: any;
+  criadaEm?: any;
+  contatos: any[];
+  envios: any[];
 }

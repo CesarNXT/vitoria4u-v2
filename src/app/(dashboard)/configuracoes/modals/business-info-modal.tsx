@@ -63,7 +63,12 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
   const handleSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      await onSave(data);
+      // Converter telefone para número
+      const dataToSave = {
+        ...data,
+        telefone: parseInt(data.telefone.toString().replace(/\D/g, ''), 10),
+      };
+      await onSave(dataToSave);
     } finally {
       setIsLoading(false);
     }
