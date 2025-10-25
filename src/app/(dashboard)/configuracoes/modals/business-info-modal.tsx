@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PhoneInput } from "@/components/ui/phone-input";
 import type { ConfiguracoesNegocio } from "@/lib/types";
-import { Loader2 } from "lucide-react";
-import { formatPhoneNumber } from "@/lib/utils";
+import { Loader2, Search, ChevronRight } from "lucide-react";
+import { formatPhoneNumber, cn } from "@/lib/utils";
 
 const schema = z.object({
   nome: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(64, "Nome muito longo"),
@@ -41,7 +41,9 @@ interface BusinessInfoModalProps {
 }
 
 export default function BusinessInfoModal({ open, onClose, settings, onSave }: BusinessInfoModalProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -61,7 +63,7 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
   });
 
   const handleSubmit = async (data: FormValues) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       // Converter telefone para número
       const dataToSave = {
@@ -70,7 +72,7 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
       };
       await onSave(dataToSave);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -140,29 +142,95 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
             <FormField
               control={form.control}
               name="categoria"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoria</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a categoria" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Clínica médica">Clínica médica</SelectItem>
-                      <SelectItem value="Consultório odontológico">Consultório odontológico</SelectItem>
-                      <SelectItem value="Salão de beleza">Salão de beleza</SelectItem>
-                      <SelectItem value="Barbearia">Barbearia</SelectItem>
-                      <SelectItem value="Pet shop">Pet shop</SelectItem>
-                      <SelectItem value="Academia">Academia</SelectItem>
-                      <SelectItem value="Estética">Estética</SelectItem>
-                      <SelectItem value="Outros">Outros</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const categories = [
+                  { value: "Barbearia", label: "Barbearia 💈" },
+                  { value: "ClinicaDeFisioterapia", label: "Clínica de Fisioterapia 🏃" },
+                  { value: "ClinicaMedica", label: "Clínica Médica 🩺" },
+                  { value: "ClinicaNutricionista", label: "Clínica Nutricionista 🥗" },
+                  { value: "ClinicaOdontologica", label: "Clínica Odontológica 🦷" },
+                  { value: "ClinicaPsicologica", label: "Clínica Psicológica 🧠" },
+                  { value: "Estetica", label: "Estética 💄" },
+                  { value: "LashDesigner", label: "Lash Designer 👁️" },
+                  { value: "NailDesigner", label: "Nail Designer 💅" },
+                  { value: "SalaoDeBeleza", label: "Salão de Beleza 💇" },
+                  { value: "TecnicoInformatica", label: "Técnico de Informática 💻" },
+                ];
+
+                const selectedCategory = categories.find(cat => cat.value === field.value);
+                const filteredCategories = categories.filter(cat => 
+                  cat.label.toLowerCase().includes(categorySearch.toLowerCase())
+                );
+
+                return (
+                  <>
+                    <FormItem>
+                      <FormLabel>Categoria</FormLabel>
+                      <FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                          onClick={() => setIsCategoryDialogOpen(true)}
+                        >
+                          {selectedCategory ? selectedCategory.label : "Selecione a categoria"}
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0" />
+                        </Button>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+
+                    <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+                      <DialogContent className="max-w-[90vw] sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+                        <DialogHeader>
+                          <DialogTitle>Selecione a Categoria</DialogTitle>
+                          <DialogDescription>
+                            Escolha a categoria que melhor representa seu negócio
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Buscar categoria..."
+                              value={categorySearch}
+                              onChange={(e) => setCategorySearch(e.target.value)}
+                              autoFocus={false}
+                              className="pl-10"
+                            />
+                          </div>
+                          <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                            {filteredCategories.length > 0 ? (
+                              filteredCategories.map((category) => (
+                                <Button
+                                  key={category.value}
+                                  type="button"
+                                  variant={field.value === category.value ? "secondary" : "ghost"}
+                                  className="w-full justify-start text-left h-auto py-3"
+                                  onClick={() => {
+                                    field.onChange(category.value);
+                                    setIsCategoryDialogOpen(false);
+                                    setCategorySearch('');
+                                  }}
+                                >
+                                  <span className="text-base">{category.label}</span>
+                                </Button>
+                              ))
+                            ) : (
+                              <p className="text-center text-muted-foreground py-8">
+                                Nenhuma categoria encontrada
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </>
+                );
+              }}
             />
 
             {/* Endereço */}
@@ -266,11 +334,11 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
             </div>
 
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar
               </Button>
             </DialogFooter>
@@ -280,3 +348,5 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
     </Dialog>
   );
 }
+
+export { BusinessInfoModal };

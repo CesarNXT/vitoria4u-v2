@@ -486,15 +486,15 @@ export default function BusinessSettingsForm({
                 render={({ field }) => {
                   const categories = [
                     { value: "Barbearia", label: "Barbearia 💈" },
-                    { value: "ClinicaDeFisioterapia", label: "Clínica de Fisioterapia 🏃‍♂️" },
+                    { value: "ClinicaDeFisioterapia", label: "Clínica de Fisioterapia 🏃" },
                     { value: "ClinicaMedica", label: "Clínica Médica 🩺" },
                     { value: "ClinicaNutricionista", label: "Clínica Nutricionista 🥗" },
-                    { value: "ClinicaOdontologica", label: "Clínica Odontológica 🦾" },
+                    { value: "ClinicaOdontologica", label: "Clínica Odontológica 🦷" },
                     { value: "ClinicaPsicologica", label: "Clínica Psicológica 🧠" },
-                    { value: "Estetica", label: "Estética 💆‍♀️" },
+                    { value: "Estetica", label: "Estética 💄" },
                     { value: "LashDesigner", label: "Lash Designer 👁️" },
                     { value: "NailDesigner", label: "Nail Designer 💅" },
-                    { value: "SalaoDeBeleza", label: "Salão de Beleza 💇‍♀️" },
+                    { value: "SalaoDeBeleza", label: "Salão de Beleza 💇" },
                     { value: "TecnicoInformatica", label: "Técnico de Informática 💻" },
                   ];
 
@@ -525,38 +525,39 @@ export default function BusinessSettingsForm({
                       </FormItem>
 
                       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-                        <DialogContent className="max-w-[90vw] sm:max-w-md overflow-hidden">
+                        <DialogContent className="max-w-[90vw] sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
                           <DialogHeader>
                             <DialogTitle>Selecione a Categoria</DialogTitle>
                             <DialogDescription>
                               Escolha a categoria que melhor representa seu negócio
                             </DialogDescription>
                           </DialogHeader>
-                          <div className="space-y-4 min-w-0">
+                          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
                             <div className="relative">
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
                                 placeholder="Buscar categoria..."
                                 value={categorySearch}
                                 onChange={(e) => setCategorySearch(e.target.value)}
+                                autoFocus={false}
                                 className="pl-10"
                               />
                             </div>
-                            <div className="max-h-[400px] overflow-y-auto space-y-1">
+                            <div className="flex-1 overflow-y-auto pr-2 space-y-2">
                               {filteredCategories.length > 0 ? (
                                 filteredCategories.map((category) => (
                                   <Button
                                     key={category.value}
                                     type="button"
                                     variant={field.value === category.value ? "secondary" : "ghost"}
-                                    className="w-full justify-start text-left h-auto py-3 min-w-0"
+                                    className="w-full justify-start text-left h-auto py-3"
                                     onClick={() => {
                                       field.onChange(category.value);
                                       setIsCategoryDialogOpen(false);
                                       setCategorySearch('');
                                     }}
                                   >
-                                    <span className="text-base truncate block min-w-0">{category.label}</span>
+                                    <span className="text-base">{category.label}</span>
                                   </Button>
                                 ))
                               ) : (
