@@ -71,11 +71,13 @@ function isBusinessHours(
     return hour >= 8 && hour < 18;
   }
 
-  const dayNames: (keyof typeof businessHours)[] = [
+  const dayNames = [
     'domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'
-  ];
+  ] as const;
   
-  const dayKey = dayNames[date.getDay()];
+  const dayIndex = date.getDay();
+  const dayKey = dayNames[dayIndex] as keyof typeof businessHours;
+  
   const daySchedule = businessHours[dayKey];
 
   // Se o dia está fechado, não é horário comercial
