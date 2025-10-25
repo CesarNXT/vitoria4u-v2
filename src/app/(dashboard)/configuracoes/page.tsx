@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ConfiguracoesNegocio, User, DiasDaSemana } from '@/lib/types';
 import BusinessSettingsForm from "@/app/(dashboard)/configuracoes/business-settings-form";
+import ConfigCardsPage from "@/app/(dashboard)/configuracoes/config-cards-page";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Shield } from "lucide-react";
 import { cn, isAdminUser } from '@/lib/utils';
@@ -302,39 +303,37 @@ export default function SettingsPage() {
   // Se tem nome e telefone, considera setup completo (contas antigas)
   const isSetupMode = !settings?.setupCompleted && !(settings?.nome && settings?.telefone);
 
+  // Se não está em setup mode, usa o novo layout de cards
+  if (!isSetupMode && user) {
+    return (
+      <div className="w-full flex-1 space-y-4 p-4 md:p-8">
+        {impersonatedId && (
+          <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500 mb-4">
+            <Shield className="h-4 w-4" />
+            Modo Suporte: Editando configurações do cliente
+          </div>
+        )}
+        <ConfigCardsPage
+          settings={settings}
+          userId={impersonatedId || user.uid}
+          onSave={handleSave}
+          userPlan={userPlan}
+          isAdmin={isAdmin}
+        />
+      </div>
+    );
+  }
+
+  // Setup mode - usa o formulário tradicional
   return (
-    <div className={cn(
-      isSetupMode 
-        ? "" 
-        : "w-full flex-1 space-y-4 p-4 md:p-8"
-    )}>
-      <Card className={cn(
-        "shadow-xl border-2",
-        isSetupMode 
-          ? "w-full max-w-6xl mx-auto" 
-          : "w-full max-w-5xl mx-auto"
-      )}>
+    <div className="">
+      <Card className="shadow-xl border-2 w-full max-w-6xl mx-auto">
         <CardHeader className="space-y-3 px-6 md:px-8 pt-6 pb-4">
-          <CardTitle className={cn(
-            "text-2xl md:text-3xl font-bold",
-            isSetupMode && "text-center"
-          )}>
-            {isSetupMode ? '🎯 Configuração Inicial' : 'Configurações do Negócio'}
+          <CardTitle className="text-2xl md:text-3xl font-bold text-center">
+            🎯 Configuração Inicial
           </CardTitle>
-          <CardDescription className={cn(
-            "text-sm md:text-base",
-            isSetupMode && "text-center"
-          )}>
-            {isSetupMode ? (
-              'Preencha as informações básicas do seu negócio para começar.'
-            ) : impersonatedId ? (
-              <span className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
-                <Shield className="h-4 w-4" />
-                Modo Suporte: Editando configurações do cliente
-              </span>
-            ) : (
-              'Gerencie as informações essenciais que alimentam a IA, o sistema de agendamento e outras funcionalidades.'
-            )}
+          <CardDescription className="text-sm md:text-base text-center">
+            Preencha as informações básicas do seu negócio para começar.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-6 md:px-8 pb-8">
@@ -343,8 +342,8 @@ export default function SettingsPage() {
             userPlan={userPlan}
             userId={impersonatedId || user.uid} 
             onSave={handleSave} 
-            onLogout={isSetupMode ? handleLogout : undefined}
-            isSetupMode={isSetupMode} 
+            onLogout={handleLogout}
+            isSetupMode={true} 
           />}
         </CardContent>
       </Card>

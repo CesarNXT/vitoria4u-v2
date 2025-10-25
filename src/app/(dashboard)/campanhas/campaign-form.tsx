@@ -77,6 +77,9 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
   const [displayedCount, setDisplayedCount] = useState(50);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const [excluirComCampanhas, setExcluirComCampanhas] = useState(false);
+  const [diasExclusao, setDiasExclusao] = useState(30);
+  const [quotaInfo, setQuotaInfo] = useState<{ total: number; used: number; available: number } | null>(null);
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignSchema),
@@ -103,6 +106,22 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
     }));
     setContatos(contatosIniciais);
   }, [clientes]);
+
+  // Carregar quota disponível
+  useEffect(() => {
+    const loadQuota = async () => {
+      try {
+        const { getQuotaAction } = await import('./uazapi-sender-actions');
+        const result = await getQuotaAction();
+        if (result.success) {
+          setQuotaInfo(result.quota);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar quota:', error);
+      }
+    };
+    loadQuota();
+  }, []);
 
   // Filtrar contatos por busca
   const contatosFiltrados = useMemo(() => {
@@ -193,21 +212,12 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
         title: "Nenhum contato selecionado",
         description: "Selecione pelo menos um contato para a campanha.",
       });
-      // Rolar até seção de contatos
       document.getElementById('contatos-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
-    if (contatosSelecionados > 200) {
-      toast({
-        variant: "destructive",
-        title: "Muitos contatos selecionados",
-        description: "O limite máximo é 200 contatos por campanha.",
-      });
-      // Rolar até seção de contatos
-      document.getElementById('contatos-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
+    // ✅ DIVISÃO AUTOMÁTICA: Não bloqueia mais, divide em múltiplas campanhas
+    // Se passar de 200, será dividido automaticamente
 
     // Validar data e hora (não pode ser no passado)
     const agora = new Date();
@@ -449,11 +459,22 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
           </div>
         </CardHeader>
         <CardContent>
+          {/* Quota disponível */}
+          {quotaInfo && (
+            <Alert className="mb-4" variant={quotaInfo.available < 50 ? "destructive" : "default"}>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Quota de hoje:</strong> {quotaInfo.available} de {quotaInfo.total} envios disponíveis
+                {quotaInfo.used > 0 && ` (${quotaInfo.used} já usados)`}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Alert className="mb-4">
             <Info className="h-4 w-4" />
             <AlertDescription>
-              Os envios são espaçados entre 80-120 segundos para evitar bloqueios do WhatsApp.
-              Contatos inativos aparecem destacados e desmarcados por padrão.
+              <strong>Divisão automática:</strong> Se selecionar mais de 200 contatos, o sistema criará múltiplas campanhas automaticamente.
+              Cada campanha terá até 200 contatos, distribuídos em dias diferentes.
             </AlertDescription>
           </Alert>
 
@@ -507,6 +528,17 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
                   />
                   <Label htmlFor="incluirInativos" className="cursor-pointer text-sm">
                     Mostrar inativos
+                  </Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="excluirComCampanhas"
+                    checked={excluirComCampanhas}
+                    onCheckedChange={(checked) => setExcluirComCampanhas(checked as boolean)}
+                  />
+                  <Label htmlFor="excluirComCampanhas" className="cursor-pointer text-sm">
+                    Excluir quem já recebeu campanha nos últimos {diasExclusao} dias
                   </Label>
                 </div>
                 
@@ -657,8 +689,20 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Os envios são distribuídos aleatoriamente entre 80-120 segundos para simular comportamento humano
-                e evitar bloqueios do WhatsApp.
+                <strong>Intervalo:</strong> 80-120 segundos entre cada envio para evitar bloqueios.
+                {contatosSelecionados > 200 && (
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                    <p className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                      🔄 Divisão Automática
+                    </p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      {contatosSelecionados} contatos serão divididos em <strong>{Math.ceil(contatosSelecionados / 200)} campanhas</strong> de até 200 contatos cada.
+                    </p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                      Estimativa: <strong>{Math.ceil(contatosSelecionados / 200)} dias</strong> para completar todos os envios.
+                    </p>
+                  </div>
+                )}
               </AlertDescription>
             </Alert>
           </CardContent>

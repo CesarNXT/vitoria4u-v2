@@ -635,7 +635,7 @@ async function sendAutoReplyMessage(
 
 /**
  * Processa eventos SENDER do webhook global
- * Atualiza status das campanhas de lembrete
+ * Atualiza status das campanhas em massa E lembretes
  */
 async function processSenderEvent(data: any) {
   try {
@@ -645,8 +645,123 @@ async function processSenderEvent(data: any) {
       return;
     }
 
-    // console.warn(`[WEBHOOK-SENDER] Campanha ${folder_id} → status: ${status}, enviadas: ${sent_count}/${total_messages}`);
+    console.log(`📊 [WEBHOOK-SENDER] Campanha ${folder_id} → status: ${status}, ${sent_count}/${total_messages} enviadas`);
 
+    // ✅ PROCESSAR CAMPANHAS EM MASSA (collection 'campanhas')
+    await processCampaignUpdate(folder_id, status, sent_count, failed_count, total_messages);
+
+    // ✅ PROCESSAR LEMBRETES (agendamentos)
+    await processReminderCampaignUpdate(folder_id, status);
+
+  } catch (error) {
+    console.error('[WEBHOOK-SENDER] Erro ao processar evento sender:', error);
+  }
+}
+
+/**
+ * Atualiza status de CAMPANHAS EM MASSA
+ */
+async function processCampaignUpdate(
+  folder_id: string,
+  status: string,
+  sent_count: number,
+  failed_count: number,
+  total_messages: number
+) {
+  try {
+    // Buscar campanha na collection 'campanhas'
+    const campanhasRef = adminDb.collectionGroup('campanhas');
+    const snapshot = await campanhasRef
+      .where('folder_id', '==', folder_id)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return; // Campanha não encontrada (pode ser lembrete)
+    }
+
+    const campanhaDoc = snapshot.docs[0];
+    if (!campanhaDoc) return;
+
+    const updateData: any = {
+      sent_count: sent_count || 0,
+      failed_count: failed_count || 0,
+      updated_at: new Date(),
+    };
+
+    // Mapear status da UazAPI para nosso status
+    if (status === 'sending' && campanhaDoc.data().status !== 'sending') {
+      updateData.status = 'sending';
+      console.log(`✅ Campanha ${folder_id} iniciou envio`);
+    }
+
+    if (status === 'done' || status === 'completed') {
+      updateData.status = 'done';
+      updateData.completed_at = new Date();
+      console.log(`🎉 Campanha ${folder_id} concluída! ${sent_count} enviadas, ${failed_count} falhas`);
+    }
+
+    if (status === 'paused') {
+      updateData.status = 'paused';
+    }
+
+    // Atualizar campanha
+    await campanhaDoc.ref.update(updateData);
+
+    // Atualizar status individual dos contatos
+    if (sent_count > 0 || failed_count > 0) {
+      await updateIndividualContactStatus(campanhaDoc.ref, sent_count, failed_count);
+    }
+
+  } catch (error) {
+    console.error('[WEBHOOK-SENDER] Erro ao atualizar campanha:', error);
+  }
+}
+
+/**
+ * Atualiza status individual dos contatos (marca como 'sent' os primeiros X)
+ */
+async function updateIndividualContactStatus(
+  campanhaRef: any,
+  sent_count: number,
+  failed_count: number
+) {
+  try {
+    const campanhaDoc = await campanhaRef.get();
+    const contatos = campanhaDoc.data().contatos || [];
+
+    // Marcar primeiros sent_count como 'sent'
+    for (let i = 0; i < Math.min(sent_count, contatos.length); i++) {
+      if (contatos[i].status === 'pending') {
+        contatos[i].status = 'sent';
+        contatos[i].sent_at = new Date();
+      }
+    }
+
+    // Marcar últimos failed_count como 'failed' (a partir do final)
+    if (failed_count > 0) {
+      const startFailed = contatos.length - failed_count;
+      for (let i = startFailed; i < contatos.length; i++) {
+        if (contatos[i].status === 'pending') {
+          contatos[i].status = 'failed';
+          contatos[i].error = 'Failed to send';
+        }
+      }
+    }
+
+    // Atualizar no Firestore
+    await campanhaRef.update({ contatos });
+
+  } catch (error) {
+    console.error('[WEBHOOK-SENDER] Erro ao atualizar status individual:', error);
+  }
+}
+
+/**
+ * Atualiza status de LEMBRETES nos agendamentos
+ */
+async function processReminderCampaignUpdate(folder_id: string, status: string) {
+  try {
     // Buscar agendamentos com esta campanha
     const agendamentosRef = adminDb.collectionGroup('agendamentos');
     const snapshot = await agendamentosRef
@@ -657,8 +772,7 @@ async function processSenderEvent(data: any) {
       .get();
 
     if (snapshot.empty) {
-      // Nenhum agendamento encontrado
-      return;
+      return; // Não é lembrete
     }
 
     // Atualizar status das campanhas

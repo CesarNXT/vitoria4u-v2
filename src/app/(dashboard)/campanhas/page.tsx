@@ -10,20 +10,20 @@ import { DataTable } from '@/components/data-table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { CampaignForm } from './campaign-form';
-import { columns } from './columns';
+import { uazapiColumns } from './uazapi-columns';
 import { 
   getClientesAction, 
   getCampanhasAction, 
   createCampanhaAction,
-  cancelCampanhaAction,
+  pauseCampanhaAction,
+  continueCampanhaAction,
   deleteCampanhaAction,
   getCampanhaDetailsAction
-} from './actions';
+} from './uazapi-sender-actions';
 import { Cliente, Campanha, CampanhaContato } from '@/lib/types';
-import { Loader2, Plus, AlertCircle, BarChart3, Send, Play, Pause, Trash2, Eye } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, BarChart3, Send, Play, Pause, Trash2, Eye, Calendar, Clock, CheckCircle2, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -65,11 +65,8 @@ export default function CampanhasPage() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedCampanha, setSelectedCampanha] = useState<Campanha | null>(null);
 
-  // Estados - Campanhas em Massa (UazAPI)
-  const [massaCampaigns, setMassaCampaigns] = useState<any[]>([]);
-  const [isLoadingMassa, setIsLoadingMassa] = useState(false);
-  const [tokenInstancia, setTokenInstancia] = useState<string>('');
-  const [activeTab, setActiveTab] = useState('firestore');
+  // Quota disponível
+  const [quotaInfo, setQuotaInfo] = useState<{ total: number; used: number; available: number } | null>(null);
 
   // Verificar feature
   const featureCheck = canUseFeature('disparo_de_mensagens');
@@ -78,6 +75,7 @@ export default function CampanhasPage() {
   useEffect(() => {
     if (!planLoading && featureCheck.allowed) {
       loadData();
+      loadQuota();
     }
   }, [planLoading, featureCheck.allowed]);
 
@@ -108,88 +106,18 @@ export default function CampanhasPage() {
     }
   };
 
-  // Carregar token da instância
-  useEffect(() => {
-    if (!businessUserId) return;
-    
-    const loadToken = async () => {
-      try {
-        const { getBusinessConfig } = await import('@/lib/firestore');
-        const config = await getBusinessConfig(businessUserId);
-        setTokenInstancia(config?.tokenInstancia || '');
-      } catch (error) {
-        console.error('Erro ao carregar token:', error);
-      }
-    };
-    
-    loadToken();
-  }, [businessUserId]);
-
-  // Carregar campanhas em massa
-  const loadMassaCampaigns = async () => {
-    if (!tokenInstancia) return;
-    
-    setIsLoadingMassa(true);
+  const loadQuota = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_WHATSAPP_API_URL}/sender/listfolders`, {
-        headers: {
-          'token': tokenInstancia,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMassaCampaigns(data.folders || []);
+      const { getQuotaAction } = await import('./uazapi-sender-actions');
+      const result = await getQuotaAction();
+      if (result.success) {
+        setQuotaInfo(result.quota);
       }
     } catch (error) {
-      console.error('Erro ao carregar campanhas em massa:', error);
-    } finally {
-      setIsLoadingMassa(false);
+      console.error('Erro ao carregar quota:', error);
     }
   };
 
-  useEffect(() => {
-    if (tokenInstancia && activeTab === 'massa') {
-      loadMassaCampaigns();
-      // Atualizar a cada 30 segundos
-      const interval = setInterval(loadMassaCampaigns, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [tokenInstancia, activeTab]);
-
-  // Controlar campanha em massa
-  const handleControlMassaCampaign = async (folderId: string, action: 'stop' | 'continue' | 'delete') => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_WHATSAPP_API_URL}/sender/edit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'token': tokenInstancia,
-        },
-        body: JSON.stringify({ folder_id: folderId, action }),
-      });
-
-      if (response.ok) {
-        const actionText = {
-          stop: 'pausada',
-          continue: 'retomada',
-          delete: 'deletada'
-        }[action];
-        
-        toast({
-          title: 'Sucesso',
-          description: `Campanha ${actionText} com sucesso.`,
-        });
-        loadMassaCampaigns();
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: 'Não foi possível executar a ação.',
-      });
-    }
-  };
 
   // Criar campanha
   const handleCreateCampanha = async (data: any) => {
@@ -228,41 +156,72 @@ export default function CampanhasPage() {
     setShowDetailsDialog(true);
   };
 
-  // Cancelar campanha
-  const handleCancelCampanha = async (campanha: Campanha) => {
-    if (!confirm(`Deseja realmente cancelar a campanha "${campanha.nome}"?`)) {
+  // Pausar campanha
+  const handlePauseCampanha = async (campanha: any) => {
+    if (!confirm(`Deseja pausar a campanha "${campanha.nome}"?`)) {
       return;
     }
 
     try {
-      const result = await cancelCampanhaAction(campanha.id);
+      const result = await pauseCampanhaAction(campanha.id);
 
       if (result.success) {
         toast({
-          title: "Campanha cancelada",
+          title: "Campanha pausada",
           description: result.message,
         });
         await loadData();
       } else {
         toast({
           variant: "destructive",
-          title: "Erro ao cancelar",
+          title: "Erro ao pausar",
           description: result.error,
         });
       }
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Erro ao cancelar",
+        title: "Erro ao pausar",
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+      });
+    }
+  };
+
+  // Continuar campanha
+  const handleContinueCampanha = async (campanha: any) => {
+    if (!confirm(`Deseja continuar a campanha "${campanha.nome}"?`)) {
+      return;
+    }
+
+    try {
+      const result = await continueCampanhaAction(campanha.id);
+
+      if (result.success) {
+        toast({
+          title: "Campanha retomada",
+          description: result.message,
+        });
+        await loadData();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao retomar",
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao retomar",
         description: error instanceof Error ? error.message : 'Erro desconhecido',
       });
     }
   };
 
   // Deletar campanha
-  const handleDeleteCampanha = async (campanha: Campanha) => {
-    const message = campanha.status === 'Em Andamento' 
-      ? `A campanha "${campanha.nome}" está EM ANDAMENTO. Deletar irá CANCELAR todos os envios pendentes. Deseja continuar?`
+  const handleDeleteCampanha = async (campanha: any) => {
+    const message = campanha.status === 'sending' 
+      ? `A campanha "${campanha.nome}" está ENVIANDO. Deletar irá CANCELAR todos os envios pendentes. Deseja continuar?`
       : `Deseja realmente deletar a campanha "${campanha.nome}"? Esta ação não pode ser desfeita.`;
 
     if (!confirm(message)) {
@@ -338,62 +297,79 @@ export default function CampanhasPage() {
         </Button>
       </div>
 
-      {/* Tabs para alternar entre campanhas */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="firestore">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            Campanhas Agendadas
-          </TabsTrigger>
-          <TabsTrigger value="massa">
-            <Send className="mr-2 h-4 w-4" />
-            Envio em Massa
-          </TabsTrigger>
-        </TabsList>
+      {/* Avisos e Quota */}
+      <div className="space-y-4">
+        {quotaInfo && (
+          <Alert variant={quotaInfo.available < 50 ? "destructive" : "default"}>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Quota de hoje:</strong> {quotaInfo.available} de {quotaInfo.total} envios disponíveis
+              {quotaInfo.used > 0 && ` (${quotaInfo.used} já usados)`}
+            </AlertDescription>
+          </Alert>
+        )}
 
-        <TabsContent value="firestore" className="space-y-4 mt-6">{/* Conteúdo das campanhas firestore */}
-
-      {/* Avisos importantes */}
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Importante:</strong> As mensagens são enviadas com intervalos de 80-120 segundos entre cada contato 
-          para evitar bloqueios do WhatsApp. Limite de 200 contatos por campanha.
-        </AlertDescription>
-      </Alert>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Importante:</strong> As campanhas são gerenciadas automaticamente pela UAZAPI. Os intervalos de 80-120 segundos 
+            entre mensagens são aplicados automaticamente para evitar bloqueios do WhatsApp.
+          </AlertDescription>
+        </Alert>
+      </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total de Campanhas</CardDescription>
-            <CardTitle className="text-3xl">{campanhas.length}</CardTitle>
+      <div className="grid grid-cols-1 gap-4 w-full">
+        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 w-full">
+          <CardHeader className="pb-3 px-4 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <CardDescription className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">Total de Campanhas</CardDescription>
+              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <CardTitle className="text-4xl font-bold mt-2">{campanhas.length}</CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Agendadas</CardDescription>
-            <CardTitle className="text-3xl">
-              {campanhas.filter(c => c.status === 'Agendada').length}
+        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-yellow-500 w-full">
+          <CardHeader className="pb-3 px-4 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <CardDescription className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">Agendadas</CardDescription>
+              <div className="h-10 w-10 rounded-full bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center flex-shrink-0">
+                <Calendar className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+            </div>
+            <CardTitle className="text-4xl font-bold mt-2">
+              {campanhas.filter((c: any) => c.status === 'scheduled').length}
             </CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Em Andamento</CardDescription>
-            <CardTitle className="text-3xl">
-              {campanhas.filter(c => c.status === 'Em Andamento').length}
+        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500 w-full">
+          <CardHeader className="pb-3 px-4 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <CardDescription className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">Enviando</CardDescription>
+              <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center flex-shrink-0">
+                <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+            <CardTitle className="text-4xl font-bold mt-2">
+              {campanhas.filter((c: any) => c.status === 'sending').length}
             </CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Concluídas</CardDescription>
-            <CardTitle className="text-3xl">
-              {campanhas.filter(c => c.status === 'Concluída').length}
+        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500 w-full">
+          <CardHeader className="pb-3 px-4 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <CardDescription className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">Concluídas</CardDescription>
+              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <CardTitle className="text-4xl font-bold mt-2">
+              {campanhas.filter((c: any) => c.status === 'done').length}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -421,139 +397,18 @@ export default function CampanhasPage() {
             </div>
           ) : (
             <DataTable 
-              columns={columns} 
+              columns={uazapiColumns} 
               data={campanhas}
               meta={{
                 onView: handleViewDetails,
-                onCancel: handleCancelCampanha,
+                onPause: handlePauseCampanha,
+                onContinue: handleContinueCampanha,
                 onDelete: handleDeleteCampanha,
               }}
             />
           )}
         </CardContent>
       </Card>
-        </TabsContent>
-
-        {/* Tab: Campanhas em Massa */}
-        <TabsContent value="massa" className="space-y-4 mt-6">
-          {!tokenInstancia ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>⚠️ WhatsApp Não Conectado</CardTitle>
-                <CardDescription>
-                  Você precisa conectar o WhatsApp nas configurações para usar envio em massa.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => window.location.href = '/configuracoes'}>
-                  Ir para Configurações
-                </Button>
-              </CardContent>
-            </Card>
-          ) : isLoadingMassa ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {massaCampaigns.length === 0 ? (
-                <Card className="col-span-full">
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <p className="text-muted-foreground mb-4">Nenhuma campanha em massa encontrada</p>
-                    <p className="text-sm text-muted-foreground">
-                      Crie uma em &quot;Campanhas em Massa&quot; no menu lateral
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                massaCampaigns.map((campaign) => {
-                  const progress = campaign.total_messages ? Math.round((campaign.sent_messages || 0) / campaign.total_messages * 100) : 0;
-                  const canPause = campaign.status === 'sending' || campaign.status === 'scheduled';
-                  const canResume = campaign.status === 'paused';
-                  const canDelete = campaign.status !== 'deleting';
-                  
-                  return (
-                    <Card key={campaign.folder_id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <CardTitle className="text-lg mb-2">
-                              {campaign.info || `Campanha ${campaign.folder_id}`}
-                            </CardTitle>
-                            <Badge variant={
-                              campaign.status === 'sending' ? 'default' :
-                              campaign.status === 'paused' ? 'outline' :
-                              campaign.status === 'done' ? 'secondary' :
-                              campaign.status === 'deleting' ? 'destructive' : 'secondary'
-                            }>
-                              {campaign.status === 'scheduled' && 'Agendada'}
-                              {campaign.status === 'sending' && 'Enviando'}
-                              {campaign.status === 'paused' && 'Pausada'}
-                              {campaign.status === 'done' && 'Concluída'}
-                              {campaign.status === 'deleting' && 'Deletando'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Progresso</span>
-                            <span className="font-medium">{progress}%</span>
-                          </div>
-                          <div className="w-full bg-secondary rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full transition-all"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Enviadas: {campaign.sent_messages || 0}</span>
-                            <span>Total: {campaign.total_messages || 0}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {canPause && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleControlMassaCampaign(campaign.folder_id, 'stop')}
-                            >
-                              <Pause className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {canResume && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleControlMassaCampaign(campaign.folder_id, 'continue')}
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                if (confirm('Tem certeza que deseja deletar esta campanha?')) {
-                                  handleControlMassaCampaign(campaign.folder_id, 'delete');
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
 
       {/* Dialog: Nova Campanha */}
       <Dialog open={showNewCampaignDialog} onOpenChange={setShowNewCampaignDialog}>

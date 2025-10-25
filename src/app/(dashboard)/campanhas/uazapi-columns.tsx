@@ -3,80 +3,45 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Campanha, CampanhaStatus } from "@/lib/types";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { 
   Eye, 
   Trash2,
-  MessageSquare,
-  Image,
-  Mic,
-  Video,
-  XCircle
+  Play,
+  Pause
 } from "lucide-react";
 
+// Tipos UAZAPI
+type UazapiCampanhaStatus = 'scheduled' | 'sending' | 'paused' | 'done' | 'deleting';
+
+interface UazapiCampanha {
+  id: string;
+  nome: string;
+  status: UazapiCampanhaStatus;
+  totalContatos: number;
+  contatosEnviados: number;
+  criadaEm?: number;
+}
+
 // Status visual
-const statusConfig: Record<CampanhaStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  "Agendada": { label: "Agendada", variant: "secondary" },
-  "Em Andamento": { label: "Em Andamento", variant: "default" },
-  "Concluída": { label: "Concluída", variant: "outline" },
-  "Cancelada": { label: "Cancelada", variant: "destructive" },
-  "Expirada": { label: "Expirada", variant: "outline" },
-  "Erro": { label: "Erro", variant: "destructive" },
+const statusConfig: Record<UazapiCampanhaStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  "scheduled": { label: "Agendada", variant: "secondary" },
+  "sending": { label: "Enviando", variant: "default" },
+  "paused": { label: "Pausada", variant: "outline" },
+  "done": { label: "Concluída", variant: "outline" },
+  "deleting": { label: "Deletando", variant: "destructive" },
 };
 
-export const columns: ColumnDef<Campanha>[] = [
+export const uazapiColumns: ColumnDef<UazapiCampanha>[] = [
   {
     accessorKey: "nome",
     header: "Nome",
-    size: 200,
+    size: 250,
     cell: ({ row }) => {
       const nome = row.getValue("nome") as string;
-      const tipo = row.original.tipo;
-
-      // Ícone baseado no tipo
-      const getIcon = () => {
-        switch (tipo) {
-          case 'texto':
-            return <MessageSquare className="h-4 w-4 text-blue-500" />;
-          case 'imagem':
-            return <Image className="h-4 w-4 text-green-500" />;
-          case 'audio':
-            return <Mic className="h-4 w-4 text-purple-500" />;
-          case 'video':
-            return <Video className="h-4 w-4 text-red-500" />;
-        }
-      };
 
       return (
         <div className="flex items-center gap-2 min-w-0">
-          <div className="flex-shrink-0">
-            {getIcon()}
-          </div>
           <span className="font-medium truncate">{nome}</span>
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "dataAgendamento",
-    header: "Data/Hora",
-    size: 130,
-    cell: ({ row }) => {
-      const data = row.getValue("dataAgendamento") as any;
-      const hora = row.original.horaInicio;
-
-      if (!data) return "-";
-
-      const dataObj = data.toDate ? data.toDate() : new Date(data);
-
-      return (
-        <div className="flex flex-col">
-          <span className="font-medium">
-            {format(dataObj, "dd/MM/yyyy", { locale: ptBR })}
-          </span>
-          <span className="text-sm text-muted-foreground">{hora}</span>
         </div>
       );
     },
@@ -86,7 +51,7 @@ export const columns: ColumnDef<Campanha>[] = [
     header: "Status",
     size: 140,
     cell: ({ row }) => {
-      const status = row.getValue("status") as CampanhaStatus;
+      const status = row.getValue("status") as UazapiCampanhaStatus;
       const config = statusConfig[status];
 
       return (
@@ -101,14 +66,14 @@ export const columns: ColumnDef<Campanha>[] = [
   {
     accessorKey: "progresso",
     header: "Progresso",
-    size: 180,
+    size: 200,
     cell: ({ row }) => {
       const total = row.original.totalContatos;
       const enviados = row.original.contatosEnviados;
       const percentual = total > 0 ? Math.round((enviados / total) * 100) : 0;
 
       return (
-        <div className="space-y-1.5 min-w-[140px]">
+        <div className="space-y-1.5 min-w-[160px]">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground font-medium">{enviados} de {total}</span>
             <span className="font-semibold text-foreground">{percentual}%</span>
@@ -124,25 +89,14 @@ export const columns: ColumnDef<Campanha>[] = [
     },
   },
   {
-    accessorKey: "tempoEstimadoConclusao",
-    header: "Tempo Est.",
-    size: 110,
-    cell: ({ row }) => {
-      const tempo = row.getValue("tempoEstimadoConclusao") as string;
-      return (
-        <div className="text-center">
-          <span className="text-sm font-medium text-muted-foreground">{tempo || "-"}</span>
-        </div>
-      );
-    },
-  },
-  {
     id: "acoes",
     header: "Ações",
-    size: 120,
+    size: 150,
     cell: ({ row, table }) => {
       const campanha = row.original;
       const meta = table.options.meta as any;
+      const canPause = campanha.status === 'sending' || campanha.status === 'scheduled';
+      const canResume = campanha.status === 'paused';
 
       return (
         <div className="flex items-center justify-center gap-1">
@@ -157,26 +111,40 @@ export const columns: ColumnDef<Campanha>[] = [
             <Eye className="h-4 w-4 text-blue-600" />
           </Button>
 
-          {/* Botão Cancelar - apenas para Em Andamento */}
-          {campanha.status === 'Em Andamento' && (
+          {/* Botão Pausar */}
+          {canPause && (
             <Button
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0 hover:bg-orange-50"
-              onClick={() => meta?.onCancel?.(campanha)}
-              title="Cancelar envios"
+              onClick={() => meta?.onPause?.(campanha)}
+              title="Pausar campanha"
             >
-              <XCircle className="h-4 w-4 text-orange-600" />
+              <Pause className="h-4 w-4 text-orange-600" />
             </Button>
           )}
 
-          {/* Botão Deletar - sempre visível */}
+          {/* Botão Continuar */}
+          {canResume && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-green-50"
+              onClick={() => meta?.onContinue?.(campanha)}
+              title="Continuar campanha"
+            >
+              <Play className="h-4 w-4 text-green-600" />
+            </Button>
+          )}
+
+          {/* Botão Deletar */}
           <Button
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 hover:bg-red-50"
             onClick={() => meta?.onDelete?.(campanha)}
             title="Deletar campanha"
+            disabled={campanha.status === 'deleting'}
           >
             <Trash2 className="h-4 w-4 text-red-600" />
           </Button>
