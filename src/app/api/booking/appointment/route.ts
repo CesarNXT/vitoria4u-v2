@@ -248,6 +248,17 @@ export async function POST(request: NextRequest) {
                 // isFromPanel: false = agendamento via link externo
                 await sendCreationHooks(businessSettings as any, fullAppointment as any, undefined, false);
                 logger.success('Webhooks de criação enviados', { appointmentId: newAppointmentRef.id });
+                
+                // 📱 ENVIAR CONFIRMAÇÃO AUTOMÁTICA PARA O CLIENTE (LINK EXTERNO)
+                // Cliente que agenda pelo link recebe confirmação automática
+                try {
+                    const { sendClientConfirmation } = await import('@/app/(dashboard)/agendamentos/actions');
+                    await sendClientConfirmation(businessSettings as any, fullAppointment as any);
+                    logger.success('Confirmação enviada ao cliente', { appointmentId: newAppointmentRef.id });
+                } catch (confirmError: any) {
+                    // Não bloqueia se falhar (pode não ter WhatsApp conectado ou plano)
+                    logger.error('Erro ao enviar confirmação ao cliente', sanitizeForLog(confirmError));
+                }
             }
         } catch (webhookError) {
             logger.error('Erro ao enviar webhook de criação', sanitizeForLog(webhookError));

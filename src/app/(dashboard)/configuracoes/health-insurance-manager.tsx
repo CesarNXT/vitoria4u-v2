@@ -40,9 +40,8 @@ export default function HealthInsuranceManager({ categoria }: HealthInsuranceMan
         title: "Plano Duplicado",
         description: "Este plano já foi adicionado à lista!",
       });
-      // Manter o input focado e limpar o campo
+      // Limpar o campo
       setNovoPlanoNome('');
-      setTimeout(() => inputRef.current?.focus(), 100);
       return;
     }
 
@@ -53,9 +52,6 @@ export default function HealthInsuranceManager({ categoria }: HealthInsuranceMan
 
     setValue('planosSaudeAceitos', [...planosSaudeAceitos, novoPlano], { shouldDirty: true });
     setNovoPlanoNome('');
-    
-    // Focar novamente no input após adicionar
-    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const removerPlano = (planoId: string) => {

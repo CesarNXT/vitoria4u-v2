@@ -19,8 +19,9 @@
 
 "use server";
 
-import { subHours } from 'date-fns';
+import { subHours, addDays, startOfDay } from 'date-fns';
 import type { Agendamento, ConfiguracoesNegocio } from './types';
+import { adminDb } from './firebase-admin';
 
 const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
 
@@ -196,11 +197,45 @@ async function createReminderCampaign(
 }
 
 /**
+ * 🔍 VERIFICAR SE CLIENTE TEM AGENDAMENTO FUTURO
+ * Evita enviar lembretes se o cliente já tem outro agendamento próximo
+ */
+async function hasUpcomingAppointment(
+  businessId: string,
+  clientePhone: string | number,
+  currentAppointmentId: string,
+  appointmentDate: Date
+): Promise<boolean> {
+  try {
+    const futureDate = addDays(startOfDay(appointmentDate), 5); // Verifica 5 dias a frente
+    
+    const snapshot = await adminDb
+      .collection(`negocios/${businessId}/agendamentos`)
+      .where('cliente.phone', '==', clientePhone)
+      .where('status', '==', 'Agendado')
+      .where('date', '>', appointmentDate)
+      .where('date', '<=', futureDate)
+      .limit(1)
+      .get();
+    
+    // Se encontrou algum agendamento futuro diferente do atual
+    if (snapshot.empty) return false;
+    const firstDoc = snapshot.docs[0];
+    return firstDoc ? firstDoc.id !== currentAppointmentId : false;
+  } catch (error) {
+    console.error('Erro ao verificar agendamentos futuros:', error);
+    return false;
+  }
+}
+
+/**
  * 🚀 CRIAR LEMBRETES PARA UM AGENDAMENTO
  * 
  * Cria 2 campanhas agendadas na UazAPI:
  * - 1 lembrete 24h antes
  * - 1 lembrete 2h antes
+ * 
+ * ⚠️ REGRA IMPORTANTE: Não envia se cliente já tem agendamento futuro próximo (5 dias)
  * 
  * Retorna os folder_ids para controle futuro
  */
@@ -211,8 +246,6 @@ export async function createReminders(
   business: ConfiguracoesNegocio
 ): Promise<ReminderCampaign[]> {
   
-  // Iniciando criação de lembretes
-
   // Validações
   if (!business.tokenInstancia) {
     console.error('❌ Token de instância não encontrado');
@@ -231,6 +264,19 @@ export async function createReminders(
 
   try {
     const dataAgendamento = combinaDataHora(agendamento.date, agendamento.startTime);
+    
+    // 🔍 VERIFICAR SE TEM AGENDAMENTO FUTURO
+    const hasFutureAppointment = await hasUpcomingAppointment(
+      businessId,
+      agendamento.cliente.phone,
+      agendamentoId,
+      dataAgendamento
+    );
+
+    if (hasFutureAppointment) {
+      console.warn(`⚠️ Cliente ${agendamento.cliente.name} já tem agendamento futuro próximo. Lembretes não serão enviados.`);
+      return [];
+    }
     const now = new Date();
     
     // Calcular horários de envio

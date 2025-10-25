@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
             clientName: appointmentData.cliente.name 
         }));
 
-        // ✅ Enviar webhook de cancelamento (notificação gestor + notificação profissional)
+        // ✅ Enviar webhook de cancelamento (notificação gestor + notificação profissional + notificação cliente)
         try {
             // Buscar configurações do negócio para enviar webhooks
             const businessRef = adminDb.collection('negocios').doc(businessId);
@@ -122,6 +122,44 @@ export async function POST(request: NextRequest) {
                 // Enviar webhooks (notificação gestor + notificação profissional)
                 await sendCancellationHooks(businessSettings as any, fullAppointment as any);
                 logger.success('Webhooks de cancelamento enviados', { appointmentId });
+                
+                // 📱 ENVIAR CONFIRMAÇÃO DE CANCELAMENTO PARA O CLIENTE (LINK EXTERNO)
+                // Cliente que cancela pelo link recebe confirmação automática
+                if ((businessSettings as any).whatsappConectado && (businessSettings as any).tokenInstancia) {
+                    try {
+                        const { notifyClientCancellation } = await import('@/lib/notifications');
+                        const { format } = await import('date-fns');
+                        
+                        // Formatar data/hora
+                        let appointmentDate: Date;
+                        if (appointmentData.date?.toDate) {
+                            appointmentDate = appointmentData.date.toDate();
+                        } else if (appointmentData.date instanceof Date) {
+                            appointmentDate = appointmentData.date;
+                        } else {
+                            appointmentDate = new Date(appointmentData.date);
+                        }
+                        
+                        const [hours, minutes] = appointmentData.startTime.split(':').map(Number);
+                        appointmentDate.setHours(hours ?? 0, minutes ?? 0, 0, 0);
+                        const dataHoraFormatada = format(appointmentDate, "dd/MM/yyyy 'às' HH:mm");
+                        
+                        await notifyClientCancellation({
+                            tokenInstancia: (businessSettings as any).tokenInstancia,
+                            telefoneCliente: appointmentData.cliente.phone?.toString() || '',
+                            nomeCliente: appointmentData.cliente.name,
+                            nomeEmpresa: (businessSettings as any).nome,
+                            categoriaEmpresa: (businessSettings as any).categoria,
+                            nomeServico: appointmentData.servico.name,
+                            dataHoraAtendimento: dataHoraFormatada,
+                            nomeProfissional: appointmentData.profissional?.name,
+                        });
+                        logger.success('Confirmação de cancelamento enviada ao cliente', { appointmentId });
+                    } catch (confirmError: any) {
+                        // Não bloqueia se falhar
+                        logger.error('Erro ao enviar confirmação de cancelamento ao cliente', sanitizeForLog(confirmError));
+                    }
+                }
             }
         } catch (webhookError) {
             logger.error('Erro ao enviar webhook de cancelamento', sanitizeForLog(webhookError));

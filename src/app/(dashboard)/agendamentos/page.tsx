@@ -354,6 +354,16 @@ export default function AgendamentosPage() {
           try {
             const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
             await sendCreationHooks(serializableSettings, finalData as any, undefined, true);
+            
+            // 📱 PERGUNTAR SE QUER ENVIAR CONFIRMAÇÃO PARA O CLIENTE (PAINEL)
+            // Só mostra modal se WhatsApp conectado
+            if (businessSettings?.whatsappConectado) {
+              setPendingClientConfirm({ 
+                settings: serializableSettings, 
+                appointment: finalData 
+              });
+              setIsClientConfirmOpen(true);
+            }
           } catch (error) {
             // Erro silencioso - logar apenas no servidor
           }
@@ -403,12 +413,7 @@ export default function AgendamentosPage() {
         ) {
           const finalData = JSON.parse(JSON.stringify(convertTimestamps(serializableAppointment)));
           setPendingFeedbackPayload({ settings: serializableSettings, appointment: finalData });
-            // Mostrar modal de confirmação para enviar ao cliente
-            // Só mostra se WhatsApp conectado E feature ativada
-            if (businessSettings?.whatsappConectado && businessSettings?.notificarClienteAgendamento) {
-                setPendingClientConfirm({ settings: serializableSettings, appointment: serializableAppointment });
-                setIsClientConfirmOpen(true);
-            }
+          setIsFeedbackConfirmOpen(true);
         }
         
         // Send reminder hooks if EDITING and status is 'Agendado'

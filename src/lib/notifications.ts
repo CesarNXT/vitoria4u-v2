@@ -96,6 +96,48 @@ Nos vemos em breve! 😊`
   }
 }
 
+// Notifica cliente sobre cancelamento
+export async function notifyClientCancellation(data: {
+  tokenInstancia: string
+  telefoneCliente: string
+  nomeCliente: string
+  nomeEmpresa: string
+  categoriaEmpresa?: string
+  dataHoraAtendimento: string
+  nomeServico: string
+  nomeProfissional?: string
+}): Promise<void> {
+  try {
+    const cleanPhone = data.telefoneCliente.toString().replace(/\D/g, '')
+    const firstName = data.nomeCliente.split(' ')[0]
+    const categoria = data.categoriaEmpresa || 'estabelecimento'
+    
+    const message = `❌ *Olá, ${firstName}!*
+
+Seu agendamento foi cancelado.
+
+📅 *Data e Hora*
+${data.dataHoraAtendamento}
+
+🏢 *${categoria}*
+${data.nomeEmpresa}
+
+💼 *Procedimento*
+${data.nomeServico}
+
+Se desejar reagendar, entre em contato conosco.`
+
+    const response = await fetch(`${API_BASE}/send/text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'token': data.tokenInstancia },
+      body: JSON.stringify({ number: cleanPhone, text: message })
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  } catch (error: any) {
+    console.error('Erro ao notificar cliente sobre cancelamento:', error.message)
+  }
+}
+
 // Notifica profissional sobre novo agendamento
 export async function notifyProfessionalAppointment(data: {
   tokenInstancia: string

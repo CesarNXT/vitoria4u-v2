@@ -3,6 +3,34 @@ import { adminDb } from '@/lib/firebase-admin';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
 import { notifyReturn } from '@/lib/notifications';
 
+/**
+ * 🔍 Verificar se cliente tem agendamento futuro
+ * Evita enviar retornos se o cliente já tem outro agendamento próximo
+ */
+async function hasUpcomingAppointment(
+  businessId: string,
+  clientePhone: string | number,
+  appointmentDate: Date
+): Promise<boolean> {
+  try {
+    const futureDate = addDays(startOfDay(appointmentDate), 5); // Verifica 5 dias a frente
+    
+    const snapshot = await adminDb
+      .collection(`negocios/${businessId}/agendamentos`)
+      .where('cliente.phone', '==', clientePhone)
+      .where('status', '==', 'Agendado')
+      .where('date', '>', appointmentDate)
+      .where('date', '<=', futureDate)
+      .limit(1)
+      .get();
+    
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Erro ao verificar agendamentos futuros:', error);
+    return false;
+  }
+}
+
 function toDate(value: any): Date | null {
     if (!value) return null;
     if (value.toDate) return value.toDate();
@@ -74,6 +102,18 @@ export async function GET(request: Request) {
                     }
                     
                     const client = appointmentData.cliente;
+                    
+                    // 🔍 VERIFICAR SE TEM AGENDAMENTO FUTURO
+                    const hasFutureAppointment = await hasUpcomingAppointment(
+                        businessId,
+                        client.phone,
+                        appointmentDate
+                    );
+
+                    if (hasFutureAppointment) {
+                        // Cliente já tem agendamento próximo, não enviar retorno
+                        return;
+                    }
                     
                     try {
                         await notifyReturn({
