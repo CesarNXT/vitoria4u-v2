@@ -178,7 +178,7 @@ export async function createMassCampaign(
     });
 
     // Preparar payload baseado no tipo de mensagem
-    let payload: any = {
+    const payload: any = {
       numbers,
       delayMin: 80,  // 80 segundos mínimo
       delayMax: 120, // 120 segundos máximo
