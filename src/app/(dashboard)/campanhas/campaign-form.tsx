@@ -502,7 +502,7 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
             </div>
 
             <div className="space-y-2" id="hora-inicio">
-              <Label htmlFor="horaInicio">Hora de Início * (mínimo +10min)</Label>
+              <Label htmlFor="horaInicio">Hora de Início *</Label>
               <Select
                 value={form.watch('horaInicio')}
                 onValueChange={(value) => form.setValue('horaInicio', value)}
@@ -528,11 +528,6 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
               </Select>
               {form.formState.errors.horaInicio && (
                 <p className="text-sm text-destructive">{form.formState.errors.horaInicio.message}</p>
-              )}
-              {horariosDisponiveis.length > 0 && horariosDisponiveis.length < ALL_HORARIOS.length && (
-                <p className="text-xs text-muted-foreground">
-                  ⏰ Apenas horários com +10min de antecedência
-                </p>
               )}
             </div>
           </div>

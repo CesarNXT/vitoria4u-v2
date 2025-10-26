@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePlan } from '@/contexts/PlanContext';
 import { useBusinessUser } from '@/contexts/BusinessUserContext';
 import { FeatureLocked } from '@/components/feature-locked';
@@ -116,6 +116,9 @@ export default function CampanhasPage() {
 
   // Quota disponível
   const [quotaInfo, setQuotaInfo] = useState<{ total: number; used: number; available: number } | null>(null);
+  
+  // ✅ Ref para armazenar interval de polling
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Verificar feature
   const featureCheck = canUseFeature('disparo_de_mensagens');
@@ -175,6 +178,16 @@ export default function CampanhasPage() {
 
     return () => clearInterval(interval);
   }, [showDetailsDialog, selectedCampanha]);
+
+  // ✅ Cleanup: Limpar polling ao desmontar componente
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   const loadData = async () => {
     setIsLoadingData(true);
@@ -241,7 +254,44 @@ export default function CampanhasPage() {
           description: ('message' in result ? result.message : undefined) || 'Campanha criada com sucesso',
         });
         setShowNewCampaignDialog(false);
-        await loadData();
+        
+        // ✅ Se for background, iniciar polling para atualizar lista
+        if ('background' in result && result.background) {
+          // Carregar imediatamente
+          await loadData();
+          
+          // Limpar polling anterior se existir
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+          }
+          
+          // ✅ Iniciar polling a cada 5 segundos por até 2 minutos
+          let pollCount = 0;
+          const maxPolls = 24; // 24 x 5s = 2 minutos
+          
+          pollingIntervalRef.current = setInterval(async () => {
+            pollCount++;
+            
+            try {
+              await loadData();
+              console.log(`🔄 Atualizando lista de campanhas (${pollCount}/${maxPolls})...`);
+            } catch (error) {
+              console.error('Erro ao atualizar campanhas:', error);
+            }
+            
+            // Parar após 2 minutos ou se atingir o máximo
+            if (pollCount >= maxPolls) {
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              console.log('✅ Polling de campanhas finalizado');
+            }
+          }, 5000); // 5 segundos
+        } else {
+          // Campanha única, carregar normalmente
+          await loadData();
+        }
       } else {
         toast({
           variant: "destructive",
@@ -512,6 +562,15 @@ export default function CampanhasPage() {
               )}
             </Button>
           )}
+          <Button 
+            onClick={loadData} 
+            variant="outline"
+            disabled={isLoadingData}
+            size="icon"
+            title="Atualizar lista"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoadingData ? 'animate-spin' : ''}`} />
+          </Button>
           <Button onClick={() => setShowNewCampaignDialog(true)} className="flex-1 sm:flex-initial">
             <Plus className="h-4 w-4 mr-2" />
             Nova Campanha
@@ -524,9 +583,49 @@ export default function CampanhasPage() {
         {quotaInfo && (
           <Alert variant={quotaInfo.available < 50 ? "destructive" : "default"}>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Quota de hoje:</strong> {quotaInfo.available} de {quotaInfo.total} envios disponíveis
-              {quotaInfo.used > 0 && ` (${quotaInfo.used} já usados)`}
+            <AlertDescription className="flex items-center justify-between gap-3">
+              <div>
+                <strong>Quota de hoje:</strong> {quotaInfo.available} de {quotaInfo.total} envios disponíveis
+                {quotaInfo.used > 0 && ` (${quotaInfo.used} já usados)`}
+              </div>
+              {quotaInfo.available === 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!confirm('Resetar a quota de hoje? Isso permitirá criar novas campanhas.')) return;
+                    try {
+                      const response = await fetch('/api/admin/reset-quota', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ date: new Date().toISOString() })
+                      });
+                      const result = await response.json();
+                      if (result.success) {
+                        toast({
+                          title: "Quota resetada!",
+                          description: result.message,
+                        });
+                        await loadQuota();
+                      } else {
+                        toast({
+                          variant: "destructive",
+                          title: "Erro",
+                          description: result.error,
+                        });
+                      }
+                    } catch (error) {
+                      toast({
+                        variant: "destructive",
+                        title: "Erro",
+                        description: "Erro ao resetar quota",
+                      });
+                    }
+                  }}
+                >
+                  Resetar Quota
+                </Button>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -534,7 +633,7 @@ export default function CampanhasPage() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>Importante:</strong> As campanhas são gerenciadas automaticamente pela UAZAPI. Os intervalos de 80-120 segundos 
+            <strong>Importante:</strong> As campanhas são gerenciadas automaticamente pelo servidor interno. Os intervalos de 80-120 segundos 
             entre mensagens são aplicados automaticamente para evitar bloqueios do WhatsApp.
           </AlertDescription>
         </Alert>
@@ -734,28 +833,46 @@ export default function CampanhasPage() {
 
       {/* Dialog: Nova Campanha */}
       <Dialog open={showNewCampaignDialog} onOpenChange={setShowNewCampaignDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nova Campanha</DialogTitle>
+            <DialogTitle>Nova Campanha de WhatsApp</DialogTitle>
             <DialogDescription>
-              Configure sua campanha de envio em massa
+              Configure e agende uma campanha de envio em massa
             </DialogDescription>
           </DialogHeader>
-
-          {isLoadingData ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Carregando clientes...</span>
-            </div>
-          ) : clientes.length === 0 ? (
+          {clientes.length === 0 ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-col gap-3">
+                <p>Nenhum cliente ativo encontrado. Cadastre clientes ou verifique se há clientes com status "Ativo".</p>
+                <Button onClick={async () => {
+                  setIsLoadingData(true);
+                  await loadData();
+                  setIsLoadingData(false);
+                }} variant="outline" size="sm" disabled={isLoadingData}>
+                  {isLoadingData ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Recarregando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Recarregar Clientes
+                    </>
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : quotaInfo && quotaInfo.available < 50 ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Nenhum cliente foi carregado. Verifique sua conexão e tente recarregar a página.
-                Se o problema persistir, cadastre clientes na aba &quot;Clientes&quot;.
+                Atenção: Você tem apenas {quotaInfo.available} envios disponíveis hoje. Planeje sua campanha adequadamente.
               </AlertDescription>
             </Alert>
-          ) : (
+          ) : null}
+          {clientes.length > 0 && (
             <CampaignForm
               clientes={clientes}
               onSubmit={handleCreateCampanha}

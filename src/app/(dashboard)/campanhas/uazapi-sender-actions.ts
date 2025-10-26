@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { Cliente, CampanhaTipo } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
+import { format } from 'date-fns';
 import { 
   getAvailableQuota,
   splitContactsByDays,
@@ -59,9 +60,15 @@ async function getWhatsAppConfig(businessId: string) {
     throw new Error('Token da instância não encontrado. Reconecte seu WhatsApp.');
   }
 
+  const token = businessData.tokenInstancia;
+  const instancia = businessData.instanciaWhatsapp || businessId;
+  
+  console.log(`🔐 Token configurado: ${token.substring(0, 10)}... (${token.length} caracteres)`);
+  console.log(`📱 Instância: ${instancia}`);
+
   return {
-    token: businessData.tokenInstancia,
-    instancia: businessData.instanciaWhatsapp || businessId,
+    token,
+    instancia,
   };
 }
 
@@ -93,26 +100,29 @@ export async function getClientesAction(filters?: {
     console.log(`📊 Clientes carregados do Firebase: ${clientesSnapshot.size} (limite: ${limit})`);
 
     // Filtrar apenas clientes ativos no código (evita necessidade de índice)
-    let clientes: Cliente[] = clientesSnapshot.docs
-      .map((doc: any) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name,
-          phone: data.phone,
-          status: data.status,
-          avatarUrl: data.avatarUrl,
-          birthDate: data.birthDate instanceof Timestamp 
-            ? data.birthDate.toDate() 
-            : data.birthDate,
-          observacoes: data.observacoes,
-          planoSaude: data.planoSaude,
-          instanciaWhatsapp: data.instanciaWhatsapp,
-          campanhas_recebidas: data.campanhas_recebidas || [],
-          ultima_campanha: data.ultima_campanha?.toDate(),
-        };
-      })
-      .filter((cliente: Cliente) => cliente.status === 'Ativo'); // ✅ Filtrar apenas ativos
+    const todosClientes = clientesSnapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        phone: data.phone,
+        status: data.status,
+        avatarUrl: data.avatarUrl,
+        birthDate: data.birthDate instanceof Timestamp 
+          ? data.birthDate.toDate() 
+          : data.birthDate,
+        observacoes: data.observacoes,
+        planoSaude: data.planoSaude,
+        instanciaWhatsapp: data.instanciaWhatsapp,
+        campanhas_recebidas: data.campanhas_recebidas || [],
+        ultima_campanha: data.ultima_campanha?.toDate(),
+      };
+    });
+    
+    console.log(`📊 Total de clientes mapeados: ${todosClientes.length}`);
+    console.log(`📊 Status dos clientes:`, todosClientes.map(c => c.status));
+    
+    let clientes: Cliente[] = todosClientes.filter((cliente: Cliente) => cliente.status === 'Ativo');
     
     console.log(`📊 Clientes ativos após filtro: ${clientes.length}`);
 
@@ -230,17 +240,23 @@ async function createSingleCampaign(
     // ✅ VERIFICAR QUOTA DIÁRIA (300/dia)
     const quota = await getAvailableQuota(businessId, data.dataAgendamento);
     
+    const dataAgendamentoStr = data.dataAgendamento.toLocaleDateString('pt-BR');
+    const isToday = data.dataAgendamento.toDateString() === new Date().toDateString();
+    const diaReferencia = isToday ? 'hoje' : `no dia ${dataAgendamentoStr}`;
+    
+    console.log(`📊 Quota para ${dataAgendamentoStr}: ${quota.available} de ${quota.total} disponíveis (${quota.used} já usados)`);
+    
     if (!quota.canSendToday) {
       return {
         success: false,
-        error: `Limite diário atingido! Você já enviou ${quota.used} mensagens hoje. Tente amanhã ou agende para outra data.`
+        error: `Limite diário atingido! Você já tem ${quota.used} mensagens agendadas para ${diaReferencia}. Escolha outra data.`
       };
     }
 
     if (data.contatos.length > quota.available) {
       return {
         success: false,
-        error: `Você tem ${quota.available} envios disponíveis hoje (limite: 300/dia).`
+        error: `Você tem ${quota.available} envios disponíveis ${diaReferencia} (limite: 300/dia).`
       };
     }
 
@@ -263,15 +279,28 @@ async function createSingleCampaign(
 
     // Calcular timestamp de agendamento
     const [horaAgendamento, minutoAgendamento] = data.horaInicio.split(':').map(Number);
+    
+    console.log(`🔹 Data recebida (data.dataAgendamento): ${data.dataAgendamento.toISOString()}`);
+    console.log(`🔹 Hora recebida (data.horaInicio): ${data.horaInicio}`);
+    
     const dataCompleta = new Date(data.dataAgendamento);
     dataCompleta.setHours(horaAgendamento || 0, minutoAgendamento || 0, 0, 0);
+    
+    console.log(`🔹 Data completa após setHours: ${dataCompleta.toISOString()}`);
+    console.log(`🔹 Data completa local: ${dataCompleta.toLocaleString('pt-BR')}`);
     
     // ✅ Calcular MINUTOS a partir de agora (não timestamp)
     const now = new Date();
     const delayMs = dataCompleta.getTime() - now.getTime();
     
-    // ✅ VALIDAÇÃO: Buffer mínimo de 10 minutos
-    if (delayMs < 10 * 60 * 1000) {
+    // ✅ VALIDAÇÃO: Buffer mínimo de 10 minutos (apenas para agendamentos de hoje)
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const dataAgendamentoSemHora = new Date(data.dataAgendamento);
+    dataAgendamentoSemHora.setHours(0, 0, 0, 0);
+    
+    // Aplicar validação de 10 minutos apenas se for agendamento para hoje
+    if (dataAgendamentoSemHora.getTime() === hoje.getTime() && delayMs < 10 * 60 * 1000) {
       return {
         success: false,
         error: 'Horário muito próximo! Selecione um horário com pelo menos 10 minutos de antecedência.'
@@ -309,6 +338,11 @@ async function createSingleCampaign(
 
     // Chamar UAZAPI Sender
     const apiUrl = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://uazapi.com';
+    
+    console.log(`📡 Enviando para: ${apiUrl}/sender/simple`);
+    console.log(`🔑 Token sendo usado: ${token.substring(0, 10)}...`);
+    console.log(`📦 Payload:`, { ...payload, numbers: `[${payload.numbers.length} números]` });
+    
     const response = await fetch(`${apiUrl}/sender/simple`, {
       method: 'POST',
       headers: {
@@ -320,6 +354,13 @@ async function createSingleCampaign(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ Resposta da API (${response.status}):`, errorData);
+      
+      // Mensagem de erro mais clara para token inválido
+      if (response.status === 401 || errorData.message?.includes('Invalid token')) {
+        throw new Error('Token de autenticação inválido ou expirado. Por favor, reconecte seu WhatsApp em Configurações.');
+      }
+      
       throw new Error(errorData.message || 'Erro ao criar campanha na UAZAPI');
     }
 
@@ -465,10 +506,14 @@ async function createMultipleCampaigns(
       console.log(`📅 Data do batch: ${batch.date.toISOString()} (dia: ${batch.date.getDate()}/${batch.date.getMonth() + 1})`);
 
       // Ajustar data de agendamento para cada lote
+      // ✅ Garantir que batch.date seja uma nova instância de Date
+      const batchDate = new Date(batch.date);
+      batchDate.setHours(0, 0, 0, 0);
+      
       const batchData = {
         ...data,
         nome: `${data.nome} (${batchNumber}/${batches.length})`,
-        dataAgendamento: batch.date, // ✅ Cada batch tem sua própria data
+        dataAgendamento: batchDate, // ✅ Cada batch tem sua própria data
         contatos: batch.contacts.map(c => ({
           clienteId: c.clienteId,
           nome: c.nome,
@@ -610,23 +655,52 @@ export async function getCampanhasAction() {
 /**
  * Buscar quota disponível para campanhas
  */
-export async function getQuotaAction() {
+export async function getQuotaAction(date?: Date) {
   try {
     const userId = await validateSession();
     const businessId = await getBusinessId(userId);
-
-    const quota = await getAvailableQuota(businessId);
-
-    return {
-      success: true,
-      quota,
-    };
+    const targetDate = date || new Date();
+    const quota = await getAvailableQuota(businessId, targetDate);
+    
+    return { success: true, quota };
   } catch (error: any) {
     console.error('Erro ao buscar quota:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erro ao buscar quota',
-      quota: { total: 200, used: 0, available: 200, canSendToday: true },
+    return { 
+      success: false, 
+      quota: { total: 300, used: 0, available: 300, canSendToday: true } 
+    };
+  }
+}
+
+/**
+ * 🔧 ADMIN: Resetar quota do dia (para debug)
+ */
+export async function resetDailyQuotaAction(date?: Date) {
+  try {
+    const userId = await validateSession();
+    const businessId = await getBusinessId(userId);
+    const targetDate = date || new Date();
+    const dateStr = format(targetDate, 'yyyy-MM-dd');
+    
+    const docRef = adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('daily_stats')
+      .doc(dateStr);
+    
+    await docRef.delete();
+    
+    console.log(`✅ Quota resetada para ${dateStr}`);
+    
+    return { 
+      success: true, 
+      message: `Quota do dia ${targetDate.toLocaleDateString('pt-BR')} foi resetada.` 
+    };
+  } catch (error: any) {
+    console.error('Erro ao resetar quota:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Erro ao resetar quota' 
     };
   }
 }

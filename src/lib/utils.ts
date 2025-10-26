@@ -184,16 +184,19 @@ export const formatPhoneInput = (value: string): string => {
 
 
 /**
- * ✅ NORMALIZAÇÃO DE TELEFONE - SEMPRE 11 DÍGITOS
- * Retorna apenas o número nacional (sem DDI) com exatamente 11 dígitos
- * Formato: XXYYYYYYYYYY (DDD + 9 + 8 dígitos)
+ * ✅ NORMALIZAÇÃO DE TELEFONE - SEMPRE 13 DÍGITOS (55 + DDD + NÚMERO)
+ * Retorna SEMPRE com DDI 55 + número nacional
+ * Formato: 55XXYYYYYYYYYY (13 dígitos)
+ * PADRÃO ÚNICO EM TODO O SISTEMA
  */
 export const normalizePhoneNumber = (phone: string | number): string => {
   if (!phone) return '';
   
   try {
-    // Phone.create() já garante 11 dígitos
-    return Phone.create(phone).raw; // Retorna 11 dígitos (sem DDI)
+    // Phone.create() retorna 11 dígitos (sem DDI)
+    const nationalNumber = Phone.create(phone).raw;
+    // ✅ SEMPRE adicionar DDI 55
+    return '55' + nationalNumber; // 13 dígitos
   } catch {
     // Fallback para valores inválidos
     let cleaned = String(phone).replace(/\D/g, '');
@@ -203,7 +206,7 @@ export const normalizePhoneNumber = (phone: string | number): string => {
       cleaned = cleaned.substring(1);
     }
     
-    // ✅ PASSO 2: Remove DDI 55 se presente
+    // ✅ PASSO 2: Se já tem DDI 55, remove para normalizar
     if (cleaned.startsWith('55') && cleaned.length >= 12) {
       cleaned = cleaned.substring(2);
     }
@@ -221,7 +224,10 @@ export const normalizePhoneNumber = (phone: string | number): string => {
     }
     
     // Limitar a 11 dígitos
-    return cleaned.slice(0, 11);
+    const nationalNumber = cleaned.slice(0, 11);
+    
+    // ✅ SEMPRE retornar com DDI 55 (13 dígitos)
+    return '55' + nationalNumber;
   }
 };
 

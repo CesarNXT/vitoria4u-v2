@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { ConfiguracoesNegocio } from "@/lib/types";
 import { Loader2 } from "lucide-react";
+import { toggleIAWebhookAction } from "../ia-actions";
+import { useToast } from "@/hooks/use-toast";
 
 const schema = z.object({
   iaAtiva: z.boolean().optional(),
@@ -30,6 +32,7 @@ interface IAModalProps {
 
 export default function IAModal({ open, onClose, settings, onSave }: IAModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -43,7 +46,24 @@ export default function IAModal({ open, onClose, settings, onSave }: IAModalProp
   const handleSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
+      // 1. Salvar configurações no Firestore
       await onSave(data);
+      
+      // 2. Configurar webhook na UAZAPI (ativar/desativar IA)
+      const webhookResult = await toggleIAWebhookAction(data.iaAtiva ?? false);
+      
+      if (!webhookResult.success) {
+        toast({
+          variant: "destructive",
+          title: "Aviso",
+          description: `Configurações salvas, mas houve um erro ao configurar o webhook: ${webhookResult.error}`,
+        });
+      } else {
+        toast({
+          title: "Sucesso!",
+          description: webhookResult.message,
+        });
+      }
     } finally {
       setIsLoading(false);
     }

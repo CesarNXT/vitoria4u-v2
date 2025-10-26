@@ -231,39 +231,47 @@ export default function BookingClient({
 
             setCurrentUser(foundClient);
 
-            // Verificar se já tem agendamento
-            const clientAppointments = appointments.filter(a => a.cliente.phone === phoneAsNumber && a.status === 'Agendado');
-            if (clientAppointments.length > 0) {
-                const appointment = clientAppointments[0];
-                if (!appointment) {
-                    setStep('NEW_CLIENT_FORM');
-                    return;
+            // ✅ Buscar agendamentos ativos do cliente no servidor
+            try {
+                const appointmentsResponse = await fetch(`/api/booking/client-appointments?businessId=${businessId}&phone=${phoneAsNumber}`);
+                
+                if (appointmentsResponse.ok) {
+                    const appointmentsData = await appointmentsResponse.json();
+                    
+                    if (appointmentsData.hasActiveAppointment && appointmentsData.appointment) {
+                        const appointment = appointmentsData.appointment;
+                        
+                        // Garantir que a data está no formato Date correto
+                        let convertedDate: Date;
+                        if (appointment.date instanceof Date) {
+                            convertedDate = appointment.date;
+                        } else if (typeof appointment.date === 'string') {
+                            convertedDate = new Date(appointment.date);
+                        } else if (appointment.date && typeof appointment.date === 'object' && 'seconds' in appointment.date) {
+                            // Firestore Timestamp
+                            convertedDate = new Date((appointment.date as any).seconds * 1000);
+                        } else {
+                            convertedDate = new Date();
+                        }
+                        
+                        const convertedAppointment = {
+                            ...appointment,
+                            id: appointment.id || '',
+                            date: convertedDate
+                        };
+                        
+                        setExistingAppointment(convertedAppointment);
+                        setStep('MODIFY_EXISTING');
+                        return;
+                    }
                 }
-                
-                // Garantir que a data está no formato Date correto
-                let convertedDate: Date;
-                if (appointment.date instanceof Date) {
-                    convertedDate = appointment.date;
-                } else if (typeof appointment.date === 'string') {
-                    convertedDate = new Date(appointment.date);
-                } else if (appointment.date && typeof appointment.date === 'object' && 'seconds' in appointment.date) {
-                    // Firestore Timestamp
-                    convertedDate = new Date((appointment.date as any).seconds * 1000);
-                } else {
-                    convertedDate = new Date();
-                }
-                
-                const convertedAppointment: typeof appointment = {
-                    ...appointment,
-                    id: appointment.id || '',
-                    date: convertedDate
-                };
-                
-                setExistingAppointment(convertedAppointment);
-                setStep('MODIFY_EXISTING');
-            } else {
-                setStep('NEW_CLIENT_FORM');
+            } catch (error) {
+                console.error('Erro ao buscar agendamentos do cliente:', error);
+                // Continua o fluxo normal se falhar
             }
+            
+            // Se não tem agendamento ativo, vai para o formulário
+            setStep('NEW_CLIENT_FORM');
         } catch (error: any) {
             toast({
                 variant: 'destructive',

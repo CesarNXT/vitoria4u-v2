@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
 
 const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
-const NOTIFICATION_TOKEN = process.env.VITORIA4U_NOTIFICATION_TOKEN;
 
 /**
  * API para buscar foto de perfil do WhatsApp de um cliente/profissional
  * Usa endpoint correto: POST /chat/details
  * Retorna URL direta do WhatsApp (mais rápido e econômico)
- * Usa token de notificações da Vitoria4U para operações de leitura
+ * Usa token do próprio negócio para operações de leitura
  */
 export async function POST(req: NextRequest) {
   try {
@@ -20,22 +20,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!NOTIFICATION_TOKEN) {
+    // Buscar token do negócio do Firestore
+    const businessDoc = await adminDb.collection('negocios').doc(businessId).get();
+    const businessData = businessDoc.data();
+    
+    const token = businessData?.tokenInstancia;
+    
+    if (!token) {
       return NextResponse.json(
-        { error: 'Token de notificações não configurado', success: false },
+        { error: 'Token do negócio não configurado. Conecte o WhatsApp nas Configurações.', success: false },
         { status: 500 }
       );
     }
 
     const phone = phoneNumber.toString().replace(/\D/g, '');
 
-    // 1. Buscar detalhes do chat via API UazAPI usando token de notificações
+    // 1. Buscar detalhes do chat via API UazAPI usando token do negócio
     const chatResponse = await fetch(`${API_BASE}/chat/details`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'token': NOTIFICATION_TOKEN
+        'token': token
       },
       body: JSON.stringify({
         number: phone,

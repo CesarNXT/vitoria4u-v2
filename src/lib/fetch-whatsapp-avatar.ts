@@ -2,15 +2,14 @@
  * Busca foto de perfil do WhatsApp usando endpoint correto /chat/details
  * Usado para auto-preencher avatar de profissionais
  * Retorna URL direta do WhatsApp (mais rápido e econômico)
- * Usa token de notificações da Vitoria4U para operações de leitura
+ * Usa token do próprio negócio para operações de leitura
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
-const NOTIFICATION_TOKEN = process.env.VITORIA4U_NOTIFICATION_TOKEN;
 
 /**
  * Busca e salva foto de perfil do WhatsApp para um profissional
- * @param tokenInstancia - Token da instância do WhatsApp (não usado, mantido por compatibilidade)
+ * @param tokenInstancia - Token da instância do WhatsApp do negócio
  * @param phoneNumber - Número do profissional (ex: 5581997628611)
  * @param businessId - ID do negócio
  * @param professionalId - ID do profissional
@@ -25,18 +24,18 @@ export async function fetchAndSaveWhatsAppAvatar(
   try {
     const phone = phoneNumber.toString().replace(/\D/g, '');
 
-    // Verifica se o token de notificações está disponível
-    if (!NOTIFICATION_TOKEN) {
+    // Verifica se o token do negócio está disponível
+    if (!tokenInstancia) {
       return undefined;
     }
 
-    // 1. Buscar detalhes do chat via API UazAPI usando token de notificações
+    // 1. Buscar detalhes do chat via API UazAPI usando token do negócio
     const chatResponse = await fetch(`${API_BASE}/chat/details`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'token': NOTIFICATION_TOKEN
+        'token': tokenInstancia
       },
       body: JSON.stringify({
         number: phone,
