@@ -348,8 +348,18 @@ export function AppointmentForm({
   }, [selectedDate, selectedService, selectedProfessionalId, appointment, selectedTime, setValue, businessSettings]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
+    console.log('🔵 handleFormSubmit chamado', {
+      isSubmittingRef: isSubmittingRef.current,
+      isSubmitting,
+      hasWarnings: !!(conflictWarning || workDayWarning || blockWarning),
+      conflictWarning,
+      workDayWarning,
+      blockWarning
+    });
+    
     // Proteção contra duplo clique
     if (isSubmittingRef.current || isSubmitting) {
+      console.log('🔴 Bloqueado por isSubmitting');
       return;
     }
     
@@ -357,11 +367,13 @@ export function AppointmentForm({
     
     // Se há qualquer aviso (conflito, dia não trabalhado ou bloqueio), mostra o dialog
     if (conflictWarning || workDayWarning || blockWarning) {
+      console.log('⚠️ Abrindo modal de conflito');
       setPendingData(data);
       setShowConflictDialog(true);
       isSubmittingRef.current = false; // Libera se for apenas abrir dialog
     } else {
       // Sem avisos, envia direto
+      console.log('✅ Enviando direto (sem avisos)');
       onSubmit(data);
       // isSubmittingRef será resetado quando o form fechar/reabrir
     }
