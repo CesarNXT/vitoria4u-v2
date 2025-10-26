@@ -575,7 +575,7 @@ export default function CampanhasPage() {
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 gap-4 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 w-full">
           <CardHeader className="pb-3 px-4 pt-4">
             <div className="flex items-center justify-between gap-2">
