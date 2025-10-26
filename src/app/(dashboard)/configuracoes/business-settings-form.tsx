@@ -44,8 +44,7 @@ import BusinessAgendaForm from './business-agenda-form';
 import HealthInsuranceManager from './health-insurance-manager';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn, formatPhoneNumber } from '@/lib/utils';
-import { PhoneInput, usePhoneInput } from '@/components/ui/phone-input';
+import { cn, formatPhoneNumber, formatPhoneInput, normalizePhoneNumber } from '@/lib/utils';
 import { isCategoriaClinica } from '@/lib/categoria-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -83,10 +82,10 @@ const daySchema = z.object({
 const businessSettingsSchema = z.object({
   nome: z.string().min(2, { message: 'O nome do negócio deve ter pelo menos 2 caracteres.' }).max(64, { message: 'Nome muito longo (máx. 64 caracteres).' }),
   telefone: z.string().refine(v => {
-    const digits = String(v).replace(/\D/g, "");
-    return digits.length === 10 || digits.length === 11;
+    const digits = String(v).replace(/\D/g, "").length;
+    return digits === 11;
   }, {
-    message: "Telefone deve ter 10 ou 11 dígitos (DDD + número)"
+    message: "Telefone deve ter 11 dígitos (DDD + número)"
   }),
   categoria: z.string().min(1, { message: 'A categoria é obrigatória.' }),
   endereco: z.object({
@@ -192,7 +191,6 @@ export default function BusinessSettingsForm({
   
   // Hook para verificar features do plano
   const { hasFeature } = usePlanFeatures(settings, userPlan);
-  const phoneInput = usePhoneInput('BR');
   
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -217,7 +215,7 @@ export default function BusinessSettingsForm({
   const getDefaultValues = (): Partial<FormData> => {
     const baseValues = {
       nome: settings?.nome || "",
-      telefone: phoneInput.fromBackend(settings?.telefone || ""),
+      telefone: formatPhoneNumber(String(settings?.telefone || "")),
       categoria: settings?.categoria || "",
       endereco: settings?.endereco || {
           cep: "", logradouro: "", numero: "", bairro: "", cidade: "", estado: ""
@@ -225,18 +223,21 @@ export default function BusinessSettingsForm({
       horariosFuncionamento: (settings?.horariosFuncionamento && settings.setupCompleted) 
           ? settings.horariosFuncionamento 
           : defaultHorarios,
-      habilitarLembrete24h: settings?.habilitarLembrete24h ?? false,
-      habilitarLembrete2h: settings?.habilitarLembrete2h ?? false,
-      rejeitarChamadasAutomaticamente: settings?.rejeitarChamadasAutomaticamente ?? false,
-      mensagemRejeicaoChamada: settings?.mensagemRejeicaoChamada || '📱 *Olá!*\n\nNo momento não estou disponível para chamadas.\n\nPor favor, envie uma *mensagem de texto* e retornarei assim que possível!\n\nObrigado pela compreensão. 😊',
-      habilitarAniversario: settings?.habilitarAniversario ?? false,
+      // Notificações ATIVAS por padrão (não precisam de configuração extra)
+      notificarGestorAgendamento: settings?.notificarGestorAgendamento ?? true,
+      habilitarLembrete24h: settings?.habilitarLembrete24h ?? true,
+      habilitarLembrete2h: settings?.habilitarLembrete2h ?? true,
+      habilitarAniversario: settings?.habilitarAniversario ?? true,
+      notificarClienteAgendamento: settings?.notificarClienteAgendamento ?? true,
+      
+      // Essas 3 DESATIVADAS por padrão (precisam de configuração do usuário)
       habilitarFeedback: settings?.habilitarFeedback ?? false,
       feedbackPlatform: settings?.feedbackPlatform || 'google',
       feedbackLink: settings?.feedbackLink || '',
-      notificarClienteAgendamento: settings?.notificarClienteAgendamento ?? false,
-      notificarGestorAgendamento: settings?.notificarGestorAgendamento ?? true,
+      rejeitarChamadasAutomaticamente: settings?.rejeitarChamadasAutomaticamente ?? false,
+      mensagemRejeicaoChamada: settings?.mensagemRejeicaoChamada || '📱 *Olá!*\n\nNo momento não estou disponível para chamadas.\n\nPor favor, envie uma *mensagem de texto* e retornarei assim que possível!\n\nObrigado pela compreensão. 😊',
       habilitarEscalonamento: settings?.habilitarEscalonamento ?? false,
-      numeroEscalonamento: phoneInput.fromBackend(settings?.numeroEscalonamento || ""),
+      numeroEscalonamento: formatPhoneNumber(String(settings?.numeroEscalonamento || "")),
       nomeIa: settings?.nomeIa || 'Vitoria',
       instrucoesIa: settings?.instrucoesIa || '',
       iaAtiva: settings?.iaAtiva ?? true,
@@ -403,15 +404,38 @@ export default function BusinessSettingsForm({
       }
     }
     
+    // Helper para garantir 13 dígitos com DDI 55
+    const normalize13Digits = (phone: string): number => {
+      // Limpa tudo que não é número
+      let digits = phone.replace(/\D/g, '');
+      
+      // Remove DDI 55 se já tiver (para normalizar)
+      if (digits.startsWith('55') && digits.length >= 12) {
+        digits = digits.substring(2);
+      }
+      
+      // Se tiver 10 dígitos, adiciona o 9 após o DDD
+      if (digits.length === 10) {
+        const ddd = digits.substring(0, 2);
+        const numero = digits.substring(2);
+        digits = ddd + '9' + numero; // Agora tem 11 dígitos
+      }
+      
+      // Adiciona DDI 55 no início (13 dígitos final)
+      const with55 = '55' + digits;
+      
+      return parseInt(with55, 10);
+    };
+
     const dataToSave = {
         ...data,
-        telefone: parseInt(phoneInput.toBackend(data.telefone), 10),
+        telefone: normalize13Digits(data.telefone), // 13 dígitos com DDI 55
         endereco: {
             ...data.endereco,
             cep: String(data.endereco.cep).replace(/\D/g, ""),
         },
-        // Converter numeroEscalonamento também
-        numeroEscalonamento: data.numeroEscalonamento ? parseInt(phoneInput.toBackend(data.numeroEscalonamento), 10) : undefined,
+        // Converter numeroEscalonamento também (13 dígitos)
+        numeroEscalonamento: data.numeroEscalonamento ? normalize13Digits(data.numeroEscalonamento) : undefined,
         setupCompleted: true,
     };
     
@@ -464,11 +488,15 @@ export default function BusinessSettingsForm({
                     <FormItem>
                       <FormLabel>WhatsApp da Empresa</FormLabel>
                       <FormControl>
-                        <PhoneInput
-                          value={field.value}
-                          onChange={field.onChange}
-                          country="BR"
-                          showCountryCode={false}
+                        <Input
+                          placeholder="(11) 99999-9999"
+                          inputMode="tel"
+                          maxLength={15}
+                          {...field}
+                          onChange={(e) => {
+                            const formatted = formatPhoneInput(e.target.value);
+                            field.onChange(formatted);
+                          }}
                         />
                       </FormControl>
                       <FormDescription>
@@ -817,50 +845,158 @@ export default function BusinessSettingsForm({
                   </FormItem>
                 )}
               />
-                <div className="space-y-4 rounded-lg border p-4">
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={control}
+                  name="habilitarFeedback"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-0.5 flex-1">
+                        <FormLabel className="text-base">⭐ Solicitar Avaliação</FormLabel>
+                        <FormDescription>
+                          <strong>Como funciona:</strong> Após o atendimento, solicita que o cliente deixe uma avaliação no Google ou Instagram.<br/>
+                          <strong>Para que serve:</strong> Aumenta sua reputação online e atrai novos clientes.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {watch('habilitarFeedback') && (
+                  <>
+                    <FormField
+                      control={control}
+                      name="feedbackPlatform"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Plataforma de Avaliação</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione a plataforma" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="google">Google</SelectItem>
+                              <SelectItem value="instagram">Instagram</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={control}
+                      name="feedbackLink"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Link da Avaliação</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://..."
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Cole aqui o link da sua página de avaliações (Google Meu Negócio ou Instagram)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+              </div>
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={control}
+                  name="rejeitarChamadasAutomaticamente"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-0.5 flex-1">
+                        <FormLabel className="text-base">📵 Rejeição de Chamadas</FormLabel>
+                        <FormDescription>
+                          <strong>Como funciona:</strong> Rejeita chamadas automaticamente e envia mensagem pedindo para enviar texto.<br/>
+                          <strong>Para que serve:</strong> Evita interrupções e mantém o atendimento organizado via mensagens.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {watch('rejeitarChamadasAutomaticamente') && (
                   <FormField
                     control={control}
-                    name="habilitarEscalonamento"
+                    name="mensagemRejeicaoChamada"
                     render={({ field }) => (
-                      <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="space-y-0.5 flex-1">
-                          <FormLabel>👤 Escalonamento Humano</FormLabel>
-                          <FormDescription>
-                            <strong>Como funciona:</strong> Quando a IA não souber responder, transfere conversa para um atendente humano.<br/>
-                            <strong>Para que serve:</strong> Garante que nenhum cliente fique sem atendimento em situações complexas.
-                          </FormDescription>
-                        </div>
+                      <FormItem>
+                        <FormLabel>Mensagem de Rejeição</FormLabel>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                          <Textarea
+                            placeholder="Mensagem enviada após rejeitar a chamada..."
+                            {...field}
+                            value={field.value || ""}
+                            className="min-h-24"
                           />
                         </FormControl>
+                        <FormDescription>
+                          Esta mensagem será enviada automaticamente quando uma chamada for rejeitada
+                        </FormDescription>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
-                  {habilitarEscalonamento && (
-                      <FormField
-                        control={control}
-                        name="numeroEscalonamento"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Número para Escalonamento</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="(XX) XXXXX-XXXX"
-                                inputMode="tel"
-                                value={field.value || ""}
-                                maxLength={15}
-                                onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                )}
+              </div>
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={control}
+                  name="habilitarEscalonamento"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-0.5 flex-1">
+                        <FormLabel>👤 Escalonamento Humano</FormLabel>
+                        <FormDescription>
+                          <strong>Como funciona:</strong> Quando a IA não souber responder, transfere conversa para um atendente humano.<br/>
+                          <strong>Para que serve:</strong> Garante que nenhum cliente fique sem atendimento em situações complexas.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
                   )}
-               </div>
+                />
+                {habilitarEscalonamento && (
+                  <FormField
+                    control={control}
+                    name="numeroEscalonamento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número para Escalonamento</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="(XX) XXXXX-XXXX"
+                            inputMode="tel"
+                            value={field.value || ""}
+                            maxLength={15}
+                            onChange={(e) => field.onChange(formatPhoneInput(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
           </div>
         );
       case 3: // Notificações (para clínicas no setup) ou Configurações de IA
@@ -961,6 +1097,114 @@ export default function BusinessSettingsForm({
               <div className="space-y-4 rounded-lg border p-4">
                 <FormField
                   control={control}
+                  name="habilitarFeedback"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-0.5 flex-1">
+                        <FormLabel className="text-base">⭐ Solicitar Avaliação</FormLabel>
+                        <FormDescription>
+                          <strong>Como funciona:</strong> Após o atendimento, solicita que o cliente deixe uma avaliação no Google ou Instagram.<br/>
+                          <strong>Para que serve:</strong> Aumenta sua reputação online e atrai novos clientes.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {watch('habilitarFeedback') && (
+                  <>
+                    <FormField
+                      control={control}
+                      name="feedbackPlatform"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Plataforma de Avaliação</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione a plataforma" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="google">Google</SelectItem>
+                              <SelectItem value="instagram">Instagram</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={control}
+                      name="feedbackLink"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Link da Avaliação</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://..."
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Cole aqui o link da sua página de avaliações (Google Meu Negócio ou Instagram)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+              </div>
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={control}
+                  name="rejeitarChamadasAutomaticamente"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-0.5 flex-1">
+                        <FormLabel className="text-base">📵 Rejeição de Chamadas</FormLabel>
+                        <FormDescription>
+                          <strong>Como funciona:</strong> Rejeita chamadas automaticamente e envia mensagem pedindo para enviar texto.<br/>
+                          <strong>Para que serve:</strong> Evita interrupções e mantém o atendimento organizado via mensagens.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {watch('rejeitarChamadasAutomaticamente') && (
+                  <FormField
+                    control={control}
+                    name="mensagemRejeicaoChamada"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mensagem de Rejeição</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Mensagem enviada após rejeitar a chamada..."
+                            {...field}
+                            value={field.value || ""}
+                            className="min-h-24"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Esta mensagem será enviada automaticamente quando uma chamada for rejeitada
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={control}
                   name="habilitarEscalonamento"
                   render={({ field }) => (
                     <FormItem className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -972,10 +1216,7 @@ export default function BusinessSettingsForm({
                         </FormDescription>
                       </div>
                       <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -993,7 +1234,7 @@ export default function BusinessSettingsForm({
                             inputMode="tel"
                             value={field.value || ""}
                             maxLength={15}
-                            onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                            onChange={(e) => field.onChange(formatPhoneInput(e.target.value))}
                           />
                         </FormControl>
                         <FormMessage />

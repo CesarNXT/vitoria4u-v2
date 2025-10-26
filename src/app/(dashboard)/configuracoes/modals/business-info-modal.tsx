@@ -9,17 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PhoneInput } from "@/components/ui/phone-input";
 import type { ConfiguracoesNegocio } from "@/lib/types";
 import { Loader2, Search, ChevronRight } from "lucide-react";
-import { formatPhoneNumber, cn } from "@/lib/utils";
+import { formatPhoneNumber, formatPhoneInput, normalizePhoneNumber, cn } from "@/lib/utils";
 
 const schema = z.object({
   nome: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(64, "Nome muito longo"),
   telefone: z.string().refine(v => {
-    const digits = String(v).replace(/\D/g, "");
-    return digits.length === 10 || digits.length === 11;
-  }, "Telefone deve ter 10 ou 11 dígitos"),
+    const digits = String(v).replace(/\D/g, "").length;
+    return digits === 11;
+  }, "Telefone deve ter 11 dígitos (DDD + número)"),
   categoria: z.string().min(1, "Categoria é obrigatória"),
   endereco: z.object({
     cep: z.string().min(1, "CEP é obrigatório").refine(v => String(v).replace(/\D/g, "").length === 8, "CEP deve ter 8 dígitos"),
@@ -65,10 +64,33 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
   const handleSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     try {
-      // Converter telefone para número
+      // Helper para garantir 13 dígitos com DDI 55
+      const normalize13Digits = (phone: string): number => {
+        // Limpa tudo que não é número
+        let digits = phone.replace(/\D/g, '');
+        
+        // Remove DDI 55 se já tiver (para normalizar)
+        if (digits.startsWith('55') && digits.length >= 12) {
+          digits = digits.substring(2);
+        }
+        
+        // Se tiver 10 dígitos, adiciona o 9 após o DDD
+        if (digits.length === 10) {
+          const ddd = digits.substring(0, 2);
+          const numero = digits.substring(2);
+          digits = ddd + '9' + numero; // Agora tem 11 dígitos
+        }
+        
+        // Adiciona DDI 55 no início (13 dígitos final)
+        const with55 = '55' + digits;
+        
+        return parseInt(with55, 10);
+      };
+
+      // Converter telefone para número (13 dígitos com DDI 55)
       const dataToSave = {
         ...data,
-        telefone: parseInt(data.telefone.toString().replace(/\D/g, ''), 10),
+        telefone: normalize13Digits(data.telefone),
       };
       await onSave(dataToSave);
     } finally {
@@ -130,7 +152,16 @@ export default function BusinessInfoModal({ open, onClose, settings, onSave }: B
                   <FormItem>
                     <FormLabel>Telefone/WhatsApp</FormLabel>
                     <FormControl>
-                      <PhoneInput {...field} />
+                      <Input
+                        placeholder="(11) 99999-9999"
+                        inputMode="tel"
+                        maxLength={15}
+                        {...field}
+                        onChange={(e) => {
+                          const formatted = formatPhoneInput(e.target.value);
+                          field.onChange(formatted);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

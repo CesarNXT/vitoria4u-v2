@@ -288,25 +288,33 @@ Por favor, confirme o agendamento manualmente.`;
 
 /**
  * Processa eventos MESSAGE (mensagens recebidas)
- * Encaminha para N8N para processamento de IA
+ * - Auto-cadastra clientes novos
+ * - Encaminha para N8N para processamento de IA
  */
 async function processMessageEvent(data: any) {
   try {
     // Extrair campos do formato real
     const message = data.message || data;
+    const chat = data.chat || {};
     const from = message.sender || message.from;
     const body = message.text || message.body;
     const type = message.messageType || message.type;
     const isGroup = message.isGroup || message.wa_isGroup || false;
     const instance = data.instanceName || data.instance;
+    const fromMe = message.fromMe || false;
 
     // Ignorar mensagens de grupo
     if (isGroup) {
       return;
     }
 
+    // Ignorar mensagens enviadas por mim (fromMe = true)
+    if (fromMe) {
+      return;
+    }
+
     // Só processar mensagens de texto
-    if (type !== 'conversation' && type !== 'extendedTextMessage') {
+    if (type !== 'conversation' && type !== 'extendedTextMessage' && type !== 'Conversation') {
       return;
     }
 
@@ -319,10 +327,15 @@ async function processMessageEvent(data: any) {
     const businessDoc = await adminDb.collection('negocios').doc(instance).get();
     
     if (!businessDoc.exists) {
+      // Negócio não existe - provavelmente é de outro projeto na mesma API
+      // Ignorar silenciosamente (não dar erro)
       return;
     }
     
     const business = businessDoc.data();
+    
+    // ✅ AUTO-CADASTRAR CLIENTE se ainda não existe
+    await autoRegisterClient(businessDoc.id, chat, message);
     
     // Verificar se IA está ativa
     if (!business?.iaAtiva) {
@@ -360,6 +373,194 @@ async function processMessageEvent(data: any) {
 }
 
 /**
+ * Auto-cadastra cliente quando ele envia mensagem pela primeira vez
+ * Padrão Firebase: 13 dígitos COM DDI 55 (ex: 5581995207521 = 55 + 81 + 9 + 95207521)
+ * Também busca e salva foto do perfil no Firebase Storage
+ */
+async function autoRegisterClient(businessId: string, chat: any, message: any) {
+  try {
+    // Extrair nome do contato
+    const clientName = chat.name || chat.wa_name || chat.wa_contactName || message.senderName || 'Cliente WhatsApp';
+    
+    // Extrair telefone do chatid (formato: 558195207521@s.whatsapp.net)
+    const chatId = chat.wa_chatid || chat.chatid || '';
+    let phoneNumber = chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+    
+    if (!phoneNumber || phoneNumber.length < 10) {
+      console.warn('[WEBHOOK-AUTO-REGISTER] Telefone inválido no chatid:', chatId);
+      return;
+    }
+
+    // ✅ NORMALIZAR para 13 dígitos COM DDI 55 (Padrão Firebase)
+    // Garantir que começa com 55
+    if (!phoneNumber.startsWith('55')) {
+      phoneNumber = '55' + phoneNumber;
+    }
+    
+    // Se tiver 12 dígitos (55 + DDD + 8 dígitos sem o 9), adiciona o 9
+    if (phoneNumber.length === 12 && phoneNumber.startsWith('55')) {
+      // 558195207521 → 5581995207521
+      const ddi = phoneNumber.substring(0, 2);   // 55
+      const ddd = phoneNumber.substring(2, 4);   // 81
+      const numero = phoneNumber.substring(4);   // 95207521
+      phoneNumber = `${ddi}${ddd}9${numero}`;    // 5581995207521
+    }
+
+    // Validar que tem exatamente 13 dígitos (padrão Firebase)
+    if (phoneNumber.length !== 13) {
+      console.warn('[WEBHOOK-AUTO-REGISTER] Telefone não tem 13 dígitos:', phoneNumber);
+      return;
+    }
+
+    // Converter para number (igual ao frontend)
+    const phoneAsNumber = parseInt(phoneNumber, 10);
+
+    // Verificar se cliente JÁ EXISTE no Firebase (evitar duplicatas)
+    const clientesRef = adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('clientes');
+    
+    const existingClient = await clientesRef
+      .where('phone', '==', phoneAsNumber)
+      .limit(1)
+      .get();
+
+    if (!existingClient.empty) {
+      // Cliente já existe, não precisa cadastrar
+      return;
+    }
+
+    // 📸 BUSCAR FOTO DO PERFIL (apenas no primeiro cadastro)
+    let avatarUrl: string | undefined = undefined;
+    
+    // Tentar pegar foto que já vem no webhook do chat
+    // imagePreview é mais fácil de baixar (sem restrições pesadas)
+    const chatImageUrl = chat.imagePreview || chat.image;
+    
+    if (chatImageUrl) {
+      try {
+        // Buscar token da instância para usar proxy da UazAPI
+        const businessDoc = await adminDb.collection('negocios').doc(businessId).get();
+        const business = businessDoc.data();
+        
+        if (business?.tokenInstancia) {
+          avatarUrl = await downloadAndSaveImageViaProxy(businessId, chatImageUrl, phoneNumber, business.tokenInstancia);
+        } else {
+          console.warn('[WEBHOOK-AUTO-REGISTER] Token não disponível para download de foto');
+        }
+      } catch (photoError) {
+        console.warn('[WEBHOOK-AUTO-REGISTER] Não foi possível salvar foto do perfil:', photoError);
+        // Continua o cadastro mesmo se falhar a foto
+      }
+    } else {
+      console.warn('[WEBHOOK-AUTO-REGISTER] Chat não tem foto de perfil no webhook');
+    }
+
+    // Criar novo cliente no Firebase (padrão do frontend)
+    const newClientRef = clientesRef.doc();
+    const newClient: any = {
+      id: newClientRef.id,
+      name: clientName,
+      phone: phoneAsNumber,
+      status: 'Ativo' as const,
+      createdAt: new Date(),
+      createdBy: 'whatsapp-auto-register',
+      source: 'whatsapp',
+      tags: [],
+      notes: 'Cliente cadastrado automaticamente via WhatsApp'
+    };
+
+    // Só adiciona avatarUrl se tiver valor (Firestore não aceita undefined)
+    if (avatarUrl) {
+      newClient.avatarUrl = avatarUrl;
+    }
+
+    await newClientRef.set(newClient);
+
+    console.log(`✅ [WEBHOOK-AUTO-REGISTER] Cliente cadastrado: ${clientName} (${phoneNumber}) no negócio ${businessId}${avatarUrl ? ' com foto' : ''}`);
+
+  } catch (error) {
+    console.error('[WEBHOOK-AUTO-REGISTER] Erro ao auto-cadastrar cliente:', error);
+  }
+}
+
+/**
+ * Download via proxy - tenta múltiplas estratégias
+ * WhatsApp retorna arquivo .enc que na verdade é uma imagem normal
+ */
+async function downloadAndSaveImageViaProxy(
+  businessId: string,
+  imageUrl: string,
+  phoneNumber: string,
+  token: string
+): Promise<string | undefined> {
+  try {
+    console.log(`📸 [WEBHOOK-PHOTO] Baixando foto do WhatsApp: ${imageUrl}`);
+    
+    // Estratégia 1: Tentar download direto (sem headers complexos)
+    let imageBuffer: Buffer | undefined;
+    
+    try {
+      const imageResponse = await fetch(imageUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'WhatsApp/2.23.0',
+        },
+        redirect: 'follow'
+      });
+
+      if (imageResponse.ok) {
+        imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        console.log(`✅ [WEBHOOK-PHOTO] Download direto OK: ${imageBuffer.length} bytes`);
+      }
+    } catch (err) {
+      console.warn(`[WEBHOOK-PHOTO] Download direto falhou, tentando alternativa...`);
+    }
+
+    // Estratégia 2: Se falhou, salvar URL diretamente (frontend baixa via proxy)
+    if (!imageBuffer || imageBuffer.length === 0) {
+      console.warn(`[WEBHOOK-PHOTO] Não foi possível baixar, salvando URL original`);
+      // Retorna a URL original - o frontend pode ter mais sucesso
+      return imageUrl;
+    }
+
+    // Upload para Firebase Storage
+    const { getStorage } = await import('firebase-admin/storage');
+    const bucket = getStorage().bucket();
+    
+    const fileName = `clientes/${businessId}/${phoneNumber}-${Date.now()}.jpg`;
+    const file = bucket.file(fileName);
+
+    await file.save(imageBuffer, {
+      metadata: {
+        contentType: 'image/jpeg',
+        metadata: {
+          phoneNumber: phoneNumber,
+          businessId: businessId,
+          source: 'whatsapp-auto-register',
+          originalUrl: imageUrl
+        }
+      }
+    });
+
+    console.log(`📤 [WEBHOOK-PHOTO] Upload concluído: ${fileName}`);
+
+    // Tornar público e obter URL
+    await file.makePublic();
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+    console.log(`✅ [WEBHOOK-PHOTO] Foto salva com sucesso: ${publicUrl}`);
+    return publicUrl;
+
+  } catch (error) {
+    console.error('[WEBHOOK-PHOTO] Erro ao processar foto:', error);
+    // Em último caso, retorna a URL original
+    return imageUrl;
+  }
+}
+
+/**
  * Processa eventos CONNECTION do webhook global
  * Atualiza status da conexão WhatsApp no Firestore
  */
@@ -392,7 +593,8 @@ async function processConnectionEvent(body: any) {
     const businessDoc = await adminDb.collection('negocios').doc(instanceName).get();
     
     if (!businessDoc.exists) {
-      console.warn(`[WEBHOOK-CONNECTION] ❌ Negócio não encontrado: ${instanceName}`);
+      // Negócio não existe - provavelmente é de outro projeto na mesma API
+      // Ignorar silenciosamente (não dar erro)
       return;
     }
 
@@ -731,6 +933,9 @@ async function processCampaignUpdate(
       sent_count: updateData.sent_count,
       failed_count: updateData.failed_count,
     });
+
+    // ✅ ATUALIZAR STATUS INDIVIDUAL DOS CONTATOS
+    await updateIndividualContactStatus(campanhaDoc.ref, sent_count, failed_count);
 
     // 🔄 SINCRONIZAR com UazAPI para pegar progresso real
     // Webhook não envia sentCount incremental, então fazemos polling
