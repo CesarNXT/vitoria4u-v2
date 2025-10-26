@@ -3,26 +3,28 @@
  * Versão limpa e otimizada para produção
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com'
-const NOTIFICATION_TOKEN = 'b2e97825-2d28-4646-ae38-3357fcbf0e20'
+import { formatPhone, cleanPhone } from './phone-formatter';
 
-// Formata telefone para exibição
-function formatPhoneForDisplay(phone: string | number): string {
-  const cleaned = phone.toString().replace(/\D/g, '')
-  if (cleaned.length === 11) {
-    return `(${cleaned.substring(0, 2)}) ${cleaned.substring(2, 7)}-${cleaned.substring(7)}`
-  }
-  return cleaned
+const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com'
+
+// Token com fallback para garantir funcionamento
+// TODO: Mover para .env em produção
+const NOTIFICATION_TOKEN = process.env.VITORIA4U_NOTIFICATION_TOKEN || 'b2e97825-2d28-4646-ae38-3357fcbf0e20'
+
+if (process.env.VITORIA4U_NOTIFICATION_TOKEN) {
+  console.log('✅ Usando token de notificação do .env');
+} else {
+  console.warn('⚠️ Usando token de notificação hardcoded (configure VITORIA4U_NOTIFICATION_TOKEN no .env)');
 }
 
 // Envia SMS via API
 async function sendSMS(phone: string, text: string): Promise<void> {
   try {
-    const cleanPhone = phone.toString().replace(/\D/g, '')
+    const phoneNumber = cleanPhone(phone);
     const response = await fetch(`${API_BASE}/send/text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'token': NOTIFICATION_TOKEN },
-      body: JSON.stringify({ number: cleanPhone, text })
+      body: JSON.stringify({ number: phoneNumber, text })
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
   } catch (error: any) {
@@ -45,7 +47,7 @@ export async function notifyNewAppointment(data: {
 
 *📅 Data e hora:* ${data.dataHoraAtendimento}
 
-*👤 Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n*📱 Telefone:* ${formatPhoneForDisplay(data.telefoneCliente)}` : ''}
+*👤 Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n*📱 Telefone:* ${formatPhone(data.telefoneCliente)}` : ''}
 *💼 Procedimento:* ${data.nomeServico}
 
 *📝 Agendado por:* ${agendadoPor}`
@@ -160,7 +162,7 @@ export async function notifyProfessionalAppointment(data: {
 
 📅 *Data e hora:* ${data.dataHoraAtendimento}
 
-👤 *Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n📱 *Telefone:* ${formatPhoneForDisplay(data.telefoneCliente)}` : ''}
+👤 *Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n📱 *Telefone:* ${formatPhone(data.telefoneCliente)}` : ''}
 💼 *Procedimento:* ${data.nomeServico}
 
 📝 *Agendado por:* ${agendadoPor}

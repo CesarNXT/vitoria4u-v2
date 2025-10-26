@@ -248,20 +248,13 @@ export class WhatsAppAPI {
       '/webhook',
       'POST',
       {
-        enabled: true,
         url: webhookUrl,
-        events: [
-          'connection',          // Status de conexão
-          'messages',            // Mensagens recebidas (para IA)
-          'call',                // Chamadas (para rejeição)
-          'messages_update',     // Status de entrega/leitura
-          'sender',              // Status de campanhas
-          'message_sent',        // Mensagem enviada
-          'message_delivered',   // Mensagem entregue
-          'message_read',        // Mensagem lida
-          'message_failed'       // Mensagem falhou
-        ],
-        excludeMessages: ['wasSentByApi', 'isGroupYes']
+        enabled: true,
+        events: ['messages'],  // ✅ Apenas mensagens
+        excludeMessages: [
+          'wasSentByApi',      // ✅ Excluir mensagens enviadas pela API (evitar loop)
+          'isGroupYes'         // ✅ Excluir mensagens de grupo
+        ]
       },
       true // Usa instanceToken
     );

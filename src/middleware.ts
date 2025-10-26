@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { validateEnv } from '@/lib/env-validator';
 
 /**
  * ⚠️ IMPORTANTE: Middleware roda no Edge Runtime

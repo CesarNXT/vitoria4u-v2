@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
 import { model } from '@/ai/genkit';
+import { checkCronAuth } from '@/lib/cron-auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
 
@@ -207,11 +208,8 @@ function toDate(value: any): Date | null {
 }
 
 export async function GET(request: Request) {
-    const authToken = (request.headers.get('authorization') || '').split('Bearer ')[1];
-
-    if (authToken !== process.env.CRON_SECRET) {
-        return new Response('Unauthorized', { status: 401 });
-    }
+    const authError = checkCronAuth(request);
+    if (authError) return authError;
     
     try {
         const today = startOfDay(new Date());

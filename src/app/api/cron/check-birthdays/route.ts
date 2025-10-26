@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { notifyBirthday } from '@/lib/notifications';
+import { checkCronAuth } from '@/lib/cron-auth';
 
 export async function GET(request: Request) {
-    const authToken = (request.headers.get('authorization') || '').split('Bearer ')[1];
-
-    if (authToken !== process.env.CRON_SECRET) {
-        return new Response('Unauthorized', { status: 401 });
-    }
+    const authError = checkCronAuth(request);
+    if (authError) return authError;
     
     try {
         const today = new Date();

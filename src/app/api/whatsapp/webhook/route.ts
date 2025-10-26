@@ -335,40 +335,13 @@ async function processMessageEvent(data: any) {
       return;
     }
     
-    const business = businessDoc.data();
-    
     // ✅ AUTO-CADASTRAR CLIENTE se ainda não existe
     await autoRegisterClient(businessDoc.id, chat, message);
     
-    // Verificar se IA está ativa
-    if (!business?.iaAtiva) {
-      return;
-    }
-
-    // Verificar se tem feature de IA
-    if (!business.planId) {
-      return;
-    }
-
-    // Encaminhar para N8N para processamento de IA
-    const N8N_WEBHOOK = 'https://n8n.vitoria4u.site/webhook/c0b43248-7690-4273-af55-8a11612849da';
-    
-    await fetch(N8N_WEBHOOK, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event: 'message',
-        data: {
-          from,
-          body,
-          type,
-          instance,
-          businessId: businessDoc.id
-        }
-      })
-    });
+    // ℹ️ Mensagens são enviadas para N8N via WEBHOOK DA INSTÂNCIA
+    // A webhook da instância já é configurada automaticamente para apontar para o N8N
+    // quando o negócio tem IA ativa (veja webhook-validator.ts)
+    // O N8N já recebe as mensagens filtradas (sem byapi, sem isGroup)
 
   } catch (error) {
     console.error('[WEBHOOK-MESSAGE] Erro ao processar mensagem:', error);

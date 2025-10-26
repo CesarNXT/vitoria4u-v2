@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { formatPhone } from '@/lib/phone-formatter';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -88,19 +89,6 @@ const safeNewDate = (dateSource: any): Date | undefined => {
   }
   return undefined;
 };
-
-// Formatar telefone para exibição (DDD) 9XXXX-XXXX
-const formatPhone = (phone: string | number): string => {
-  const cleaned = phone.toString().replace(/\D/g, '');
-  if (cleaned.length === 11) {
-    return `(${cleaned.substring(0, 2)}) ${cleaned.substring(2, 7)}-${cleaned.substring(7)}`;
-  }
-  if (cleaned.length === 10) {
-    return `(${cleaned.substring(0, 2)}) ${cleaned.substring(2, 6)}-${cleaned.substring(6)}`;
-  }
-  return cleaned;
-};
-
 
 export function AppointmentForm({
   appointment,

@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import type { ConfiguracoesNegocio } from '@/lib/types';
 import { isPast, differenceInDays, startOfDay } from 'date-fns';
 import { WhatsAppAPIClient } from '@/lib/whatsapp-api';
+import { checkCronAuth } from '@/lib/cron-auth';
 
 // 📱 Configurações da Vitoria4U para enviar notificações
 const VITORIA_PHONE = '5581995207521'; // Número da Vitoria
@@ -123,11 +124,10 @@ export async function GET(request: Request) {
   console.log('🔄 [CHECK-EXPIRATIONS] Iniciando verificação de planos expirados');
   console.log('🔄 [CHECK-EXPIRATIONS] Data/Hora:', new Date().toISOString());
   
-  const authToken = (request.headers.get('authorization') || '').split('Bearer ')[1];
-
-  if (authToken !== process.env.CRON_SECRET) {
+  const authError = checkCronAuth(request);
+  if (authError) {
     console.log('❌ [CHECK-EXPIRATIONS] Autenticação falhou - Token inválido');
-    return new Response('Unauthorized', { status: 401 });
+    return authError;
   }
 
   console.log('✅ [CHECK-EXPIRATIONS] Autenticação bem-sucedida');

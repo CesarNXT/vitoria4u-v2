@@ -82,58 +82,15 @@ export const STANDARD_PLANS: Record<string, Omit<Plano, 'id'>> = {
 };
 
 /**
- * 🔄 Sincroniza os planos no Firestore com os valores padrão
- * Chamado automaticamente quando admin faz login
+ * ❌ FUNÇÕES REMOVIDAS
+ * 
+ * As seguintes funções foram removidas pois a sincronização automática
+ * foi desabilitada para permitir edição livre dos planos no Firestore:
+ * 
+ * - syncPlansToFirestore() - Sincronização automática removida
+ * - shouldSyncPlans() - Não é mais necessário
+ * - markPlansSynced() - Não é mais necessário
+ * 
+ * Para criar/resetar planos, use: /api/admin/seed-plans (chamada manual)
+ * Para editar valores: Edite diretamente no Firestore Console
  */
-export async function syncPlansToFirestore(firestore: any): Promise<void> {
-  try {
-    const { doc, setDoc, deleteDoc } = await import('firebase/firestore');
-    
-    // 🧹 Primeiro, remove plano obsoleto (plano_expirado)
-    try {
-      const oldPlanRef = doc(firestore, 'planos', 'plano_expirado');
-      await deleteDoc(oldPlanRef);
-      } catch (error: any) {
-      // Pode já ter sido deletado - silencioso
-      if (error.code !== 'not-found') {
-        }
-    }
-    
-    // 🔄 Agora sincroniza os planos corretos
-    const promises = Object.entries(STANDARD_PLANS).map(([planId, planData]) => {
-      const planRef = doc(firestore, 'planos', planId);
-      return setDoc(planRef, planData, { merge: true });
-    });
-    
-    await Promise.all(promises);
-    } catch (error) {
-    console.error('❌ Erro ao sincronizar planos:', error);
-    // Não falha silenciosamente - apenas loga
-  }
-}
-
-/**
- * 🔍 Verifica se os planos precisam ser atualizados
- * Compara com localStorage para evitar atualizações desnecessárias
- */
-export function shouldSyncPlans(): boolean {
-  if (typeof window === 'undefined') return false;
-  
-  const lastSync = localStorage.getItem('plans_last_sync');
-  if (!lastSync) return true;
-  
-  // Sincroniza no máximo uma vez por hora
-  const ONE_HOUR = 60 * 60 * 1000;
-  const lastSyncTime = parseInt(lastSync, 10);
-  const now = Date.now();
-  
-  return (now - lastSyncTime) > ONE_HOUR;
-}
-
-/**
- * 💾 Marca que os planos foram sincronizados
- */
-export function markPlansSynced(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('plans_last_sync', Date.now().toString());
-}

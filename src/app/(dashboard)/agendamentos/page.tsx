@@ -369,35 +369,37 @@ export default function AgendamentosPage() {
           }
         }
         
-        // Criar ou atualizar reminders via UazAPI
+        // Criar ou atualizar reminders via UazAPI (não aguarda para não travar UI)
         if (data.status === 'Agendado') {
-          try {
-            let reminderCampaigns: any[] = [];
-            
-            if (!isEditing) {
-              // Criar novos lembretes e obter os folder_ids
-              reminderCampaigns = await createReminders(finalUserId, newId, serializableAppointment, serializableSettings);
-            } else {
-              // Atualizar lembretes (cancela antigos e cria novos)
-              const oldCampaigns = selectedAppointment?.reminderCampaigns || [];
-              reminderCampaigns = await updateReminders(finalUserId, newId, serializableAppointment, serializableSettings, oldCampaigns);
+          // Executar em background sem aguardar
+          (async () => {
+            try {
+              let reminderCampaigns: any[] = [];
+              
+              if (!isEditing) {
+                // Criar novos lembretes e obter os folder_ids
+                reminderCampaigns = await createReminders(finalUserId, newId, serializableAppointment, serializableSettings);
+              } else {
+                // Atualizar lembretes (cancela antigos e cria novos)
+                const oldCampaigns = selectedAppointment?.reminderCampaigns || [];
+                reminderCampaigns = await updateReminders(finalUserId, newId, serializableAppointment, serializableSettings, oldCampaigns);
+              }
+              
+              // Salvar os folder_ids no agendamento para controle futuro
+              if (reminderCampaigns.length > 0) {
+                await saveOrUpdateDocument('agendamentos', newId, {
+                  ...serializableAppointment,
+                  reminderCampaigns: reminderCampaigns.map(c => ({
+                    type: c.type,
+                    folderId: c.folderId,
+                    scheduledFor: c.scheduledFor
+                  }))
+                }, finalUserId);
+              }
+            } catch (error) {
+              console.error('❌ Erro ao criar/atualizar lembretes (não bloqueou criação):', error);
             }
-            
-            // Salvar os folder_ids no agendamento para controle futuro
-            if (reminderCampaigns.length > 0) {
-              await saveOrUpdateDocument('agendamentos', newId, {
-                ...serializableAppointment,
-                reminderCampaigns: reminderCampaigns.map(c => ({
-                  type: c.type,
-                  folderId: c.folderId,
-                  scheduledFor: c.scheduledFor
-                }))
-              }, finalUserId);
-            }
-          } catch (error) {
-            console.error('Erro ao criar/atualizar lembretes:', error);
-            // Não bloqueia o fluxo
-          }
+          })();
         }
         
         const wasCompleted = selectedAppointment?.status !== 'Finalizado' && data.status === 'Finalizado';

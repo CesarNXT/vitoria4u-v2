@@ -86,7 +86,7 @@ ${nomeEmpresa}
 💼 *Serviço*
 ${nomeServico}
 
-Confirme sua presença:`;
+Se não puder comparecer, avise-nos.`;
   }
 }
 
@@ -152,33 +152,48 @@ async function createReminderCampaign(
       return null;
     }
 
-    // Payload com botões interativos REAIS
+    // Payload usando /sender/advanced com botões interativos
+    // Permite agendar mensagens com botões para o futuro
     const payload = {
-      number: clienteTelefone,
-      type: 'button',
-      text: mensagem,
-      choices: buttons,
-      footerText: 'Aguardamos sua confirmação',
-      delay: Math.max(0, delayMs), // Delay em milissegundos
-      track_source: 'reminder_system',
-      track_id: `reminder_${type}_${agendamentoId}`,
+      delayMin: 0,
+      delayMax: 0,
+      scheduled_for: scheduledFor.getTime(), // Timestamp em milissegundos
+      info: `Lembrete ${type} - Agendamento ${agendamentoId}`,
+      messages: [
+        {
+          number: clienteTelefone,
+          type: 'button',
+          text: mensagem,
+          choices: buttons,
+          footerText: 'Aguardamos sua confirmação',
+          delay: 0  // ✅ IMPORTANTE: delay em 0 para não ficar "digitando..."
+        }
+      ]
     };
 
     console.log(`📤 [${type}] Criando lembrete para agendamento ${agendamentoId}:`, {
       scheduledFor: scheduledFor.toISOString(),
       phone: clienteTelefone.replace(/\d{4}$/, '****'), // Mascara últimos 4 dígitos
       delayMinutes: Math.round(delayMs / 60000),
+      timestamp: scheduledFor.getTime(),
       attempt: retryCount + 1
     });
 
-    const response = await fetch(`${API_BASE}/send/interactive`, {
+    // Criar AbortController para timeout de 5 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(`${API_BASE}/sender/advanced`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'token': tokenInstancia,
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -196,30 +211,36 @@ async function createReminderCampaign(
 
     const result = await response.json();
     
-    // Validar messageid (resposta de /send/interactive)
-    const messageId = result.messageid || result.id;
-    
-    if (!messageId) {
-      console.error(`❌ [${type}] messageid não retornado pela API:`, result);
+    // Validar resposta do /sender/simple
+    // Retorna: { folder_id: "...", message: "..." }
+    if (!result || !result.folder_id) {
+      console.error(`❌ [${type}] Resposta inválida da API:`, result);
       
-      // Retry se não recebeu messageid
+      // Retry se não conseguiu folder_id
       if (retryCount < MAX_RETRIES) {
         console.warn(`🔄 [${type}] Tentando novamente... (${retryCount + 1}/${MAX_RETRIES})`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
         return createReminderCampaign(tokenInstancia, type, scheduledFor, clienteTelefone, mensagem, agendamentoId, retryCount + 1);
       }
       
       return null;
     }
 
-    console.log(`✅ [${type}] Lembrete agendado com sucesso! messageId: ${messageId}`);
-    return messageId;
+    // Retornar folder_id para controle futuro (permite cancelar campanhas)
+    const folderId = result.folder_id;
+    console.log(`✅ [${type}] Lembrete agendado com sucesso! folder_id: ${folderId}`);
+    return folderId;
 
   } catch (error: any) {
-    console.error(`❌ [${type}] Erro ao criar campanha:`, error.message);
+    // Tratamento especial para timeout
+    if (error.name === 'AbortError') {
+      console.error(`❌ [${type}] Timeout após 5 segundos - API não respondeu`);
+    } else {
+      console.error(`❌ [${type}] Erro ao criar campanha:`, error.message);
+    }
     
-    // Retry em caso de erro de rede
-    if (retryCount < MAX_RETRIES) {
+    // Retry apenas em caso de timeout ou erro de rede (não retry em 4xx)
+    if (retryCount < MAX_RETRIES && (error.name === 'AbortError' || error.name === 'TypeError')) {
       console.warn(`🔄 [${type}] Tentando novamente... (${retryCount + 1}/${MAX_RETRIES})`);
       await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
       return createReminderCampaign(tokenInstancia, type, scheduledFor, clienteTelefone, mensagem, agendamentoId, retryCount + 1);
