@@ -289,32 +289,27 @@ export function AppointmentForm({
 
   useEffect(() => {
     const fetchAvailableTimes = () => {
+      console.log('🔍 fetchAvailableTimes:', {
+        selectedDate,
+        selectedService: selectedService?.name,
+        selectedProfessionalId,
+        hasDate: !!selectedDate,
+        dateString: selectedDate?.toDateString()
+      });
+      
       if (selectedDate && selectedService && selectedProfessionalId) {
         setIsLoadingTimes(true);
         
         try {
-          // Gera TODOS os horários de 00:00 até 23:30
+          // 🎯 PAINEL ADMINISTRATIVO: HORÁRIOS LIVRES PARA CONTROLE
+          // Gestor pode agendar qualquer horário, mesmo passados ou fora do expediente
+          // Usado para registrar atendimentos já realizados ou situações especiais
           const times: string[] = [];
-          const now = new Date();
-          const isToday = selectedDate.toDateString() === now.toDateString();
           
           for (let hour = 0; hour < 24; hour++) {
             for (let minute of [0, 30]) {
               const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-              
-              // Se for hoje, filtrar horários passados (exceto se estiver editando)
-              if (isToday && !appointment) {
-                const timeDate = new Date(selectedDate);
-                timeDate.setHours(hour, minute, 0, 0);
-                
-                // Só adicionar se o horário for no futuro (com margem de alguns minutos)
-                if (timeDate > now) {
-                  times.push(timeStr);
-                }
-              } else {
-                // Para outras datas ou edição, adicionar todos os horários
-                times.push(timeStr);
-              }
+              times.push(timeStr);
             }
           }
           
@@ -669,7 +664,17 @@ export function AppointmentForm({
                 <FormControl>
                   <StandardDatePicker
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(date) => {
+                      console.log('📆 Data onChange recebido:', date);
+                      // Só atualizar se date não for undefined, ou se for uma limpeza intencional
+                      if (date) {
+                        field.onChange(date);
+                      } else if (date === undefined && !field.value) {
+                        // Permitir undefined apenas se já estiver vazio
+                        field.onChange(date);
+                      }
+                      // Se date é undefined mas field.value existe, ignorar (não limpar)
+                    }}
                     placeholder="Escolha uma data"
                     isMobile={isMobile}
                     forceDialog={true}

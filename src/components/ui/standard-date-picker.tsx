@@ -145,6 +145,16 @@ export function StandardDatePicker({
         mode="single"
         selected={value}
         onSelect={(date) => {
+          // Evitar deselecionar ao clicar na mesma data
+          // Se date for undefined e já tiver uma data selecionada, manter a data
+          if (date === undefined && value) {
+            // Usuário clicou na mesma data - manter selecionada
+            console.log('🔒 Mantendo data selecionada:', value);
+            setIsOpen(false);
+            return;
+          }
+          
+          console.log('📅 Data selecionada:', date);
           onChange(date)
           setIsOpen(false)
         }}
