@@ -215,7 +215,7 @@ export async function searchClientByPhoneAction(phone: number) {
       .limit(1)
       .get();
 
-    if (snapshot.empty) {
+    if (snapshot.empty || !snapshot.docs[0]) {
       return { success: true, cliente: null };
     }
 
