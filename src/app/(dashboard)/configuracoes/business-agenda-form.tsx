@@ -281,8 +281,9 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                                     }
                                                 } else if (!checked) {
                                                     // Limpar todos os horários ao desativar
-                                                    while (fields.length > 0) {
-                                                        remove(0);
+                                                    const currentLength = fields.length;
+                                                    for (let i = currentLength - 1; i >= 0; i--) {
+                                                        remove(i);
                                                     }
                                                 }
                                             }}
