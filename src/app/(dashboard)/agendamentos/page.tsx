@@ -194,7 +194,7 @@ export default function AgendamentosPage() {
       getClientsOnSnapshot(finalUserId, (data) => {
         console.log(`📊 [Agendamentos] Clientes carregados: ${data.length}`);
         setClients(serializeTimestamps(data));
-      }),
+      }, 2000), // ✅ Aumentar limite para 2000 clientes (precisa de todos para seleção)
       'Clientes'
     );
     

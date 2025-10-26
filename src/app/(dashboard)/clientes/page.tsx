@@ -6,7 +6,8 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { getClientsOnSnapshot, saveOrUpdateDocument, deleteDocument, getBusinessConfig } from '@/lib/firestore'
+import { saveOrUpdateDocument, deleteDocument, getBusinessConfig } from '@/lib/firestore'
+import { getClientsCountAction, searchClientsAction } from './actions'
 import { useFirebase } from '@/firebase'
 import { useBusinessUser } from '@/contexts/BusinessUserContext'
 import type { Cliente, ConfiguracoesNegocio } from '@/lib/types'
@@ -64,28 +65,65 @@ export default function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null)
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null)
   const [filter, setFilter] = useState('')
-  const debouncedFilter = useDebounce(filter, 300) // ⚡ Otimização: Debounce de 300ms
+  const debouncedFilter = useDebounce(filter, 500) // ⚡ Otimização: Debounce de 500ms
   const [mobileCurrentPage, setMobileCurrentPage] = useState(1)
   const MOBILE_ITEMS_PER_PAGE = 20 // Limite de itens por página no mobile
-  
+  const [totalClients, setTotalClients] = useState(0); // ✅ Total de clientes (count)
+  const [activosCount, setActivosCount] = useState(0); // ✅ Total ativos (count real)
+  const [inativosCount, setInativosCount] = useState(0); // ✅ Total inativos (count real)
+  const [hasMore, setHasMore] = useState(false); // ✅ Se tem mais para carregar
+  const [isSearching, setIsSearching] = useState(false);
+
   const finalUserId = businessUserId || user?.uid;
 
+  // ✅ Função para atualizar counts
+  const updateCounts = useCallback(async () => {
+    if (!finalUserId) return;
+    
+    const result = await getClientsCountAction();
+    if (result.success) {
+      setTotalClients(result.count);
+      setActivosCount(result.ativos || 0);
+      setInativosCount(result.inativos || 0);
+    }
+  }, [finalUserId]);
+
+  // ✅ OTIMIZAÇÃO: Carregar count total (rápido!)
   useEffect(() => {
-    if (!finalUserId || !firestore) return
+    if (!finalUserId) return;
     
-    const unsubscribe = getClientsOnSnapshot(finalUserId, (data) => {
-      // ✅ CRITICAL: Serializar TODOS os timestamps antes de setar no state
-      const serializedClients = data.map(client => convertTimestamps(client));
-      setClients(serializedClients)
-      setIsLoading(false)
-    })
+    updateCounts();
     
-     getBusinessConfig(finalUserId).then(settings => {
+    getBusinessConfig(finalUserId).then(settings => {
       setBusinessSettings(convertTimestamps(settings));
     });
+  }, [finalUserId, updateCounts]);
 
-    return () => unsubscribe()
-  }, [finalUserId, firestore])
+  // ✅ Função para recarregar clientes
+  const loadClients = useCallback(async () => {
+    if (!finalUserId) return;
+    
+    setIsSearching(true);
+    
+    const result = await searchClientsAction({
+      searchTerm: debouncedFilter,
+      limit: 50, // Apenas 50 por vez!
+      offset: 0
+    });
+    
+    if (result.success) {
+      setClients(result.clientes);
+      setHasMore(result.hasMore);
+    }
+    
+    setIsSearching(false);
+    setIsLoading(false);
+  }, [finalUserId, debouncedFilter]);
+
+  // ✅ Buscar clientes quando filtro mudar
+  useEffect(() => {
+    loadClients();
+  }, [loadClients])
 
   const handleCreateNew = useCallback(() => {
     setSelectedClient(null)
@@ -121,6 +159,10 @@ export default function ClientsPage() {
       
       setClientToDelete(null);
       setIsAlertDialogOpen(false);
+      
+      // ✅ Recarregar lista e count
+      loadClients();
+      updateCounts();
     } catch (error) {
       handleError(error, { context: 'Delete client', clientId: clientToDelete.id });
       toast({
@@ -242,6 +284,10 @@ export default function ClientsPage() {
         description: `O cliente "${data.name}" foi salvo com sucesso${hasWhatsAppPhoto ? ' com foto do WhatsApp! 📸' : ''}.`,
       })
       setIsFormModalOpen(false)
+      
+      // ✅ Recarregar lista e count
+      loadClients();
+      updateCounts();
     } catch (error) {
       handleError(error, { context: 'Save client' })
       toast({
@@ -312,6 +358,10 @@ export default function ClientsPage() {
         title: 'Importação Concluída! 🎉',
         description: `${successCount} cliente(s) importado(s) com sucesso${errorCount > 0 ? `. ${errorCount} erro(s).` : '.'}`,
       })
+      
+      // ✅ Recarregar lista e count
+      loadClients();
+      updateCounts();
     } catch (error) {
       handleError(error, { context: 'Import clients batch' })
       toast({
@@ -327,15 +377,8 @@ export default function ClientsPage() {
     [handleEdit, handleDeleteRequest]
   );
   
-  const filteredClients = useMemo(() => 
-    clients.filter(client => {
-      const clientName = String(client.name || '').toLowerCase();
-      const clientPhone = String(client.phone || '');
-      const searchTerm = debouncedFilter.toLowerCase();
-      return clientName.includes(searchTerm) || clientPhone.includes(searchTerm);
-    }), 
-    [clients, debouncedFilter] // ⚡ Usa debounced filter
-  );
+  // ✅ OTIMIZAÇÃO: Filtro é server-side, não precisa filtrar no client
+  const filteredClients = clients;
 
   // Paginação para mobile
   const totalMobilePages = Math.ceil(filteredClients.length / MOBILE_ITEMS_PER_PAGE)
@@ -386,19 +429,44 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <ClientStatsCards clients={clients} />
+      <ClientStatsCards 
+        clients={clients} 
+        totalCount={totalClients}
+        activosCount={activosCount}
+        inativosCount={inativosCount}
+      />
       
       <Card>
         <CardHeader>
           <CardTitle>Todos os Clientes</CardTitle>
         </CardHeader>
         <CardContent>
-            <Input
-              placeholder="Filtrar por nome ou telefone..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="mb-4"
-            />
+            <div className="space-y-2 mb-4">
+              <Input
+                placeholder="🔍 Buscar cliente por nome ou telefone..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              />
+              {isSearching && (
+                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Buscando clientes...
+                </p>
+              )}
+              {!isSearching && filter && (
+                <p className="text-xs text-muted-foreground">
+                  {clients.length > 0 
+                    ? `✓ Encontrados ${clients.length} cliente(s) para "${filter}"`
+                    : `✗ Nenhum cliente encontrado para "${filter}"`
+                  }
+                </p>
+              )}
+              {!isSearching && !filter && (
+                <p className="text-xs text-muted-foreground">
+                  📊 Mostrando {clients.length} de {totalClients} clientes • Digite nome ou telefone para buscar
+                </p>
+              )}
+            </div>
             <div className="block md:hidden">
               <div className="space-y-4">
                 {paginatedMobileClients.length > 0 ? (

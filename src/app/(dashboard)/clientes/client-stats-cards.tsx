@@ -8,17 +8,20 @@ import { useMemo } from "react"
 
 interface ClientStatsCardsProps {
   clients: Cliente[];
+  totalCount?: number; // ✅ Total real de clientes (count do banco)
+  activosCount?: number; // ✅ Total ativos (count do banco)
+  inativosCount?: number; // ✅ Total inativos (count do banco)
 }
 
-export function ClientStatsCards({ clients }: ClientStatsCardsProps) {
+export function ClientStatsCards({ clients, totalCount, activosCount, inativosCount }: ClientStatsCardsProps) {
   
   const stats = useMemo(() => {
     return {
-      totalClients: clients.length,
-      activeClients: clients.filter(c => c.status === 'Ativo').length,
-      inactiveClients: clients.filter(c => c.status === 'Inativo').length,
+      totalClients: totalCount || clients.length,
+      activeClients: activosCount !== undefined ? activosCount : clients.filter(c => c.status === 'Ativo').length,
+      inactiveClients: inativosCount !== undefined ? inativosCount : clients.filter(c => c.status === 'Inativo').length,
     }
-  }, [clients]);
+  }, [clients, totalCount, activosCount, inativosCount]);
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
