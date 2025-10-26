@@ -2,13 +2,14 @@
 
 ## 📋 O que este cron faz?
 1. **Verifica planos expirados** e faz downgrade automático para `plano_gratis`
-2. **Sistema de Remarketing:** Envia notificações automáticas:
+2. **Sistema de Remarketing:** Envia notificações automáticas via UazAPI:
    - 🔔 **3 dias antes** da expiração
    - 🔔 **2 dias antes** da expiração  
    - 🔔 **1 dia antes** (ÚLTIMO DIA)
-   - 🔔 **No dia da expiração**
+   - 🔔 **No dia da expiração** + Oferta de Reativação
 3. **Deleta instância WhatsApp** para liberar recursos
-4. **Usa número/token da Vitoria4U** para enviar notificações
+4. **Token fixo da Vitoria4U:** `b2e97825-2d28-4646-ae38-3357fcbf0e20`
+5. **Sistema anti-spam:** Não envia duplicatas no mesmo dia
 
 ---
 
@@ -125,17 +126,23 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/cron/check-expirations" `
 ```json
 {
   "nome": "Negócio Teste",
-  "planId": "plano_mensal",
+  "planId": "plano_premium",
+  "telefone": 5581999999999,
   "access_expires_at": "2025-10-20T00:00:00.000Z",
   "whatsappConectado": false,
   "tokenInstancia": null
 }
 ```
 
-**⚠️ Use uma data no PASSADO para simular expiração!**
+**⚠️ Dicas:**
+- Use `planId: "plano_premium"` ou `"plano_mensal"` ou `"plano_anual"`
+- Para testar **notificações**, use data **3, 2 ou 1 dia no futuro**
+- Para testar **expiração**, use data **no passado**
+- O campo `telefone` deve ser um número (sem aspas)
 
 3. Execute o cron
-4. Verifique se o `planId` mudou para `plano_gratis`
+4. Verifique o WhatsApp para confirmar notificação
+5. Confirme que `planId` mudou para `plano_gratis` (se expirado)
 
 ---
 
@@ -273,7 +280,16 @@ Infelizmente seu plano Premium expirou hoje.
 ✅ Todas as automações foram desativadas
 
 💡 Quer reativar seus recursos?
-Renove seu plano e recupere tudo!
+Renove seu plano e recupere tudo instantaneamente!
+
+🎯 OFERTA ESPECIAL DE REATIVAÇÃO:
+Renove agora e volte a ter:
+• Automações de WhatsApp
+• Lembretes inteligentes
+• IA para atendimento
+• Gestão completa de agendamentos
+
+Acesse agora: https://vitoria4u.com.br/planos
 ```
 
 ---
@@ -282,7 +298,7 @@ Renove seu plano e recupere tudo!
 
 As notificações são enviadas pelo:
 - **Número:** `5581995207521` (Vitoria4U)
-- **Token:** `NEXT_PUBLIC_WHATSAPP_API_TOKEN` (do `.env`)
+- **Token:** `b2e97825-2d28-4646-ae38-3357fcbf0e20` (Token fixo da Vitoria4U)
 - **API:** UazAPI `/send/text`
 
 ---

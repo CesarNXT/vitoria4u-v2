@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import type { ConfiguracoesNegocio } from '@/lib/types';
-import { isPast, differenceInDays } from 'date-fns';
+import { isPast, differenceInDays, startOfDay } from 'date-fns';
 import { WhatsAppAPIClient } from '@/lib/whatsapp-api';
 
 // 📱 Configurações da Vitoria4U para enviar notificações
 const VITORIA_PHONE = '5581995207521'; // Número da Vitoria
-const VITORIA_TOKEN = process.env.NEXT_PUBLIC_WHATSAPP_API_TOKEN; // Token admin
+const VITORIA_TOKEN = 'b2e97825-2d28-4646-ae38-3357fcbf0e20'; // Token fixo da Vitoria4U
 const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
 
 // 💬 Mensagens de remarketing por dias restantes
@@ -51,8 +51,14 @@ const EXPIRATION_MESSAGES = {
     `✅ Sua instância WhatsApp foi desconectada\n` +
     `✅ Todas as automações foram desativadas\n\n` +
     `💡 *Quer reativar seus recursos?*\n` +
-    `Renove seu plano e recupere tudo!\n\n` +
-    `Acesse: https://vitoria4u.com.br/planos`
+    `Renove seu plano e recupere tudo instantaneamente!\n\n` +
+    `🎯 *OFERTA ESPECIAL DE REATIVAÇÃO:*\n` +
+    `Renove agora e volte a ter:\n` +
+    `• Automações de WhatsApp\n` +
+    `• Lembretes inteligentes\n` +
+    `• IA para atendimento\n` +
+    `• Gestão completa de agendamentos\n\n` +
+    `Acesse agora: https://vitoria4u.com.br/planos`
 };
 
 // 🔔 Função para enviar notificação via WhatsApp
@@ -71,7 +77,7 @@ async function sendExpirationNotification(
     const message = EXPIRATION_MESSAGES[daysLeft as keyof typeof EXPIRATION_MESSAGES];
     if (!message) return false;
 
-    const phoneFormatted = `${businessPhone}@s.whatsapp.net`;
+    const phoneFormatted = businessPhone.toString().replace(/\D/g, '');
     const messageText = message(businessName, planName);
 
     console.log(`📱 [NOTIFICATION] Enviando notificação de ${daysLeft} dias para ${businessName}`);
@@ -89,10 +95,11 @@ async function sendExpirationNotification(
     });
 
     if (response.ok) {
-      console.log(`✅ [NOTIFICATION] Notificação enviada com sucesso`);
+      console.log(`✅ [NOTIFICATION] Notificação enviada com sucesso para ${businessName}`);
       return true;
     } else {
-      console.warn(`⚠️ [NOTIFICATION] Falha ao enviar: ${response.status}`);
+      const errorText = await response.text().catch(() => 'Erro desconhecido');
+      console.warn(`⚠️ [NOTIFICATION] Falha ao enviar para ${businessName}: ${response.status} - ${errorText}`);
       return false;
     }
   } catch (error) {
@@ -164,50 +171,36 @@ export async function GET(request: Request) {
         const businessId = businessDoc.id;
         const businessName = business.nome || 'Sem nome';
 
-        console.log(`🔍 [CHECK-EXPIRATIONS] Verificando: ${businessName} (${businessId})`);
-        console.log(`   └─ Plano atual: ${business.planId}`);
-        console.log(`   └─ Tipo do access_expires_at:`, typeof business.access_expires_at);
-        console.log(`   └─ Valor raw do access_expires_at:`, business.access_expires_at);
-
         if (business.planId === 'plano_gratis') {
-          console.log(`   └─ ⏭️ Já está no plano gratuito, pulando...`);
           return;
         }
         
         const expirationDate = toDate(business.access_expires_at);
         
         if (!expirationDate) {
-          console.log(`   └─ ⚠️ Sem data de expiração definida ou inválida`);
-          console.log(`   └─ ⚠️ Valor original:`, business.access_expires_at);
+          console.log(`⚠️ [CHECK-EXPIRATIONS] ${businessName}: Sem data de expiração válida`);
           return;
         }
 
-        console.log(`   └─ 📅 Expira em: ${expirationDate.toISOString()}`);
-        console.log(`   └─ 📅 Timestamp expiração: ${expirationDate.getTime()}`);
+        // Normalizar datas para início do dia (00:00:00) para cálculo preciso
+        const todayStart = startOfDay(now);
+        const expirationStart = startOfDay(expirationDate);
         
-        const daysLeft = differenceInDays(expirationDate, now);
+        const daysLeft = differenceInDays(expirationStart, todayStart);
         const isExpired = isPast(expirationDate);
-        
-        console.log(`   └─ 🕐 Está expirado? ${isExpired ? 'SIM ❌' : 'NÃO ✅'}`);
-        console.log(`   └─ ⏰ Dias restantes: ${daysLeft}`);
 
         // 🔔 SISTEMA DE NOTIFICAÇÕES (3, 2, 1 dias antes + dia da expiração)
         if (!isExpired && (daysLeft === 3 || daysLeft === 2 || daysLeft === 1)) {
-          console.log(`   └─ 🔔 Dia de notificar! (${daysLeft} dias restantes)`);
-          
           // Verificar se já notificou hoje
           const lastNotification = (business as any).last_expiration_notification;
           const lastNotificationDate = lastNotification ? toDate(lastNotification) : null;
           const alreadyNotifiedToday = lastNotificationDate && 
             differenceInDays(now, lastNotificationDate) === 0;
           
-          if (alreadyNotifiedToday) {
-            console.log(`   └─ ⏭️ Já notificado hoje, pulando...`);
-          } else {
-            console.log(`   └─ 📱 Enviando notificação de remarketing...`);
-            
+          if (!alreadyNotifiedToday) {
             const planName = business.planId === 'plano_mensal' ? 'Plano Mensal' :
                            business.planId === 'plano_anual' ? 'Plano Anual' :
+                           business.planId === 'plano_premium' ? 'Premium' :
                            business.planId === 'premium' ? 'Premium' : business.planId;
             
             const notificationSent = await sendExpirationNotification(
@@ -218,54 +211,47 @@ export async function GET(request: Request) {
             );
             
             if (notificationSent) {
-              // Salvar timestamp da última notificação
               await businessDoc.ref.update({
                 last_expiration_notification: now
               });
-              console.log(`   └─ ✅ Notificação enviada e timestamp salvo`);
             }
           }
           
-          return; // Não expirou ainda, apenas notificou
-        }
-        
-        if (!isExpired) {
-          console.log(`   └─ ⏰ Faltam ${daysLeft} dias para expirar (fora do período de notificação)`);
           return;
         }
         
-        console.log(`   └─ ⚠️ PLANO EXPIRADO! Iniciando downgrade...`);
+        if (!isExpired) {
+          return;
+        }
+        
+        // PLANO EXPIRADO - Fazer downgrade
+        console.log(`⚠️ [CHECK-EXPIRATIONS] ${businessName}: Plano expirado, iniciando downgrade...`);
         
         try {
-          // 📱 GARANTIR DELEÇÃO DA INSTÂNCIA WHATSAPP
+          // Deletar instância WhatsApp se estiver conectada
           if (business.whatsappConectado && business.tokenInstancia) {
-            console.log(`   └─ 📱 WhatsApp CONECTADO. DELETANDO instância para liberar recursos...`);
             try {
               const client = new WhatsAppAPIClient(businessId, business.tokenInstancia);
               await client.deleteInstance();
-              console.log(`   └─ ✅ Instância WhatsApp DELETADA com sucesso`);
             } catch (error) {
-              console.error(`   └─ ❌ ERRO CRÍTICO ao deletar instância WhatsApp:`, error);
-              // Mesmo com erro, continuar com downgrade
+              console.error(`❌ [CHECK-EXPIRATIONS] Erro ao deletar instância WhatsApp de ${businessName}:`, error);
             }
-          } else {
-            console.log(`   └─ 📱 WhatsApp não conectado (ok)`);
           }
 
-          // 🔔 Enviar notificação de expiração
-          console.log(`   └─ 📱 Enviando notificação de expiração...`);
+          // Enviar notificação de expiração
           const planName = business.planId === 'plano_mensal' ? 'Plano Mensal' :
                          business.planId === 'plano_anual' ? 'Plano Anual' :
+                         business.planId === 'plano_premium' ? 'Premium' :
                          business.planId === 'premium' ? 'Premium' : business.planId;
           
           await sendExpirationNotification(
             business.telefone,
             business.nome,
             planName,
-            0 // Dia da expiração
+            0
           );
 
-          console.log(`   └─ 🔄 Atualizando para plano gratuito...`);
+          // Atualizar para plano gratuito
           const businessDocRef = adminDb.collection('negocios').doc(businessId);
           await businessDocRef.update({
             planId: 'plano_gratis',
@@ -276,14 +262,13 @@ export async function GET(request: Request) {
             habilitarFeedback: false,
             habilitarAniversario: false,
             iaAtiva: false,
-            last_expiration_notification: now, // Registrar notificação final
+            last_expiration_notification: now,
           });
           
-          console.log(`   └─ ✅ Downgrade concluído: ${businessName} → plano_gratis`);
-          console.log(`   └─ ✅ Notificação de expiração enviada`);
+          console.log(`✅ [CHECK-EXPIRATIONS] ${businessName}: Downgrade concluído → plano_gratis`);
           updatedCount++;
         } catch (error) {
-          console.error(`   └─ ❌ Erro ao processar ${businessId}:`, error);
+          console.error(`❌ [CHECK-EXPIRATIONS] Erro ao processar ${businessName}:`, error);
         }
       }));
     }
