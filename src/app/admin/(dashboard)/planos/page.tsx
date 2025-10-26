@@ -102,7 +102,7 @@ export default function AdminPlanosPage() {
       ) : (
         <>
           {/* Versão Desktop - Tabela */}
-          <div className="hidden md:block">
+          <div className="hidden md:block overflow-x-auto">
             <DataTable
               columns={getAdminPlansColumns({ onEdit: handleEditPlan })}
               data={plans}

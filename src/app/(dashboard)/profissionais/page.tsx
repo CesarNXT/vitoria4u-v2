@@ -146,7 +146,30 @@ export default function ProfessionalsPage() {
   }
 
   const handleFormSubmit = async (data: any) => {
-    if (!finalUserId || !businessSettings) return
+    console.log('[ProfessionalsPage] handleFormSubmit chamado com data:', data);
+    console.log('[ProfessionalsPage] finalUserId:', finalUserId);
+    console.log('[ProfessionalsPage] businessSettings:', businessSettings);
+    
+    if (!finalUserId) {
+      console.error('[ProfessionalsPage] Erro: finalUserId não está definido');
+      toast({
+        variant: "destructive",
+        title: "Erro de Autenticação",
+        description: "Usuário não identificado. Por favor, faça login novamente.",
+      });
+      return;
+    }
+    
+    if (!businessSettings) {
+      console.error('[ProfessionalsPage] Erro: businessSettings não está definido');
+      toast({
+        variant: "destructive",
+        title: "Configurações não Carregadas",
+        description: "As configurações do negócio não foram carregadas. Atualize a página e tente novamente.",
+      });
+      return;
+    }
+    
     setIsSubmitting(true)
     try {
       const normalizedPhoneStr = normalizePhoneNumber(data.phone); // 11 dígitos
@@ -309,7 +332,7 @@ export default function ProfessionalsPage() {
               )}
               </div>
           </div>
-          <div className='hidden md:block'>
+          <div className='hidden md:block overflow-x-auto'>
             <DataTable 
               columns={dynamicColumns} 
               data={professionals}

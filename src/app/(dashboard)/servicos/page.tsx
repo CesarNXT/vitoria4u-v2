@@ -286,7 +286,7 @@ export default function ServicesPage() {
               )}
               </div>
           </div>
-          <div className='hidden md:block'>
+          <div className='hidden md:block overflow-x-auto'>
             <DataTable 
               columns={dynamicColumns} 
               data={services}

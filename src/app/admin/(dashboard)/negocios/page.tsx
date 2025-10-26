@@ -271,7 +271,7 @@ Digite "DELETAR" para confirmar:`;
       </div>
 
       {/* Versão Desktop - Tabela */}
-      <div className="hidden md:block">
+      <div className="hidden md:block overflow-x-auto">
         <DataTable
           columns={getBusinessesColumns({ onEdit: handleEdit, onDelete: handleDelete })}
           data={filteredBusinesses}

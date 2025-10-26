@@ -32,9 +32,9 @@ import { saveOrUpdateDocument } from '@/lib/firestore'
 import { ProfessionalBlocksManager } from './professional-blocks-manager'
 
 const timeSlotSchema = z.object({
-  start: z.string(),
-  end: z.string(),
-}).refine(data => !data.start || !data.end || data.start < data.end, {
+  start: z.string().min(1, "Horário inicial é obrigatório"),
+  end: z.string().min(1, "Horário final é obrigatório"),
+}).refine(data => data.start < data.end, {
   message: "O horário final deve ser após o inicial.",
   path: ["end"],
 });
@@ -55,7 +55,7 @@ const daySchema = z.object({
     return true;
   },
   {
-    message: "Dia ativo deve ter pelo menos um horário configurado.",
+    message: "Dia ativo deve ter pelo menos um horário configurado. Não deixe dias ativos sem horários.",
     path: ["slots"],
   }
 );
@@ -206,6 +206,7 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
   }
 
   const handleFormSubmit = (data: ProfessionalFormValues) => {
+    console.log('[ProfessionalForm] Submit iniciado com dados:', data);
     onSubmit({
         ...data,
         workHours: data.workHours,
@@ -213,10 +214,55 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
     });
   };
 
+  // Tratar erros de validação e exibir toast
+  const handleInvalidSubmit = (errors: any) => {
+    console.error('[ProfessionalForm] Erros de validação:', errors);
+    
+    // Verificar se há erros relacionados aos horários de trabalho
+    if (errors.workHours) {
+      const diasComErro: string[] = [];
+      const diasMap: Record<string, string> = {
+        domingo: 'Domingo',
+        segunda: 'Segunda-feira',
+        terca: 'Terça-feira',
+        quarta: 'Quarta-feira',
+        quinta: 'Quinta-feira',
+        sexta: 'Sexta-feira',
+        sabado: 'Sábado'
+      };
+      
+      Object.keys(errors.workHours).forEach(dia => {
+        if (errors.workHours[dia]) {
+          diasComErro.push(diasMap[dia] || dia);
+        }
+      });
+      
+      const mensagem = diasComErro.length > 0
+        ? `Problemas encontrados em: ${diasComErro.join(', ')}. Cada dia ativo deve ter pelo menos um horário completo (início e fim).`
+        : "Por favor, configure corretamente os horários de trabalho. Cada dia ativo deve ter pelo menos um horário definido.";
+      
+      toast({
+        variant: "destructive",
+        title: "Erro nos Horários de Trabalho",
+        description: mensagem,
+        duration: 6000,
+      });
+      return;
+    }
+    
+    // Outros erros
+    toast({
+      variant: "destructive",
+      title: "Erro de Validação",
+      description: "Por favor, corrija os campos destacados em vermelho.",
+      duration: 5000,
+    });
+  };
+
   return (
     <FormProvider {...form}>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(handleFormSubmit, handleInvalidSubmit)} className="space-y-8">
             <FormField
             control={form.control}
             name="avatarUrl"
@@ -392,7 +438,7 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
             <div>
               <h3 className="text-lg font-medium">Horários de Trabalho</h3>
               <p className="text-sm text-muted-foreground">
-                  Defina os horários específicos para este profissional. Se um dia estiver fechado para o negócio, ele também estará para o profissional.
+                  Configure os dias e horários de trabalho. Você pode adicionar até 2 intervalos por dia (ex: manhã e tarde).
               </p>
             </div>
             <Button 
@@ -481,10 +527,17 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
           <div className="flex-1 overflow-y-auto px-1 -mx-1">
             <BusinessAgendaForm businessHours={businessHours} />
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsScheduleModalOpen(false)}>
-              Fechar
-            </Button>
+          <div className="flex flex-col gap-3 pt-4">
+            <div className="px-4 py-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                💡 <strong>Como usar:</strong> Ative o dia e configure os horários. Você pode adicionar intervalos (ex: almoço). O último horário não pode ser deletado - desative o dia se necessário. Após configurar, clique em "Concluir" e depois em "Salvar".
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" onClick={() => setIsScheduleModalOpen(false)}>
+                Concluir
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

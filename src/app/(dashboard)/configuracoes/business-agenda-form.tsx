@@ -138,6 +138,8 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                     ? timeOptions.filter(time => time >= previousSlotEnd)
                     : timeOptions.slice(0, -1);
 
+                const canDelete = fields.length > 1;
+                
                 return (
                     <div key={field.id} className="flex items-end gap-2">
                         <FormField
@@ -181,7 +183,19 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                 </FormItem>
                             )}
                         />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive h-9 w-9 shrink-0">
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                                if (canDelete) {
+                                    remove(index);
+                                }
+                            }}
+                            disabled={!canDelete}
+                            className="text-destructive h-9 w-9 shrink-0 disabled:opacity-30"
+                            title={!canDelete ? "Não é possível deletar o único horário. Desative o dia se necessário." : "Remover intervalo"}
+                        >
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
@@ -195,7 +209,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                     size="sm"
                     onClick={() => {
                         if (fields.length > 0) {
-                            // Segundo turno: sugerir começar onde o primeiro terminou (mas pode ser editado)
+                            // Segundo turno: sugerir começar onde o primeiro terminou
                             const lastSlot = watch(`${workHoursField}.${diaKey}.slots.${fields.length - 1}`);
                             const suggestedStart = lastSlot?.end || timeOptions[0] || '14:00';
                             const suggestedEnd = timeOptions[timeOptions.length - 1] || '23:30';
@@ -220,8 +234,9 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                 </Button>
             )}
             
-            {fields.length === 0 && <FormDescription className="text-xs">Nenhum horário definido. O dia será considerado fechado.</FormDescription>}
-            {fields.length === 1 && <FormDescription className="text-xs">Adicione um segundo turno para criar intervalo (ex: almoço). Pode começar após o fim do 1º turno.</FormDescription>}
+            {fields.length === 0 && <FormDescription className="text-xs">Dia desativado. Ative o dia para configurar horários.</FormDescription>}
+            {fields.length === 1 && <FormDescription className="text-xs">Adicione um segundo turno para criar intervalo (ex: almoço). Não é possível deletar o único horário.</FormDescription>}
+            {fields.length === 2 && <FormDescription className="text-xs">Máximo de 2 intervalos por dia atingido.</FormDescription>}
         </div>
     );
 
@@ -246,17 +261,23 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                             onCheckedChange={(checked) => {
                                                 field.onChange(checked);
                                                 if (checked && fields.length === 0) {
+                                                    // Ao ativar, copiar horários do negócio (profissional) ou usar padrão
                                                     if (isProfessionalForm && businessDaySchedule && businessDaySchedule.slots.length > 0) {
-                                                        remove();
+                                                        // Copiar todos os slots do negócio
                                                         businessDaySchedule.slots.forEach(slot => {
-                                                            append({ start: slot.start, end: slot.end });
+                                                            append({ 
+                                                                start: slot?.start || '08:00', 
+                                                                end: slot?.end || '18:00' 
+                                                            });
                                                         });
                                                     } else {
                                                         append({ start: '08:00', end: '18:00' });
                                                     }
                                                 } else if (!checked) {
-                                                    // Limpar horários ao desativar
-                                                    remove();
+                                                    // Limpar todos os horários ao desativar
+                                                    while (fields.length > 0) {
+                                                        remove(0);
+                                                    }
                                                 }
                                             }}
                                             disabled={isDayDisabledByBusiness}

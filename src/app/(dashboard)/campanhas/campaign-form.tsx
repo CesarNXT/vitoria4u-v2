@@ -616,13 +616,20 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
                   />
                 </div>
                 {contatosFiltrados.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {displayedCount < contatosFiltrados.length ? (
-                      <>Exibindo <strong>{displayedCount}</strong> de <strong>{contatosFiltrados.length}</strong> contatos • Role para carregar mais</>
-                    ) : (
-                      <>Exibindo todos <strong>{contatosFiltrados.length}</strong> contatos</>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      {displayedCount < contatosFiltrados.length ? (
+                        <>Exibindo <strong>{displayedCount}</strong> de <strong>{contatosFiltrados.length}</strong> contatos • Role para carregar mais</>
+                      ) : (
+                        <>Exibindo todos <strong>{contatosFiltrados.length}</strong> contatos</>
+                      )}
+                    </p>
+                    {clientes.length >= 5000 && !searchTerm && (
+                      <p className="text-xs text-orange-600 dark:text-orange-400">
+                        ⚠️ Mostrando até 5000 clientes. Use a busca para encontrar outros.
+                      </p>
                     )}
-                  </p>
+                  </div>
                 )}
               </div>
               

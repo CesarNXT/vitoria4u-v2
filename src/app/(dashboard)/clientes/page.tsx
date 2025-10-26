@@ -513,7 +513,7 @@ export default function ClientsPage() {
                 </div>
               )}
             </div>
-            <div className='hidden md:block'>
+            <div className='hidden md:block overflow-x-auto'>
                 <DataTable 
                 columns={dynamicColumns} 
                 data={filteredClients}

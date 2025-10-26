@@ -180,12 +180,22 @@ export default function CampanhasPage() {
     setIsLoadingData(true);
     try {
       const [clientesRes, campanhasRes] = await Promise.all([
-        getClientesAction(),
+        getClientesAction({ limit: 5000 }), // ✅ Limite de 5000 clientes para performance
         getCampanhasAction(),
       ]);
 
       if (clientesRes.success) {
         setClientes(clientesRes.clientes);
+        console.log(`📊 [Campanhas] ${clientesRes.clientes.length} clientes carregados para seleção`);
+        
+        // ⚠️ Avisar se atingiu o limite
+        if (clientesRes.clientes.length >= 5000) {
+          toast({
+            title: "⚠️ Muitos clientes",
+            description: "Mostrando os primeiros 5000 clientes. Use a busca para encontrar clientes específicos.",
+            duration: 8000,
+          });
+        }
       }
 
       if (campanhasRes.success) {
@@ -700,19 +710,21 @@ export default function CampanhasPage() {
               ))}
             </div>
           ) : (
-            <DataTable 
-              columns={uazapiColumns} 
-              data={campanhas}
-              meta={{
-                onView: handleViewDetails,
-                onPause: handlePauseCampanha,
-                onContinue: handleContinueCampanha,
-                onDelete: handleDeleteCampanha,
-                selectedIds: selectedCampaignIds,
-                onToggleSelection: handleToggleSelection,
-                onToggleSelectAll: handleToggleSelectAll,
-              }}
-            />
+            <div className="overflow-x-auto">
+              <DataTable 
+                columns={uazapiColumns} 
+                data={campanhas}
+                meta={{
+                  onView: handleViewDetails,
+                  onPause: handlePauseCampanha,
+                  onContinue: handleContinueCampanha,
+                  onDelete: handleDeleteCampanha,
+                  selectedIds: selectedCampaignIds,
+                  onToggleSelection: handleToggleSelection,
+                  onToggleSelectAll: handleToggleSelectAll,
+                }}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
