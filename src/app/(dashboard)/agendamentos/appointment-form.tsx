@@ -89,6 +89,18 @@ const safeNewDate = (dateSource: any): Date | undefined => {
   return undefined;
 };
 
+// Formatar telefone para exibição (DDD) 9XXXX-XXXX
+const formatPhone = (phone: string | number): string => {
+  const cleaned = phone.toString().replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return `(${cleaned.substring(0, 2)}) ${cleaned.substring(2, 7)}-${cleaned.substring(7)}`;
+  }
+  if (cleaned.length === 10) {
+    return `(${cleaned.substring(0, 2)}) ${cleaned.substring(2, 6)}-${cleaned.substring(6)}`;
+  }
+  return cleaned;
+};
+
 
 export function AppointmentForm({
   appointment,
@@ -347,17 +359,24 @@ export function AppointmentForm({
                             variant="outline"
                             onClick={() => setClientPopoverOpen(true)}
                             className={cn(
-                              "w-full justify-between min-w-0",
+                              "w-full justify-between min-w-0 h-auto py-2",
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            <span className="truncate block min-w-0 flex-1 text-left">{selectedClient ? selectedClient.name : "Selecione o cliente"}</span>
+                            {selectedClient ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 min-w-0 flex-1 text-left">
+                                <span className="truncate font-medium text-sm">{selectedClient.name}</span>
+                                <span className="text-xs sm:text-sm text-muted-foreground sm:text-right truncate">{formatPhone(selectedClient.phone)}</span>
+                              </div>
+                            ) : (
+                              <span className="text-left">Selecione o cliente</span>
+                            )}
                             <ChevronsUpDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
                           </Button>
                         </TooltipTrigger>
                         {selectedClient && selectedClient.name.length > 30 && (
                           <TooltipContent>
-                            <p>{selectedClient.name}</p>
+                            <p>{selectedClient.name} - {formatPhone(selectedClient.phone)}</p>
                           </TooltipContent>
                         )}
                       </Tooltip>
@@ -382,7 +401,7 @@ export function AppointmentForm({
                               <Button
                                 key={client.id}
                                 variant={field.value === client.id ? "secondary" : "ghost"}
-                                className="w-full justify-start min-w-0"
+                                className="w-full justify-start min-w-0 h-auto py-2"
                                 onClick={() => {
                                   field.onChange(client.id);
                                   setClientPopoverOpen(false);
@@ -392,7 +411,10 @@ export function AppointmentForm({
                                 {field.value === client.id && (
                                   <Check className="mr-2 h-4 w-4 flex-shrink-0" />
                                 )}
-                                <span className="truncate block min-w-0">{client.name}</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 min-w-0 flex-1">
+                                  <span className="truncate font-medium text-left">{client.name}</span>
+                                  <span className="text-xs sm:text-sm text-muted-foreground sm:text-right truncate">{formatPhone(client.phone)}</span>
+                                </div>
                               </Button>
                             ))
                           ) : (
