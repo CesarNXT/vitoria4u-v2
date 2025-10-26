@@ -45,21 +45,9 @@ function AdminLayoutWithFirebase({ children }: { children: React.ReactNode }) {
   // 🔥 Sincronizar documento admin automaticamente
   useAdminSync();
   
-  // 🔄 AUTO-SYNC: Sincroniza planos quando admin faz login
-  useEffect(() => {
-    async function syncPlans() {
-      if (!user || !firestore) return;
-      
-      const { syncPlansToFirestore, shouldSyncPlans, markPlansSynced } = await import('@/lib/sync-plans');
-      
-      if (shouldSyncPlans()) {
-        await syncPlansToFirestore(firestore);
-        markPlansSynced();
-        }
-    }
-    
-    syncPlans();
-  }, [user, firestore]);
+  // ❌ REMOVIDO: Sincronização automática de planos
+  // Os planos agora são totalmente editáveis via Firestore sem interferência do código
+  // Para criar planos do zero, use: /api/admin/seed-plans (chamada manual)
 
   useEffect(() => {
     setMounted(true);

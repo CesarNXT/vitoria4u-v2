@@ -35,7 +35,7 @@ const plansToCreate: Omit<Plano, 'id'>[] = [
   {
     name: 'Premium',
     description: 'Acesso total a todas as funcionalidades da plataforma.',
-    price: 179.90,
+    price: 189.00,
     durationInDays: 30,
     status: 'Ativo',
     features: ['lembrete_24h', 'lembrete_2h', 'feedback_pos_atendimento', 'solicitacao_feedback', 'lembrete_aniversario', 'lembrete_profissional', 'disparo_de_mensagens', 'retorno_manutencao', 'notificacao_gestor_agendamento', 'atendimento_whatsapp_ia', 'notificacao_cliente_agendamento', 'escalonamento_humano'],

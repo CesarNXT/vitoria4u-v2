@@ -121,15 +121,8 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       const adminStatus = await isAdminUser(user);
       setIsAdmin(adminStatus);
       
-      // 🔄 AUTO-SYNC: Se for admin, sincroniza planos automaticamente
-      if (adminStatus && firestore) {
-        const { syncPlansToFirestore, shouldSyncPlans, markPlansSynced } = await import('@/lib/sync-plans');
-        
-        if (shouldSyncPlans()) {
-          await syncPlansToFirestore(firestore);
-          markPlansSynced();
-          }
-      }
+      // ❌ REMOVIDO: Sincronização automática de planos
+      // Os planos agora são totalmente editáveis via Firestore sem interferência do código
       
       // 🚫 BLOQUEIO: Admins não podem acessar painel de negócios
       // Apenas usuários comuns têm acesso

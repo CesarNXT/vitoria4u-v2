@@ -1,6 +1,13 @@
 /**
- * 🔄 Sincronização Automática de Planos
- * Garante que os planos estejam sempre atualizados com as features corretas
+ * ⚠️ SINCRONIZAÇÃO AUTOMÁTICA DESABILITADA
+ * 
+ * Os planos agora são totalmente editáveis via Firestore Console sem interferência do código.
+ * Este arquivo mantém os valores padrão apenas como REFERÊNCIA.
+ * 
+ * Para criar/resetar planos: Use /api/admin/seed-plans (chamada manual)
+ * Para editar valores: Edite diretamente no Firestore Console
+ * 
+ * ❌ A sincronização automática foi REMOVIDA dos layouts (admin e dashboard)
  */
 
 import type { Plano } from '@/lib/types';
@@ -52,7 +59,7 @@ export const STANDARD_PLANS: Record<string, Omit<Plano, 'id'>> = {
   plano_premium: {
     name: 'Premium',
     description: 'Acesso total a todas as funcionalidades da plataforma.',
-    price: 179.90,
+    price: 189.00,
     durationInDays: 30,
     status: 'Ativo',
     features: [
