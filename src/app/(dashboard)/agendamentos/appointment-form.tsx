@@ -293,12 +293,29 @@ export function AppointmentForm({
         setIsLoadingTimes(true);
         
         try {
-          // Gera TODOS os horários de 00:00 até 23:30 (sem restrições)
-          // Gestor pode registrar agendamentos passados
+          // Gera TODOS os horários de 00:00 até 23:30
           const times: string[] = [];
+          const now = new Date();
+          const isToday = selectedDate.toDateString() === now.toDateString();
+          
           for (let hour = 0; hour < 24; hour++) {
-            times.push(`${String(hour).padStart(2, '0')}:00`);
-            times.push(`${String(hour).padStart(2, '0')}:30`);
+            for (let minute of [0, 30]) {
+              const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+              
+              // Se for hoje, filtrar horários passados (exceto se estiver editando)
+              if (isToday && !appointment) {
+                const timeDate = new Date(selectedDate);
+                timeDate.setHours(hour, minute, 0, 0);
+                
+                // Só adicionar se o horário for no futuro (com margem de alguns minutos)
+                if (timeDate > now) {
+                  times.push(timeStr);
+                }
+              } else {
+                // Para outras datas ou edição, adicionar todos os horários
+                times.push(timeStr);
+              }
+            }
           }
           
           // If editing, make sure the current appointment's time is in the list
@@ -318,15 +335,22 @@ export function AppointmentForm({
               const dayName = dayNames[dayOfWeek] || 'domingo';
               const horariosDay = businessSettings.horariosFuncionamento[dayName];
               if (horariosDay && horariosDay.enabled && horariosDay.slots.length > 0 && horariosDay.slots[0]) {
-                // Setar horário de abertura como padrão
-                setValue('startTime', horariosDay.slots[0].start);
+                const firstSlotTime = horariosDay.slots[0].start;
+                
+                // Verificar se o horário de abertura está na lista de horários disponíveis
+                if (times.includes(firstSlotTime)) {
+                  setValue('startTime', firstSlotTime);
+                } else if (times.length > 0) {
+                  // Se o horário de abertura não está disponível, usar o primeiro horário disponível
+                  setValue('startTime', times[0] || '');
+                }
               }
             }
           }
           
           // Reset startTime se não estiver na nova lista de horários disponíveis
           // (exceto se for o horário do agendamento em edição)
-          const currentTime = selectedTime;
+          const currentTime = form.getValues('startTime');
           if (currentTime && !times.includes(currentTime)) {
             const isEditingOriginalTime = appointment && appointment.startTime === currentTime;
             if (!isEditingOriginalTime) {
@@ -345,7 +369,7 @@ export function AppointmentForm({
     };
     
     fetchAvailableTimes();
-  }, [selectedDate, selectedService, selectedProfessionalId, appointment, selectedTime, setValue, businessSettings]);
+  }, [selectedDate, selectedService, selectedProfessionalId, appointment, businessSettings, setValue, form]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
     console.log('🔵 handleFormSubmit chamado', {
@@ -736,30 +760,6 @@ export function AppointmentForm({
             )}
           />
         </div>
-        
-        {/* Avisos de conflitos, dias não trabalhados e bloqueios */}
-        {(conflictWarning || workDayWarning || blockWarning) && (
-          <div className="space-y-2 p-4 bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-200 dark:border-yellow-800 rounded-lg">
-            {workDayWarning && (
-              <div className="flex items-start gap-2 text-sm text-yellow-800 dark:text-yellow-200">
-                <span className="text-base flex-shrink-0">📅</span>
-                <p className="flex-1">{workDayWarning}</p>
-              </div>
-            )}
-            {blockWarning && (
-              <div className="flex items-start gap-2 text-sm text-red-800 dark:text-red-200">
-                <span className="text-base flex-shrink-0">🚫</span>
-                <p className="flex-1">{blockWarning}</p>
-              </div>
-            )}
-            {conflictWarning && (
-              <div className="flex items-start gap-2 text-sm text-orange-800 dark:text-orange-200">
-                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <p className="flex-1">{conflictWarning}</p>
-              </div>
-            )}
-          </div>
-        )}
         
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
