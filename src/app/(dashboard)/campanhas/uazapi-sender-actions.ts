@@ -81,18 +81,18 @@ export async function getClientesAction(filters?: {
     // ✅ OTIMIZAÇÃO: Limite padrão de 1000 clientes para não travar
     const limit = filters?.limit || 1000;
 
+    // Query simples sem filtros complexos (evita erro de índice)
     let query = adminDb
       .collection('negocios')
       .doc(businessId)
       .collection('clientes')
-      .where('status', 'in', ['Ativo', 'Inativo'])
-      .orderBy('name', 'asc')
       .limit(limit); // ✅ CRÍTICO: Limitar leituras!
 
     const clientesSnapshot = await query.get();
     
-    console.log(`📊 Clientes carregados: ${clientesSnapshot.size} (limite: ${limit})`);
+    console.log(`📊 Clientes carregados do Firebase: ${clientesSnapshot.size} (limite: ${limit})`);
 
+    // Filtrar apenas clientes ativos no código (evita necessidade de índice)
     let clientes: Cliente[] = clientesSnapshot.docs
       .map((doc: any) => {
         const data = doc.data();
@@ -112,7 +112,9 @@ export async function getClientesAction(filters?: {
           ultima_campanha: data.ultima_campanha?.toDate(),
         };
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter((cliente: Cliente) => cliente.status === 'Ativo'); // ✅ Filtrar apenas ativos
+    
+    console.log(`📊 Clientes ativos após filtro: ${clientes.length}`);
 
     // ✅ APLICAR FILTROS
     if (filters?.excludeWithCampaigns) {

@@ -407,30 +407,31 @@ async function autoRegisterClient(businessId: string, chat: any, message: any) {
       return;
     }
 
-    // 📸 BUSCAR FOTO DO PERFIL (apenas no primeiro cadastro)
+    // 📸 BUSCAR FOTO DO PERFIL usando endpoint /chat/details
     let avatarUrl: string | undefined = undefined;
     
-    // Tentar pegar foto que já vem no webhook do chat
-    // imagePreview é mais fácil de baixar (sem restrições pesadas)
-    const chatImageUrl = chat.imagePreview || chat.image;
-    
-    if (chatImageUrl) {
-      try {
-        // Buscar token da instância para usar proxy da UazAPI
-        const businessDoc = await adminDb.collection('negocios').doc(businessId).get();
-        const business = businessDoc.data();
+    try {
+      // Buscar token da instância
+      const businessDoc = await adminDb.collection('negocios').doc(businessId).get();
+      const business = businessDoc.data();
+      
+      if (business?.tokenInstancia) {
+        console.log(`[WEBHOOK-AUTO-REGISTER] 📸 Buscando foto do perfil via /chat/details para ${phoneNumber}`);
         
-        if (business?.tokenInstancia) {
-          avatarUrl = await downloadAndSaveImageViaProxy(businessId, chatImageUrl, phoneNumber, business.tokenInstancia);
+        // Chamar endpoint /chat/details para obter imagem atualizada
+        avatarUrl = await fetchProfileImageFromChatInfo(phoneNumber, business.tokenInstancia);
+        
+        if (avatarUrl) {
+          console.log(`[WEBHOOK-AUTO-REGISTER] ✅ Foto obtida com sucesso: ${avatarUrl}`);
         } else {
-          console.warn('[WEBHOOK-AUTO-REGISTER] Token não disponível para download de foto');
+          console.warn('[WEBHOOK-AUTO-REGISTER] ⚠️ Nenhuma foto retornada do /chat/details');
         }
-      } catch (photoError) {
-        console.warn('[WEBHOOK-AUTO-REGISTER] Não foi possível salvar foto do perfil:', photoError);
-        // Continua o cadastro mesmo se falhar a foto
+      } else {
+        console.warn('[WEBHOOK-AUTO-REGISTER] Token não disponível para buscar foto');
       }
-    } else {
-      console.warn('[WEBHOOK-AUTO-REGISTER] Chat não tem foto de perfil no webhook');
+    } catch (photoError) {
+      console.warn('[WEBHOOK-AUTO-REGISTER] Erro ao buscar foto do perfil:', photoError);
+      // Continua o cadastro mesmo se falhar a foto
     }
 
     // Criar novo cliente no Firebase (padrão do frontend)
@@ -458,6 +459,55 @@ async function autoRegisterClient(businessId: string, chat: any, message: any) {
 
   } catch (error) {
     console.error('[WEBHOOK-AUTO-REGISTER] Erro ao auto-cadastrar cliente:', error);
+  }
+}
+
+/**
+ * Busca imagem do perfil usando endpoint /chat/details da UazAPI
+ * Retorna a URL direta da imagem (image ou imagePreview)
+ */
+async function fetchProfileImageFromChatInfo(
+  phoneNumber: string,
+  token: string
+): Promise<string | undefined> {
+  try {
+    const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
+    
+    console.log(`[WEBHOOK-PHOTO] Chamando /chat/details para número: ${phoneNumber}`);
+    
+    const response = await fetch(`${API_BASE}/chat/details`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': token
+      },
+      body: JSON.stringify({
+        number: phoneNumber,
+        preview: false // false = imagem em tamanho full (melhor qualidade)
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[WEBHOOK-PHOTO] Erro ao buscar detalhes do chat: ${response.status} - ${errorText}`);
+      return undefined;
+    }
+
+    const chatInfo = await response.json();
+    
+    // Priorizar image (full) sobre imagePreview
+    const imageUrl = chatInfo.image || chatInfo.imagePreview;
+    
+    if (imageUrl) {
+      console.log(`[WEBHOOK-PHOTO] ✅ Imagem encontrada no /chat/details: ${imageUrl}`);
+      return imageUrl;
+    } else {
+      console.warn('[WEBHOOK-PHOTO] Chat details não contém imagem de perfil');
+      return undefined;
+    }
+  } catch (error) {
+    console.error('[WEBHOOK-PHOTO] Erro ao buscar imagem via /chat/details:', error);
+    return undefined;
   }
 }
 

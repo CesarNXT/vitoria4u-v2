@@ -218,12 +218,13 @@ export default function ClientsPage() {
 
       let avatarUrl = data.avatarUrl || null;
 
-      // 📸 AUTO-BUSCAR FOTO DO WHATSAPP se não tiver foto E WhatsApp estiver conectado
-      // Usa endpoint: POST /chat/details (retorna image e imagePreview)
+      // 📸 AUTO-BUSCAR FOTO DO WHATSAPP apenas se:
+      // - Campo avatarUrl está vazio (!avatarUrl)
+      // - É um cadastro novo (!selectedClient)
+      // - WhatsApp conectado
+      // Usa endpoint: POST /chat/details (baixa e salva no Firebase Storage)
       if (!avatarUrl && !selectedClient && businessSettings.whatsappConectado && businessSettings.tokenInstancia) {
         try {
-          console.log('📸 Buscando foto do WhatsApp para cliente...');
-          
           const response = await fetch('/api/client/fetch-avatar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -239,11 +240,9 @@ export default function ClientsPage() {
             const result = await response.json();
             if (result.avatarUrl) {
               avatarUrl = result.avatarUrl;
-              console.log('✅ Foto do WhatsApp obtida para cliente:', avatarUrl);
             }
           }
         } catch (photoError) {
-          console.warn('⚠️ Não foi possível buscar foto do WhatsApp:', photoError);
           // Continua o cadastro mesmo se falhar a foto
         }
       }

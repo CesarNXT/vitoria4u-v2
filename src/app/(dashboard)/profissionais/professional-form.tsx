@@ -206,7 +206,6 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
   }
 
   const handleFormSubmit = (data: ProfessionalFormValues) => {
-    console.log('[ProfessionalForm] Submit iniciado com dados:', data);
     onSubmit({
         ...data,
         workHours: data.workHours,
@@ -216,7 +215,6 @@ export function ProfessionalForm({ professional, onSubmit, isSubmitting, busines
 
   // Tratar erros de validação e exibir toast
   const handleInvalidSubmit = (errors: any) => {
-    console.error('[ProfessionalForm] Erros de validação:', errors);
     
     // Verificar se há erros relacionados aos horários de trabalho
     if (errors.workHours) {

@@ -146,12 +146,7 @@ export default function ProfessionalsPage() {
   }
 
   const handleFormSubmit = async (data: any) => {
-    console.log('[ProfessionalsPage] handleFormSubmit chamado com data:', data);
-    console.log('[ProfessionalsPage] finalUserId:', finalUserId);
-    console.log('[ProfessionalsPage] businessSettings:', businessSettings);
-    
     if (!finalUserId) {
-      console.error('[ProfessionalsPage] Erro: finalUserId não está definido');
       toast({
         variant: "destructive",
         title: "Erro de Autenticação",
@@ -161,7 +156,6 @@ export default function ProfessionalsPage() {
     }
     
     if (!businessSettings) {
-      console.error('[ProfessionalsPage] Erro: businessSettings não está definido');
       toast({
         variant: "destructive",
         title: "Configurações não Carregadas",
@@ -211,12 +205,15 @@ export default function ProfessionalsPage() {
 
       let avatarUrl = data.avatarUrl || null;
 
-      // 📸 AUTO-BUSCAR FOTO DO WHATSAPP se não tiver foto E WhatsApp estiver conectado
-      // Usa endpoint: POST /chat/details (retorna image e imagePreview)
-      if (!avatarUrl && !selectedProfessional && businessSettings.whatsappConectado && businessSettings.tokenInstancia) {
+      // 📸 AUTO-BUSCAR FOTO DO WHATSAPP apenas se:
+      // - Campo avatarUrl está vazio (!avatarUrl)
+      // - É um cadastro novo (!selectedProfessional)
+      // - WhatsApp conectado
+      // Usa endpoint: POST /chat/details (baixa e salva no Firebase Storage)
+      const shouldFetchAvatar = !avatarUrl && !selectedProfessional && businessSettings.whatsappConectado && !!businessSettings.tokenInstancia;
+      
+      if (shouldFetchAvatar) {
         try {
-          console.log('📸 Buscando foto do WhatsApp automaticamente...');
-          
           const response = await fetch('/api/professional/fetch-avatar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -232,11 +229,9 @@ export default function ProfessionalsPage() {
             const result = await response.json();
             if (result.avatarUrl) {
               avatarUrl = result.avatarUrl;
-              console.log('✅ Foto do WhatsApp obtida:', avatarUrl);
             }
           }
         } catch (photoError) {
-          console.warn('⚠️ Não foi possível buscar foto do WhatsApp:', photoError);
           // Continua o cadastro mesmo se falhar a foto
         }
       }

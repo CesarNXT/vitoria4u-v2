@@ -180,19 +180,23 @@ export default function CampanhasPage() {
     setIsLoadingData(true);
     try {
       const [clientesRes, campanhasRes] = await Promise.all([
-        getClientesAction({ limit: 5000 }), // ✅ Limite de 5000 clientes para performance
+        getClientesAction({ limit: 10000 }), // ✅ Limite de 10000 clientes para performance
         getCampanhasAction(),
       ]);
 
       if (clientesRes.success) {
-        setClientes(clientesRes.clientes);
-        console.log(`📊 [Campanhas] ${clientesRes.clientes.length} clientes carregados para seleção`);
+        // Ordenar por nome no frontend
+        const sortedClientes = [...clientesRes.clientes].sort((a, b) => 
+          (a.name || '').localeCompare(b.name || '', 'pt-BR')
+        );
+        
+        setClientes(sortedClientes);
         
         // ⚠️ Avisar se atingiu o limite
-        if (clientesRes.clientes.length >= 5000) {
+        if (sortedClientes.length >= 10000) {
           toast({
             title: "⚠️ Muitos clientes",
-            description: "Mostrando os primeiros 5000 clientes. Use a busca para encontrar clientes específicos.",
+            description: "Mostrando os primeiros 10000 clientes. Use filtros para selecionar clientes específicos.",
             duration: 8000,
           });
         }
@@ -202,7 +206,6 @@ export default function CampanhasPage() {
         setCampanhas(campanhasRes.campanhas);
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
       toast({
         variant: "destructive",
         title: "Erro ao carregar dados",
@@ -739,12 +742,17 @@ export default function CampanhasPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {clientes.length === 0 ? (
+          {isLoadingData ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Carregando clientes...</span>
+            </div>
+          ) : clientes.length === 0 ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Você precisa ter clientes cadastrados para criar uma campanha.
-                Cadastre clientes primeiro na aba &quot;Clientes&quot;.
+                Nenhum cliente foi carregado. Verifique sua conexão e tente recarregar a página.
+                Se o problema persistir, cadastre clientes na aba &quot;Clientes&quot;.
               </AlertDescription>
             </Alert>
           ) : (

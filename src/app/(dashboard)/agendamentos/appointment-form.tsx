@@ -111,6 +111,8 @@ export function AppointmentForm({
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
   const [professionalSearchTerm, setProfessionalSearchTerm] = useState('');
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
+  const [workDayWarning, setWorkDayWarning] = useState<string | null>(null);
+  const [blockWarning, setBlockWarning] = useState<string | null>(null);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pendingData, setPendingData] = useState<AppointmentFormValues | null>(null);
   const isSubmittingRef = useRef(false);
@@ -178,6 +180,61 @@ export function AppointmentForm({
       setConflictWarning(null);
     }
   }, [selectedDate, selectedTime, selectedProfessionalId, selectedService, allAppointments, appointment]);
+  
+  // Verifica se profissional trabalha no dia e se há bloqueios
+  useEffect(() => {
+    if (selectedDate && selectedProfessionalId) {
+      const professional = professionals.find(p => p.id === selectedProfessionalId);
+      if (!professional) {
+        setWorkDayWarning(null);
+        setBlockWarning(null);
+        return;
+      }
+
+      // Verificar se o profissional trabalha no dia
+      const dayOfWeek = selectedDate.getDay(); // 0 = Domingo, 1 = Segunda, etc
+      const dayNames = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
+      const dayName = dayNames[dayOfWeek];
+      
+      if (professional.workHours && dayName) {
+        const workDay = professional.workHours[dayName];
+        if (!workDay?.enabled || workDay.slots.length === 0) {
+          setWorkDayWarning(`📅 Atenção: ${professional.name} geralmente não trabalha às ${format(selectedDate, 'EEEE', { locale: ptBR })}s.`);
+        } else {
+          setWorkDayWarning(null);
+        }
+      } else {
+        setWorkDayWarning(null);
+      }
+
+      // Verificar bloqueios na agenda
+      if (professional.datasBloqueadas && professional.datasBloqueadas.length > 0) {
+        const selectedDateOnly = new Date(selectedDate);
+        selectedDateOnly.setHours(0, 0, 0, 0);
+
+        const blocked = professional.datasBloqueadas.find(block => {
+          const startDate = new Date(block.startDate);
+          const endDate = new Date(block.endDate);
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(23, 59, 59, 999);
+          
+          return selectedDateOnly >= startDate && selectedDateOnly <= endDate;
+        });
+
+        if (blocked) {
+          const reason = blocked.reason ? `: ${blocked.reason}` : '';
+          setBlockWarning(`🚫 Atenção: ${professional.name} tem bloqueio de agenda neste dia${reason}.`);
+        } else {
+          setBlockWarning(null);
+        }
+      } else {
+        setBlockWarning(null);
+      }
+    } else {
+      setWorkDayWarning(null);
+      setBlockWarning(null);
+    }
+  }, [selectedDate, selectedProfessionalId, professionals]);
   
   const filteredClients = useMemo(() => {
     if (!clientSearchTerm) return clients;
@@ -297,13 +354,13 @@ export function AppointmentForm({
     
     isSubmittingRef.current = true;
     
-    if (conflictWarning) {
-      // Se há conflito, mostra o dialog
+    // Se há qualquer aviso (conflito, dia não trabalhado ou bloqueio), mostra o dialog
+    if (conflictWarning || workDayWarning || blockWarning) {
       setPendingData(data);
       setShowConflictDialog(true);
       isSubmittingRef.current = false; // Libera se for apenas abrir dialog
     } else {
-      // Sem conflito, envia direto
+      // Sem avisos, envia direto
       onSubmit(data);
       // isSubmittingRef será resetado quando o form fechar/reabrir
     }
@@ -667,6 +724,30 @@ export function AppointmentForm({
           />
         </div>
         
+        {/* Avisos de conflitos, dias não trabalhados e bloqueios */}
+        {(conflictWarning || workDayWarning || blockWarning) && (
+          <div className="space-y-2 p-4 bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-200 dark:border-yellow-800 rounded-lg">
+            {workDayWarning && (
+              <div className="flex items-start gap-2 text-sm text-yellow-800 dark:text-yellow-200">
+                <span className="text-base flex-shrink-0">📅</span>
+                <p className="flex-1">{workDayWarning}</p>
+              </div>
+            )}
+            {blockWarning && (
+              <div className="flex items-start gap-2 text-sm text-red-800 dark:text-red-200">
+                <span className="text-base flex-shrink-0">🚫</span>
+                <p className="flex-1">{blockWarning}</p>
+              </div>
+            )}
+            {conflictWarning && (
+              <div className="flex items-start gap-2 text-sm text-orange-800 dark:text-orange-200">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <p className="flex-1">{conflictWarning}</p>
+              </div>
+            )}
+          </div>
+        )}
+        
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSubmitting ? 'Salvando...' : 'Salvar'}
@@ -678,13 +759,25 @@ export function AppointmentForm({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-orange-600 text-base sm:text-lg">
               <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-              Conflito de Horário Detectado!
+              {conflictWarning ? 'Conflito Detectado!' : 'Atenção ao Agendar'}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <div className="text-sm sm:text-base break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                  {conflictWarning}
-                </div>
+                {workDayWarning && (
+                  <div className="text-sm sm:text-base break-words bg-yellow-50 dark:bg-yellow-950/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {workDayWarning}
+                  </div>
+                )}
+                {blockWarning && (
+                  <div className="text-sm sm:text-base break-words bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-200 dark:border-red-800" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {blockWarning}
+                  </div>
+                )}
+                {conflictWarning && (
+                  <div className="text-sm sm:text-base break-words bg-orange-50 dark:bg-orange-950/20 p-3 rounded-lg border border-orange-200 dark:border-orange-800" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {conflictWarning}
+                  </div>
+                )}
                 <strong className="block pt-2 text-sm sm:text-base">Deseja agendar mesmo assim?</strong>
               </div>
             </AlertDialogDescription>

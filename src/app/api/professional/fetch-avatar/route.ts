@@ -4,6 +4,7 @@ import { fetchAndSaveWhatsAppAvatar } from '@/lib/fetch-whatsapp-avatar';
 /**
  * API para buscar foto de perfil do WhatsApp de um profissional
  * Usa endpoint correto: POST /chat/details
+ * Baixa imagem e salva no Firebase Storage
  */
 export async function POST(req: NextRequest) {
   try {
@@ -32,7 +33,6 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error: any) {
-    console.error('[API-FETCH-AVATAR] Erro:', error);
     return NextResponse.json(
       { error: error.message || 'Erro ao buscar avatar', success: false },
       { status: 500 }
