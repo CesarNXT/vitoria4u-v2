@@ -12,6 +12,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  limit,
   Query,
   DocumentData,
 } from 'firebase/firestore';
@@ -88,6 +89,15 @@ export async function getBusinessConfig(businessId: string): Promise<Configuraco
 
 
 // --- Real-time Snapshot Listeners ---
+// 
+// ✅ IMPORTANTE - PERFORMANCE & CUSTO FIRESTORE:
+// Todas as queries abaixo TÊM LIMITES para evitar:
+// 1. Lentidão no sistema (7000+ documentos travam a UI)
+// 2. Custo alto no Firestore (cada read é cobrado)
+// 3. Listeners em tempo real consumindo recursos
+//
+// ⚠️ NUNCA remova os limites sem revisar o impacto!
+// Se precisar de mais dados, implemente paginação ou busca server-side.
 
 const createSnapshotListener = <T>(collectionName: string, businessId: string, setData: (data: T[]) => void, q?: Query): (() => void) => {
     const db = getDb();
@@ -105,20 +115,70 @@ const createSnapshotListener = <T>(collectionName: string, businessId: string, s
     return unsubscribe;
 };
 
-export const getAppointmentsOnSnapshot = (businessId: string, setData: (data: Agendamento[]) => void) => 
-    createSnapshotListener<Agendamento>('agendamentos', businessId, setData, query(collection(getDb(), `negocios/${businessId}/agendamentos`), orderBy('date', 'desc')));
+// ✅ OTIMIZADO: Limitar agendamentos carregados
+export const getAppointmentsOnSnapshot = (businessId: string, setData: (data: Agendamento[]) => void, maxLimit: number = 200) => 
+    createSnapshotListener<Agendamento>(
+        'agendamentos', 
+        businessId, 
+        setData, 
+        query(
+            collection(getDb(), `negocios/${businessId}/agendamentos`), 
+            orderBy('date', 'desc'),
+            limit(maxLimit) // ✅ Apenas os últimos 200 agendamentos por padrão
+        )
+    );
 
-export const getClientsOnSnapshot = (businessId: string, setData: (data: Cliente[]) => void) => 
-    createSnapshotListener<Cliente>('clientes', businessId, setData);
+// ✅ OTIMIZADO: Limitar clientes carregados (não carregar todos os 7000!)
+export const getClientsOnSnapshot = (businessId: string, setData: (data: Cliente[]) => void, maxLimit: number = 500) => 
+    createSnapshotListener<Cliente>(
+        'clientes', 
+        businessId, 
+        setData, 
+        query(
+            collection(getDb(), `negocios/${businessId}/clientes`), 
+            orderBy('name', 'asc'),
+            limit(maxLimit) // ✅ Apenas os primeiros 500 clientes por padrão
+        )
+    );
 
-export const getServicesOnSnapshot = (businessId: string, setData: (data: Servico[]) => void) =>
-    createSnapshotListener<Servico>('servicos', businessId, setData);
+// ✅ OTIMIZADO: Limitar serviços carregados
+export const getServicesOnSnapshot = (businessId: string, setData: (data: Servico[]) => void, maxLimit: number = 100) =>
+    createSnapshotListener<Servico>(
+        'servicos', 
+        businessId, 
+        setData, 
+        query(
+            collection(getDb(), `negocios/${businessId}/servicos`),
+            orderBy('name', 'asc'),
+            limit(maxLimit) // ✅ Máximo 100 serviços
+        )
+    );
 
-export const getProfessionalsOnSnapshot = (businessId: string, setData: (data: Profissional[]) => void) =>
-    createSnapshotListener<Profissional>('profissionais', businessId, setData);
+// ✅ OTIMIZADO: Limitar profissionais carregados
+export const getProfessionalsOnSnapshot = (businessId: string, setData: (data: Profissional[]) => void, maxLimit: number = 50) =>
+    createSnapshotListener<Profissional>(
+        'profissionais', 
+        businessId, 
+        setData,
+        query(
+            collection(getDb(), `negocios/${businessId}/profissionais`),
+            orderBy('name', 'asc'),
+            limit(maxLimit) // ✅ Máximo 50 profissionais
+        )
+    );
 
-export const getBlockedDatesOnSnapshot = (businessId: string, setData: (data: DataBloqueada[]) => void) =>
-    createSnapshotListener<DataBloqueada>('datasBloqueadas', businessId, setData, query(collection(getDb(), `negocios/${businessId}/datasBloqueadas`), orderBy('startDate', 'asc')));
+// ✅ OTIMIZADO: Limitar datas bloqueadas carregadas
+export const getBlockedDatesOnSnapshot = (businessId: string, setData: (data: DataBloqueada[]) => void, maxLimit: number = 100) =>
+    createSnapshotListener<DataBloqueada>(
+        'datasBloqueadas', 
+        businessId, 
+        setData, 
+        query(
+            collection(getDb(), `negocios/${businessId}/datasBloqueadas`), 
+            orderBy('startDate', 'asc'),
+            limit(maxLimit) // ✅ Máximo 100 bloqueios
+        )
+    );
 
 // --- One-time Data Fetches (Client-side) ---
 

@@ -10,7 +10,7 @@ import { WhatsappStatus } from './whatsapp-status';
 import { DailyPhrase } from './daily-phrase';
 import { FinancialOverview } from './financial-overview';
 import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, doc, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -52,10 +52,27 @@ export function DashboardClientWrapper({ businessUserId }: DashboardClientWrappe
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, `negocios/${businessUserId}`) : null, [firestore, businessUserId]);
   const { data: settings, isLoading: isLoadingSettings } = useDoc<ConfiguracoesNegocio>(settingsRef);
 
-  const appointmentsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, `negocios/${businessUserId}/agendamentos`), orderBy('date', 'desc')) : null, [firestore, businessUserId]);
+  // ✅ OTIMIZAÇÃO CRÍTICA: Limitar queries para não travar com muitos dados
+  // Dashboard só precisa dos dados recentes para exibir cards e gráficos
+  const appointmentsQuery = useMemoFirebase(() => 
+    firestore ? query(
+      collection(firestore, `negocios/${businessUserId}/agendamentos`), 
+      orderBy('date', 'desc'),
+      limit(100) // ✅ Apenas últimos 100 agendamentos (suficiente para dashboard)
+    ) : null, 
+    [firestore, businessUserId]
+  );
   const { data: appointments, isLoading: isLoadingAppointments } = useCollection<Agendamento>(appointmentsQuery);
 
-  const clientsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, `negocios/${businessUserId}/clientes`)) : null, [firestore, businessUserId]);
+  // ✅ OTIMIZAÇÃO CRÍTICA: Apenas clientes recentes (não todos os 7000!)
+  const clientsQuery = useMemoFirebase(() => 
+    firestore ? query(
+      collection(firestore, `negocios/${businessUserId}/clientes`),
+      orderBy('createdAt', 'desc'),
+      limit(50) // ✅ Apenas 50 clientes mais recentes (suficiente para dashboard)
+    ) : null, 
+    [firestore, businessUserId]
+  );
   const { data: clients, isLoading: isLoadingClients } = useCollection<Cliente>(clientsQuery);
     
   const isLoading = isLoadingSettings || isLoadingAppointments || isLoadingClients;

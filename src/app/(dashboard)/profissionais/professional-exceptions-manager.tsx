@@ -308,7 +308,7 @@ export function ProfessionalExceptionsManager({
                                   <SelectValue placeholder="08:00" />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent className="max-h-[200px]">
+                              <SelectContent side="top" className="max-h-[200px]">
                                 {horarios.map((h) => (
                                   <SelectItem key={h} value={h}>
                                     {h}
@@ -333,7 +333,7 @@ export function ProfessionalExceptionsManager({
                                   <SelectValue placeholder="18:00" />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent className="max-h-[200px]">
+                              <SelectContent side="top" className="max-h-[200px]">
                                 {horarios.map((h) => (
                                   <SelectItem key={h} value={h}>
                                     {h}

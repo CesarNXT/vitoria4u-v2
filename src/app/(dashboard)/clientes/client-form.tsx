@@ -563,7 +563,6 @@ export function ClientForm({ client, onSubmit, isSubmitting, businessSettings }:
                 placeholder="Pesquisar plano..."
                 value={planoSearchQuery}
                 onChange={(e) => setPlanoSearchQuery(e.target.value)}
-                autoFocus={!isMobile}
                 className="w-full pl-9 pr-9"
               />
               {planoSearchQuery && (

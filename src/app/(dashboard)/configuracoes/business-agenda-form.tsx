@@ -155,7 +155,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                                 <SelectValue />
                                             </SelectTrigger>
                                         </FormControl>
-                                        <SelectContent position="popper">
+                                        <SelectContent side="top" position="popper">
                                             {filteredStartOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
@@ -173,7 +173,7 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                         <FormControl>
                                             <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                         </FormControl>
-                                        <SelectContent position="popper">
+                                        <SelectContent side="top" position="popper">
                                             {filteredEndOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
                                         </SelectContent>
                                     </Select>

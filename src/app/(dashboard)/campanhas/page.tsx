@@ -20,6 +20,7 @@ import {
   pauseCampanhaAction,
   continueCampanhaAction,
   deleteCampanhaAction,
+  deleteMultipleCampanhasAction,
   getCampanhaDetailsAction
 } from './uazapi-sender-actions';
 import { syncCampaignStatus } from './sync-campaign-status';
@@ -108,6 +109,10 @@ export default function CampanhasPage() {
   const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedCampanha, setSelectedCampanha] = useState<Campanha | null>(null);
+  
+  // ✅ Seleção múltipla
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<Set<string>>(new Set());
+  const [isDeletingMultiple, setIsDeletingMultiple] = useState(false);
 
   // Quota disponível
   const [quotaInfo, setQuotaInfo] = useState<{ total: number; used: number; available: number } | null>(null);
@@ -361,6 +366,75 @@ export default function CampanhasPage() {
     }
   };
 
+  // ✅ Toggle seleção de campanha
+  const handleToggleSelection = (campaignId: string) => {
+    setSelectedCampaignIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(campaignId)) {
+        newSet.delete(campaignId);
+      } else {
+        newSet.add(campaignId);
+      }
+      return newSet;
+    });
+  };
+
+  // ✅ Selecionar/Desselecionar todas
+  const handleToggleSelectAll = () => {
+    if (selectedCampaignIds.size === campanhas.length) {
+      setSelectedCampaignIds(new Set());
+    } else {
+      setSelectedCampaignIds(new Set(campanhas.map(c => c.id)));
+    }
+  };
+
+  // ✅ Deletar múltiplas campanhas
+  const handleDeleteMultiple = async () => {
+    if (selectedCampaignIds.size === 0) {
+      toast({
+        title: "Nenhuma campanha selecionada",
+        description: "Selecione ao menos uma campanha para deletar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const message = `Deseja realmente deletar ${selectedCampaignIds.size} campanha(s)? Esta ação não pode ser desfeita.`;
+    
+    if (!confirm(message)) {
+      return;
+    }
+
+    setIsDeletingMultiple(true);
+
+    try {
+      const result = await deleteMultipleCampanhasAction(Array.from(selectedCampaignIds));
+
+      if (result.success) {
+        toast({
+          title: "Campanhas deletadas",
+          description: result.message,
+        });
+        setSelectedCampaignIds(new Set());
+        await loadData();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao deletar",
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao deletar",
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+      });
+    } finally {
+      setIsDeletingMultiple(false);
+    }
+  };
+
   // Loading do plano
   if (planLoading) {
     return (
@@ -398,11 +472,38 @@ export default function CampanhasPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Campanhas</h1>
           <p className="text-muted-foreground">Gerencie suas campanhas de envio em massa via WhatsApp.</p>
+          {selectedCampaignIds.size > 0 && (
+            <p className="text-sm text-primary font-medium mt-1">
+              {selectedCampaignIds.size} campanha(s) selecionada(s)
+            </p>
+          )}
         </div>
-        <Button onClick={() => setShowNewCampaignDialog(true)} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Campanha
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          {selectedCampaignIds.size > 0 && (
+            <Button 
+              onClick={handleDeleteMultiple} 
+              variant="destructive"
+              disabled={isDeletingMultiple}
+              className="flex-1 sm:flex-initial"
+            >
+              {isDeletingMultiple ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deletando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Deletar ({selectedCampaignIds.size})
+                </>
+              )}
+            </Button>
+          )}
+          <Button onClick={() => setShowNewCampaignDialog(true)} className="flex-1 sm:flex-initial">
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Campanha
+          </Button>
+        </div>
       </div>
 
       {/* Avisos e Quota */}
@@ -607,6 +708,9 @@ export default function CampanhasPage() {
                 onPause: handlePauseCampanha,
                 onContinue: handleContinueCampanha,
                 onDelete: handleDeleteCampanha,
+                selectedIds: selectedCampaignIds,
+                onToggleSelection: handleToggleSelection,
+                onToggleSelectAll: handleToggleSelectAll,
               }}
             />
           )}

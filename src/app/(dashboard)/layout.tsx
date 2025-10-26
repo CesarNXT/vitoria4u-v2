@@ -25,6 +25,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAuth, signOut } from 'firebase/auth';
 import { useTheme } from 'next-themes';
 import { useToast } from '@/hooks/use-toast';
+import { usePreventMobileAutofocus } from '@/hooks/use-prevent-mobile-autofocus';
 import { BusinessUserProvider } from '@/contexts/BusinessUserContext';
 import { PlanProvider } from '@/contexts/PlanContext';
 import { destroyUserSession, stopImpersonation, getCurrentImpersonation } from '@/app/(public)/login/session-actions';
@@ -42,6 +43,9 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+  // ✅ Prevenir teclado abrindo automaticamente no mobile
+  usePreventMobileAutofocus();
   
   // ⚠️ REMOVIDO: beforeunload estava desconectando no F5
   // O Firebase mantém a sessão automaticamente via tokens

@@ -615,25 +615,25 @@ export function AppointmentForm({
                         )}
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="max-h-[300px]">
+                    <SelectContent side="top" className="max-h-[300px]">
                       {isLoadingTimes ? (
                         <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Carregando horários...
                         </div>
-                      ) : availableTimes.length > 0 ? (
-                        availableTimes.map((time) => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))
-                      ) : (
+                      ) : availableTimes.length === 0 ? (
                         <div className="p-4 text-sm text-center text-muted-foreground">
-                          {!selectedServiceId || !selectedProfessionalId || !selectedDate
-                            ? "Complete os campos anteriores"
-                            : "Nenhum horário disponível para esta data"
-                          }
+                          Nenhum horário disponível
                         </div>
+                      ) : (
+                        availableTimes.map(time => {
+                          const isSelected = time === selectedTime;
+                          return (
+                            <SelectItem key={time} value={time} className={isSelected ? 'bg-primary/10' : ''}>
+                              {time}
+                            </SelectItem>
+                          );
+                        })
                       )}
                     </SelectContent>
                   </Select>

@@ -66,22 +66,32 @@ async function getWhatsAppConfig(businessId: string) {
 }
 
 /**
- * Buscar todos os clientes do negócio com filtros opcionais
+ * Buscar clientes do negócio com filtros opcionais
+ * ✅ OTIMIZADO: Não carrega todos de uma vez (economia de leituras Firestore)
  */
 export async function getClientesAction(filters?: {
   excludeWithCampaigns?: boolean;
   excludeCampaignsInDays?: number;
+  limit?: number; // ✅ NOVO: Limite de clientes a carregar
 }) {
   try {
     const userId = await validateSession();
     const businessId = await getBusinessId(userId);
 
-    const clientesSnapshot = await adminDb
+    // ✅ OTIMIZAÇÃO: Limite padrão de 1000 clientes para não travar
+    const limit = filters?.limit || 1000;
+
+    let query = adminDb
       .collection('negocios')
       .doc(businessId)
       .collection('clientes')
       .where('status', 'in', ['Ativo', 'Inativo'])
-      .get();
+      .orderBy('name', 'asc')
+      .limit(limit); // ✅ CRÍTICO: Limitar leituras!
+
+    const clientesSnapshot = await query.get();
+    
+    console.log(`📊 Clientes carregados: ${clientesSnapshot.size} (limite: ${limit})`);
 
     let clientes: Cliente[] = clientesSnapshot.docs
       .map((doc: any) => {
@@ -161,8 +171,15 @@ export async function createCampanhaAction(data: {
     }
 
     // 🔄 DIVISÃO AUTOMÁTICA EM MÚLTIPLAS CAMPANHAS
-    if (data.contatos.length > 200) {
-      return await createMultipleCampaigns(businessId, data);
+    if (data.contatos.length > 300) {
+      // ✅ CRIAR EM BACKGROUND para não travar UI
+      createMultipleCampaignsInBackground(businessId, data);
+      
+      return {
+        success: true,
+        message: `🚀 Criando ${data.contatos.length} envios em background! Acompanhe o progresso na lista de campanhas.`,
+        background: true
+      };
     }
 
     // Para campanhas de até 200, criar normalmente
@@ -208,7 +225,7 @@ async function createSingleCampaign(
   }
 ) {
   try {
-    // ✅ VERIFICAR QUOTA DIÁRIA (200/dia)
+    // ✅ VERIFICAR QUOTA DIÁRIA (300/dia)
     const quota = await getAvailableQuota(businessId, data.dataAgendamento);
     
     if (!quota.canSendToday) {
@@ -221,7 +238,18 @@ async function createSingleCampaign(
     if (data.contatos.length > quota.available) {
       return {
         success: false,
-        error: `Você tem ${quota.available} envios disponíveis hoje (limite: 200/dia).`
+        error: `Você tem ${quota.available} envios disponíveis hoje (limite: 300/dia).`
+      };
+    }
+
+    // ✅ VALIDAR HORÁRIO COMERCIAL (07:00 - 21:00)
+    const [horaCheck, minutoCheck] = data.horaInicio.split(':').map(Number);
+    const horaDecimal = (horaCheck || 0) + ((minutoCheck || 0) / 60);
+    
+    if (horaDecimal < 7 || horaDecimal >= 21) {
+      return {
+        success: false,
+        error: 'Horário fora do expediente! Escolha um horário entre 07:00 e 21:00.'
       };
     }
 
@@ -232,19 +260,33 @@ async function createSingleCampaign(
     const numbers = data.contatos.map(c => `${c.telefone}@s.whatsapp.net`);
 
     // Calcular timestamp de agendamento
-    const [horaStr, minutoStr] = data.horaInicio.split(':');
-    const hora = parseInt(horaStr || '0', 10);
-    const minuto = parseInt(minutoStr || '0', 10);
+    const [horaAgendamento, minutoAgendamento] = data.horaInicio.split(':').map(Number);
     const dataCompleta = new Date(data.dataAgendamento);
-    dataCompleta.setHours(hora, minuto, 0, 0);
-    const scheduledFor = dataCompleta.getTime();
+    dataCompleta.setHours(horaAgendamento || 0, minutoAgendamento || 0, 0, 0);
+    
+    // ✅ Calcular MINUTOS a partir de agora (não timestamp)
+    const now = new Date();
+    const delayMs = dataCompleta.getTime() - now.getTime();
+    
+    // ✅ VALIDAÇÃO: Buffer mínimo de 10 minutos
+    if (delayMs < 10 * 60 * 1000) {
+      return {
+        success: false,
+        error: 'Horário muito próximo! Selecione um horário com pelo menos 10 minutos de antecedência.'
+      };
+    }
+    
+    const delayMinutes = Math.ceil(delayMs / 60000);
+    
+    console.log(`⏰ Agendando campanha para: ${dataCompleta.toLocaleString('pt-BR')}`);
+    console.log(`⏰ Delay: ${delayMinutes} minutos a partir de agora`);
 
     // Preparar payload baseado no tipo
     const payload: any = {
       numbers,
-      delayMin: 80,  // Anti-ban: 80-120 segundos
+      delayMin: 80,  // Anti-ban: 80-120 segundos ENTRE mensagens
       delayMax: 120,
-      scheduled_for: scheduledFor,
+      scheduled_for: delayMinutes, // ✅ MINUTOS a partir de agora (não timestamp)
       info: data.nome,
     };
 
@@ -342,7 +384,36 @@ async function createSingleCampaign(
 }
 
 /**
- * Criar MÚLTIPLAS campanhas (divide em lotes de 200)
+ * Criar MÚLTIPLAS campanhas EM BACKGROUND (não bloqueia UI)
+ */
+async function createMultipleCampaignsInBackground(
+  businessId: string,
+  data: {
+    nome: string;
+    tipo: CampanhaTipo;
+    mensagem?: string;
+    mediaUrl?: string;
+    dataAgendamento: Date;
+    horaInicio: string;
+    contatos: Array<{
+      clienteId: string;
+      nome: string;
+      telefone: number;
+    }>;
+  }
+) {
+  // Executa em background sem await
+  createMultipleCampaigns(businessId, data)
+    .then(result => {
+      console.log('✅ Campanhas em background concluídas:', result);
+    })
+    .catch(error => {
+      console.error('❌ Erro em campanhas background:', error);
+    });
+}
+
+/**
+ * Criar MÚLTIPLAS campanhas (divide em lotes de 300)
  */
 async function createMultipleCampaigns(
   businessId: string,
@@ -389,18 +460,21 @@ async function createMultipleCampaigns(
       const batchNumber = i + 1;
       
       console.log(`📤 Campanha ${batchNumber}/${batches.length}: ${batch.contacts.length} contatos para ${batch.date.toLocaleDateString('pt-BR')}`);
+      console.log(`📅 Data do batch: ${batch.date.toISOString()} (dia: ${batch.date.getDate()}/${batch.date.getMonth() + 1})`);
 
       // Ajustar data de agendamento para cada lote
       const batchData = {
         ...data,
         nome: `${data.nome} (${batchNumber}/${batches.length})`,
-        dataAgendamento: batch.date,
+        dataAgendamento: batch.date, // ✅ Cada batch tem sua própria data
         contatos: batch.contacts.map(c => ({
           clienteId: c.clienteId,
           nome: c.nome,
           telefone: c.telefone as number,
         })),
       };
+      
+      console.log(`📅 DataAgendamento que será usada: ${batchData.dataAgendamento.toISOString()}`);
 
       const result = await createSingleCampaign(businessId, batchData);
       
@@ -859,6 +933,104 @@ export async function deleteCampanhaAction(campaignId: string) {
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Erro ao deletar campanha'
+    };
+  }
+}
+
+/**
+ * 🗑️ Deletar MÚLTIPLAS campanhas de uma vez
+ */
+export async function deleteMultipleCampanhasAction(campaignIds: string[]) {
+  try {
+    const userId = await validateSession();
+    const businessId = await getBusinessId(userId);
+
+    if (campaignIds.length === 0) {
+      return {
+        success: false,
+        error: 'Nenhuma campanha selecionada',
+      };
+    }
+
+    console.log(`🗑️ Deletando ${campaignIds.length} campanhas...`);
+
+    const { token } = await getWhatsAppConfig(businessId);
+    const apiUrl = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://uazapi.com';
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // Deletar cada campanha
+    for (const campaignId of campaignIds) {
+      try {
+        // Buscar campanha
+        const campanhaRef = adminDb
+          .collection('negocios')
+          .doc(businessId)
+          .collection('campanhas')
+          .doc(campaignId);
+
+        const campanhaDoc = await campanhaRef.get();
+
+        if (!campanhaDoc.exists) {
+          console.warn(`⚠️ Campanha ${campaignId} não encontrada`);
+          failCount++;
+          continue;
+        }
+
+        const campanha = campanhaDoc.data();
+        const folderId = campanha?.folder_id;
+
+        // Deletar na UazAPI (se tiver folder_id)
+        if (folderId) {
+          await fetch(`${apiUrl}/sender/edit`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'token': token,
+            },
+            body: JSON.stringify({
+              folder_id: folderId,
+              action: 'delete',
+            }),
+          }).catch(() => {
+            console.warn(`⚠️ Erro ao deletar ${folderId} na UazAPI`);
+          });
+        }
+
+        // Deletar do Firestore
+        await campanhaRef.delete();
+        successCount++;
+        console.log(`✅ Campanha ${campaignId} deletada`);
+
+      } catch (error) {
+        console.error(`❌ Erro ao deletar campanha ${campaignId}:`, error);
+        failCount++;
+      }
+    }
+
+    if (failCount > 0) {
+      return {
+        success: true,
+        message: `${successCount} campanhas deletadas, ${failCount} falharam.`,
+        successCount,
+        failCount,
+      };
+    }
+
+    return {
+      success: true,
+      message: `${successCount} campanhas deletadas com sucesso!`,
+      successCount,
+      failCount: 0,
+    };
+
+  } catch (error: any) {
+    console.error('❌ Erro ao deletar múltiplas campanhas:', error);
+    
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro ao deletar campanhas'
     };
   }
 }

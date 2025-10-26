@@ -106,7 +106,7 @@ export async function getAvailableQuota(
   canSendToday: boolean;
 }> {
   const stats = await getDailyStats(businessId, date);
-  const DAILY_LIMIT = 200;
+  const DAILY_LIMIT = 300; // ✅ Aumentado de 200 para 300 mensagens/dia
   
   return {
     total: DAILY_LIMIT,
@@ -140,15 +140,19 @@ export async function splitContactsByDays(
   }> = [];
   
   let remainingContacts = [...contacts];
-  let currentDate = new Date(startDate);
-  currentDate.setHours(0, 0, 0, 0);
+  let dayOffset = 0; // ✅ Contador de dias ao invés de mutar a data
   
   while (remainingContacts.length > 0) {
+    // ✅ Criar nova data para cada dia (não mutar a mesma)
+    const currentDate = new Date(startDate);
+    currentDate.setDate(currentDate.getDate() + dayOffset);
+    currentDate.setHours(0, 0, 0, 0);
+    
     const quota = await getAvailableQuota(businessId, currentDate);
     
     if (quota.available === 0) {
       // Avançar para o próximo dia
-      currentDate.setDate(currentDate.getDate() + 1);
+      dayOffset++;
       continue;
     }
     
@@ -156,18 +160,25 @@ export async function splitContactsByDays(
     const batchSize = Math.min(quota.available, remainingContacts.length);
     const batchContacts = remainingContacts.slice(0, batchSize);
     
+    // ✅ Criar NOVA instância da data para cada batch
+    const batchDate = new Date(startDate);
+    batchDate.setDate(batchDate.getDate() + dayOffset);
+    batchDate.setHours(0, 0, 0, 0);
+    
     batches.push({
-      date: new Date(currentDate),
+      date: batchDate,
       contacts: batchContacts,
       quota_before: quota.available,
       quota_after: quota.available - batchSize,
     });
     
+    console.log(`✅ Batch ${batches.length}: ${batchSize} contatos para ${batchDate.toLocaleDateString('pt-BR')} (dia ${dayOffset})`);
+    
     remainingContacts = remainingContacts.slice(batchSize);
     
     // Se ainda tem contatos, avançar para próximo dia
     if (remainingContacts.length > 0) {
-      currentDate.setDate(currentDate.getDate() + 1);
+      dayOffset++;
     }
   }
   

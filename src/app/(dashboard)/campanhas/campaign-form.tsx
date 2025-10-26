@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -71,15 +72,25 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
   const [tipo, setTipo] = useState<CampanhaTipo>('texto');
   const [contatos, setContatos] = useState<CampanhaContato[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // ✅ Busca com debounce
   const [incluirInativos, setIncluirInativos] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isContactsDialogOpen, setIsContactsDialogOpen] = useState(false);
-  const [displayedCount, setDisplayedCount] = useState(50);
+  const [displayedCount, setDisplayedCount] = useState(100); // ✅ Aumentado de 50 para 100
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const [excluirComCampanhas, setExcluirComCampanhas] = useState(false);
   const [diasExclusao, setDiasExclusao] = useState(30);
   const [quotaInfo, setQuotaInfo] = useState<{ total: number; used: number; available: number } | null>(null);
+  
+  // ✅ Todos os horários comerciais disponíveis
+  const ALL_HORARIOS = [
+    '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+    '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+    '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+    '19:00', '19:30', '20:00', '20:30'
+  ];
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignSchema),
@@ -91,9 +102,71 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
       horaInicio: '08:00',
     },
   });
+  
+  // ✅ Filtrar horários disponíveis (data selecionada + buffer de 10min)
+  const horariosDisponiveis = useMemo(() => {
+    const dataSelecionada = form.watch('dataAgendamento');
+    if (!dataSelecionada) return ALL_HORARIOS;
+    
+    const hoje = new Date();
+    const dataAgendamento = new Date(dataSelecionada);
+    
+    // Normalizar datas (sem hora) para comparar apenas dia/mês/ano
+    const hojeSemHora = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const agendamentoSemHora = new Date(dataAgendamento.getFullYear(), dataAgendamento.getMonth(), dataAgendamento.getDate());
+    
+    // Se é outro dia (futuro), todos os horários são válidos
+    if (agendamentoSemHora > hojeSemHora) {
+      return ALL_HORARIOS;
+    }
+    
+    // Se é hoje, filtrar horários que são >= agora + 10 min
+    if (agendamentoSemHora.getTime() === hojeSemHora.getTime()) {
+      const agora = new Date();
+      const minutosFuturos = agora.getTime() + (10 * 60 * 1000); // +10 min buffer
+      
+      return ALL_HORARIOS.filter(horario => {
+        const [hora, minuto] = horario.split(':').map(Number);
+        const horarioCompleto = new Date(hoje);
+        horarioCompleto.setHours(hora || 0, minuto || 0, 0, 0);
+        
+        return horarioCompleto.getTime() >= minutosFuturos;
+      });
+    }
+    
+    // Se é no passado, nenhum horário válido
+    return [];
+  }, [form.watch('dataAgendamento')]);
 
   // Scroll automático para o primeiro erro
   useScrollToError(form.formState.errors);
+
+  // ✅ Debounce do searchTerm (300ms)
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
+
+  // ✅ Resetar displayedCount quando abrir dialog
+  useEffect(() => {
+    if (isContactsDialogOpen) {
+      setDisplayedCount(100);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = 0;
+      }
+    }
+  }, [isContactsDialogOpen]);
 
   // Inicializar contatos baseado nos clientes
   useEffect(() => {
@@ -123,13 +196,13 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
     loadQuota();
   }, []);
 
-  // Filtrar contatos por busca
+  // Filtrar contatos por busca (✅ usando debouncedSearchTerm)
   const contatosFiltrados = useMemo(() => {
     let filtered = contatos;
 
-    // Filtrar por termo de busca
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    // Filtrar por termo de busca (✅ debounced)
+    if (debouncedSearchTerm) {
+      const term = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(
         c => c.nome.toLowerCase().includes(term) || 
              c.telefone.toString().includes(term)
@@ -142,7 +215,7 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
     }
 
     return filtered;
-  }, [contatos, searchTerm, incluirInativos]);
+  }, [contatos, debouncedSearchTerm, incluirInativos]);
 
   // Contar selecionados
   const contatosSelecionados = contatos.filter(c => c.selecionado).length;
@@ -429,14 +502,37 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
             </div>
 
             <div className="space-y-2" id="hora-inicio">
-              <Label htmlFor="horaInicio">Hora de Início *</Label>
-              <Input
-                id="horaInicio"
-                type="time"
-                {...form.register('horaInicio')}
-              />
+              <Label htmlFor="horaInicio">Hora de Início * (mínimo +10min)</Label>
+              <Select
+                value={form.watch('horaInicio')}
+                onValueChange={(value) => form.setValue('horaInicio', value)}
+              >
+                <SelectTrigger id="horaInicio">
+                  <SelectValue placeholder="Selecione o horário" />
+                </SelectTrigger>
+                <SelectContent side="top" className="max-h-[300px]">
+                  {horariosDisponiveis.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">
+                      Nenhum horário disponível para hoje.
+                      <br />
+                      Selecione outra data.
+                    </div>
+                  ) : (
+                    horariosDisponiveis.map(hora => (
+                      <SelectItem key={hora} value={hora}>
+                        {hora}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
               {form.formState.errors.horaInicio && (
                 <p className="text-sm text-destructive">{form.formState.errors.horaInicio.message}</p>
+              )}
+              {horariosDisponiveis.length > 0 && horariosDisponiveis.length < ALL_HORARIOS.length && (
+                <p className="text-xs text-muted-foreground">
+                  ⏰ Apenas horários com +10min de antecedência
+                </p>
               )}
             </div>
           </div>
@@ -506,17 +602,28 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
           <div className="flex-1 overflow-hidden flex flex-col px-6">
             {/* Busca e ações */}
             <div className="flex flex-col gap-3 pb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou telefone..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setDisplayedCount(50);
-                  }}
-                  className="pl-9 h-10"
-                />
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou telefone..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setDisplayedCount(100); // ✅ Resetar para 100 ao buscar
+                    }}
+                    className="pl-9 h-10"
+                  />
+                </div>
+                {contatosFiltrados.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {displayedCount < contatosFiltrados.length ? (
+                      <>Exibindo <strong>{displayedCount}</strong> de <strong>{contatosFiltrados.length}</strong> contatos • Role para carregar mais</>
+                    ) : (
+                      <>Exibindo todos <strong>{contatosFiltrados.length}</strong> contatos</>
+                    )}
+                  </p>
+                )}
               </div>
               
               <div className="flex flex-col gap-3">
@@ -582,7 +689,7 @@ export function CampaignForm({ clientes, onSubmit, isSubmitting }: CampaignFormP
                 const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 200;
                 
                 if (isNearBottom && displayedCount < contatosFiltrados.length) {
-                  setDisplayedCount(prev => Math.min(prev + 50, contatosFiltrados.length));
+                  setDisplayedCount(prev => Math.min(prev + 100, contatosFiltrados.length)); // ✅ +100 por scroll
                 }
               }}
             >

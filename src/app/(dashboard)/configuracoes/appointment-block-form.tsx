@@ -203,7 +203,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
                         <SelectValue className="truncate" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent side="top">
                       {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -252,7 +252,7 @@ export function AppointmentBlockForm({ block, onSubmit, isSubmitting, isPastBloc
                         <SelectValue placeholder="Selecione..." className="truncate" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent side="top">
                       {timeOptions.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
                     </SelectContent>
                   </Select>

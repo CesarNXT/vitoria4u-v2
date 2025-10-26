@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Eye, 
   Trash2,
@@ -27,6 +28,38 @@ const statusConfig: Record<UazapiCampanhaStatus, { label: string; variant: "defa
 };
 
 export const uazapiColumns: ColumnDef<UazapiCampanha>[] = [
+  // ✅ Coluna de seleção
+  {
+    id: "select",
+    header: ({ table }) => {
+      const meta = table.options.meta as any;
+      const selectedIds = meta?.selectedIds || new Set();
+      const allIds = table.getRowModel().rows.map(row => row.original.id);
+      const isAllSelected = allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+
+      return (
+        <Checkbox
+          checked={isAllSelected}
+          onCheckedChange={() => meta?.onToggleSelectAll?.()}
+          aria-label="Selecionar todas"
+        />
+      );
+    },
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as any;
+      const selectedIds = meta?.selectedIds || new Set();
+      const id = row.original.id;
+
+      return (
+        <Checkbox
+          checked={selectedIds.has(id)}
+          onCheckedChange={() => meta?.onToggleSelection?.(id)}
+          aria-label="Selecionar campanha"
+        />
+      );
+    },
+    size: 50,
+  },
   {
     accessorKey: "nome",
     header: "Nome",

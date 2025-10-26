@@ -92,18 +92,26 @@ Se não puder comparecer, avise-nos.`;
 
 /**
  * Cria botões de confirmação REAIS para o lembrete
- * Usando formato correto da UazAPI: "texto|id"
+ * 
+ * ✅ FORMATO CORRETO (conforme doc UazAPI /send/menu):
+ * - "texto|id" - Botão de resposta padrão
+ * - "texto\nid" - Alternativa com quebra de linha
+ * - "texto|call:+número" - Botão de ligação
+ * - "texto|https://url" - Botão de link
+ * - "texto|copy:código" - Botão de copiar
+ * 
+ * Estamos usando o formato padrão: "texto|id"
  */
 function createConfirmationButtons(type: '24h' | '2h'): string[] {
   if (type === '24h') {
-    // Lembrete 24h: mais opções
+    // Lembrete 24h: mais opções (máximo 3 botões recomendado)
     return [
       "✅ Confirmo Presença|confirm",
       "📅 Preciso Remarcar|reschedule",
       "❌ Não Poderei Ir|cancel"
     ];
   } else {
-    // Lembrete 2h: mais urgente, menos opções
+    // Lembrete 2h: mais urgente, menos opções (2 botões)
     return [
       "✅ Estou Indo|confirm",
       "❌ Não Conseguirei|cancel"
@@ -152,32 +160,57 @@ async function createReminderCampaign(
       return null;
     }
 
-    // Payload usando /sender/advanced com botões interativos
-    // Permite agendar mensagens com botões para o futuro
+    // ✅ CORRIGIDO: scheduled_for aceita MINUTOS a partir de agora (mais simples que timestamp)
+    const delayMinutes = Math.ceil(delayMs / 60000); // Converter ms para minutos
+    
+    // ✅ PAYLOAD CORRETO - Conforme documentação /sender/advanced + /send/menu
+    // 
+    // /sender/advanced: Agendamento em massa
+    //   - scheduled_for: MINUTOS a partir de agora (não timestamp!)
+    //   - delayMin/delayMax: delay ENTRE mensagens (0 = sem intervalo)
+    //   - messages: array de mensagens a enviar
+    //
+    // Cada mensagem usa formato /send/menu (botões interativos):
+    //   - number: telefone do destinatário
+    //   - type: "button" (tipo de mensagem interativa)
+    //   - text: mensagem principal
+    //   - choices: array de botões no formato "texto|id"
+    //   - footerText: texto do rodapé (opcional)
+    //   - delay: 0 = não mostra "digitando..." durante agendamento
     const payload = {
       delayMin: 0,
       delayMax: 0,
-      scheduled_for: scheduledFor.getTime(), // Timestamp em milissegundos
+      scheduled_for: delayMinutes, // ✅ MINUTOS a partir de agora
       info: `Lembrete ${type} - Agendamento ${agendamentoId}`,
       messages: [
         {
-          number: clienteTelefone,
-          type: 'button',
-          text: mensagem,
-          choices: buttons,
-          footerText: 'Aguardamos sua confirmação',
-          delay: 0  // ✅ IMPORTANTE: delay em 0 para não ficar "digitando..."
+          number: clienteTelefone,         // ✅ Formato: "5511999999999" (sem @s.whatsapp.net)
+          type: 'button',                   // ✅ Tipo correto para botões
+          text: mensagem,                   // ✅ Texto principal do lembrete
+          choices: buttons,                 // ✅ Array ["texto|id", "texto|id", ...]
+          footerText: 'Aguardamos sua confirmação', // ✅ Rodapé (opcional)
+          delay: 0                          // ✅ Sem "digitando..." no agendamento
         }
       ]
     };
 
+    // ✅ VALIDAÇÃO: Confirmar que botões estão no formato correto
+    const invalidButtons = buttons.filter(btn => !btn.includes('|'));
+    if (invalidButtons.length > 0) {
+      console.error(`❌ [${type}] Botões em formato inválido (faltando '|'):`, invalidButtons);
+      console.error(`✅ Formato correto: "texto|id" (ex: "Confirmo|confirm")`);
+    }
+
     console.log(`📤 [${type}] Criando lembrete para agendamento ${agendamentoId}:`, {
       scheduledFor: scheduledFor.toISOString(),
       phone: clienteTelefone.replace(/\d{4}$/, '****'), // Mascara últimos 4 dígitos
-      delayMinutes: Math.round(delayMs / 60000),
-      timestamp: scheduledFor.getTime(),
+      delayMinutes: delayMinutes,
+      delayMs: delayMs,
+      buttonsCount: buttons.length,
       attempt: retryCount + 1
     });
+
+    console.log(`📋 [${type}] Payload completo:`, JSON.stringify(payload, null, 2));
 
     // Criar AbortController para timeout de 5 segundos
     const controller = new AbortController();
@@ -211,10 +244,12 @@ async function createReminderCampaign(
 
     const result = await response.json();
     
-    // Validar resposta do /sender/simple
+    console.log(`📥 [${type}] Resposta da API:`, JSON.stringify(result, null, 2));
+    
+    // Validar resposta do /sender/advanced
     // Retorna: { folder_id: "...", message: "..." }
     if (!result || !result.folder_id) {
-      console.error(`❌ [${type}] Resposta inválida da API:`, result);
+      console.error(`❌ [${type}] Resposta inválida da API (sem folder_id):`, result);
       
       // Retry se não conseguiu folder_id
       if (retryCount < MAX_RETRIES) {
@@ -451,25 +486,48 @@ export async function createReminders(
 /**
  * ❌ CANCELAR LEMBRETE (mensagem agendada)
  * 
- * ⚠️ NOTA: Não há endpoint direto para cancelar mensagens agendadas via delay.
- * Uma vez enviada com delay, a mensagem será entregue.
- * 
- * Mantendo função para compatibilidade, mas retorna sempre true.
+ * ✅ USA /sender/edit com action "delete" para cancelar campanha agendada
+ * Cancela apenas mensagens NÃO ENVIADAS (status "scheduled")
  */
 async function cancelReminder(
   tokenInstancia: string,
-  messageId: string,
+  folderId: string,
   type: '24h' | '2h'
 ): Promise<boolean> {
-  console.log(`⚠️ [${type}] Lembretes com delay não podem ser cancelados após agendamento. messageId: ${messageId}`);
-  console.log(`💡 Dica: Para cancelar lembretes futuros, não crie o agendamento ou delete o agendamento antes do horário.`);
-  return true; // Sempre retorna sucesso para não quebrar fluxo
+  try {
+    console.log(`🗑️ [${type}] Cancelando lembrete: ${folderId}`);
+    
+    const response = await fetch(`${API_BASE}/sender/edit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': tokenInstancia,
+      },
+      body: JSON.stringify({
+        folder_id: folderId,
+        action: 'delete'
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ [${type}] Erro ao cancelar lembrete:`, errorText);
+      return false;
+    }
+
+    console.log(`✅ [${type}] Lembrete cancelado com sucesso! folder_id: ${folderId}`);
+    return true;
+
+  } catch (error: any) {
+    console.error(`❌ [${type}] Erro ao cancelar lembrete:`, error.message);
+    return false;
+  }
 }
 
 /**
  * 🔄 ATUALIZAR LEMBRETES (quando agendamento é editado)
  * 
- * 1. Cancela campanhas antigas
+ * 1. Cancela campanhas antigas via /sender/edit
  * 2. Cria novas campanhas com nova data/hora
  */
 export async function updateReminders(
@@ -482,13 +540,21 @@ export async function updateReminders(
   
   console.log(`🔄 Atualizando lembretes para agendamento ${agendamentoId}`);
 
-  // ⚠️ NOTA: Lembretes antigos com delay não podem ser cancelados
-  // Apenas criamos novos lembretes para a nova data/hora
-  if (oldReminders && oldReminders.length > 0) {
-    console.warn(`⚠️ ${oldReminders.length} lembretes antigos não podem ser cancelados (limitação da API)`);
+  // ✅ Cancelar lembretes antigos ANTES de criar novos
+  if (oldReminders && oldReminders.length > 0 && business.tokenInstancia) {
+    console.log(`🗑️ Cancelando ${oldReminders.length} lembretes antigos...`);
+    
+    for (const reminder of oldReminders) {
+      const folderId = reminder.messageId || reminder.folderId;
+      if (folderId) {
+        await cancelReminder(business.tokenInstancia, folderId, reminder.type);
+      }
+    }
+    
+    console.log(`✅ Lembretes antigos cancelados`);
   }
 
-  // Criar novos lembretes
+  // Criar novos lembretes com nova data/hora
   const newReminders = await createReminders(businessId, agendamentoId, agendamento, business);
   
   return newReminders;
@@ -496,6 +562,8 @@ export async function updateReminders(
 
 /**
  * 🗑️ DELETAR LEMBRETES (quando agendamento é cancelado)
+ * 
+ * ✅ Cancela todas as campanhas agendadas via /sender/edit
  */
 export async function deleteReminders(
   tokenInstancia: string,
@@ -503,13 +571,28 @@ export async function deleteReminders(
 ): Promise<void> {
   
   if (!reminders || reminders.length === 0) {
+    console.log('📭 Nenhum lembrete para cancelar');
     return;
   }
 
-  console.warn(`⚠️ Tentando cancelar ${reminders.length} lembretes, mas mensagens com delay não podem ser canceladas.`);
-  console.log(`💡 Os lembretes ainda serão entregues no horário agendado.`);
+  if (!tokenInstancia) {
+    console.warn('⚠️ Token da instância não fornecido - não é possível cancelar lembretes');
+    return;
+  }
+
+  console.log(`🗑️ Cancelando ${reminders.length} lembretes...`);
   
-  // Não há ação a ser tomada - mensagens com delay não podem ser canceladas
+  // Cancelar cada lembrete via API
+  for (const reminder of reminders) {
+    const folderId = reminder.messageId || reminder.folderId;
+    if (folderId) {
+      await cancelReminder(tokenInstancia, folderId, reminder.type);
+    } else {
+      console.warn(`⚠️ Lembrete ${reminder.type} sem folder_id - não pode ser cancelado`);
+    }
+  }
+  
+  console.log(`✅ Todos os lembretes foram cancelados`);
 }
 
 /**

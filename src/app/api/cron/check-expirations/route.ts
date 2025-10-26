@@ -228,6 +228,11 @@ export async function GET(request: Request) {
         console.log(`⚠️ [CHECK-EXPIRATIONS] ${businessName}: Plano expirado, iniciando downgrade...`);
         
         try {
+          // ✅ Marcar que está deletando por expiração (para não enviar notificação de desconexão)
+          await businessDoc.ref.update({
+            deletingByExpiration: true
+          });
+
           // Deletar instância WhatsApp se estiver conectada
           if (business.whatsappConectado && business.tokenInstancia) {
             try {
@@ -251,7 +256,7 @@ export async function GET(request: Request) {
             0
           );
 
-          // Atualizar para plano gratuito
+          // Atualizar para plano gratuito e remover flag de expiração
           const businessDocRef = adminDb.collection('negocios').doc(businessId);
           await businessDocRef.update({
             planId: 'plano_gratis',
@@ -263,6 +268,7 @@ export async function GET(request: Request) {
             habilitarAniversario: false,
             iaAtiva: false,
             last_expiration_notification: now,
+            deletingByExpiration: false, // ✅ Remove flag após processar
           });
           
           console.log(`✅ [CHECK-EXPIRATIONS] ${businessName}: Downgrade concluído → plano_gratis`);

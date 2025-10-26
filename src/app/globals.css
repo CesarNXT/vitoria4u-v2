@@ -192,4 +192,48 @@ body {
     background: linear-gradient(90deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.15)) !important;
     border: 1px solid hsl(var(--primary) / 0.3);
   }
+
+  /* ✅ Remover botões de scroll dos Selects de horário */
+  [data-radix-select-viewport] {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  [data-radix-select-viewport]::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  [data-radix-select-viewport]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  [data-radix-select-viewport]::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  [data-radix-select-viewport]::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  /* ✅ Remover botões de navegação up/down do Select */
+  [data-radix-select-scroll-up-button],
+  [data-radix-select-scroll-down-button] {
+    display: none !important;
+  }
+
+  /* ✅ Prevenir auto-focus em inputs no mobile */
+  @media (max-width: 768px) {
+    input[autofocus],
+    textarea[autofocus],
+    select[autofocus] {
+      pointer-events: auto !important;
+    }
+    
+    /* Desabilitar autofocus visual no mobile */
+    input:focus-visible,
+    textarea:focus-visible {
+      outline-offset: 0px;
+    }
+  }
 }

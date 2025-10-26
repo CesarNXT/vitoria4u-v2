@@ -631,9 +631,18 @@ async function processConnectionEvent(body: any) {
 
 /**
  * Notifica gestor sobre desconexão do WhatsApp
+ * 
+ * ✅ NÃO envia notificação se desconexão for por expiração de plano
  */
 async function notifyManagerAboutDisconnection(business: any, reason?: string) {
   try {
+    // ✅ VERIFICAR: Se desconexão é por expiração, NÃO notificar
+    // (O cron já envia mensagem específica de expiração)
+    if (business.deletingByExpiration === true) {
+      console.log('[WEBHOOK-CONNECTION] ⏭️ Desconexão por expiração - notificação ignorada');
+      return;
+    }
+
     const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
     const NOTIFICATION_TOKEN = 'b2e97825-2d28-4646-ae38-3357fcbf0e20';
 
@@ -661,6 +670,8 @@ async function notifyManagerAboutDisconnection(business: any, reason?: string) {
         text: message
       })
     });
+    
+    console.log('[WEBHOOK-CONNECTION] ✅ Notificação de desconexão enviada');
   } catch (error) {
     console.error('[WEBHOOK-CONNECTION] Erro ao notificar gestor:', error);
   }
