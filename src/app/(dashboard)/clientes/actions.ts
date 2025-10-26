@@ -110,13 +110,10 @@ export async function searchClientsAction(options: {
           status: data.status,
           avatarUrl: data.avatarUrl,
           birthDate: data.birthDate,
-          birthMonth: data.birthMonth,
-          birthDay: data.birthDay,
           observacoes: data.observacoes,
           planoSaude: data.planoSaude,
           instanciaWhatsapp: data.instanciaWhatsapp,
-          createdAt: data.createdAt,
-        };
+        } as Cliente;
       });
 
       return { 
@@ -173,13 +170,10 @@ export async function searchClientsAction(options: {
         status: data.status,
         avatarUrl: data.avatarUrl,
         birthDate: data.birthDate,
-        birthMonth: data.birthMonth,
-        birthDay: data.birthDay,
         observacoes: data.observacoes,
         planoSaude: data.planoSaude,
         instanciaWhatsapp: data.instanciaWhatsapp,
-        createdAt: data.createdAt,
-      };
+      } as Cliente;
     });
 
     return { 
@@ -229,12 +223,9 @@ export async function searchClientByPhoneAction(phone: number) {
       status: data.status,
       avatarUrl: data.avatarUrl,
       birthDate: data.birthDate,
-      birthMonth: data.birthMonth,
-      birthDay: data.birthDay,
       observacoes: data.observacoes,
       planoSaude: data.planoSaude,
       instanciaWhatsapp: data.instanciaWhatsapp,
-      createdAt: data.createdAt,
     };
 
     return { success: true, cliente };

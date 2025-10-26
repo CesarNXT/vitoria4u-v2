@@ -156,10 +156,13 @@ export interface Cliente {
   status: 'Ativo' | 'Inativo';
   avatarUrl?: string;
   birthDate: Timestamp;
+  birthMonth?: number; // 1-12 (para query otimizada de aniversários)
+  birthDay?: number; // 1-31 (para query otimizada de aniversários)
   instanciaWhatsapp?: string;
   observacoes?: string; // Observações/notas sobre o cliente
   planoSaude?: PlanoSaude; // Plano de saúde do cliente (se tiver)
   matriculaPlano?: string; // Matrícula/Número da carteirinha do plano (opcional, máx 64 chars)
+  createdAt?: Timestamp; // Data de criação
 }
 
 export type PlanFeature = 
