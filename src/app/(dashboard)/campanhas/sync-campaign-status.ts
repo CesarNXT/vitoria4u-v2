@@ -112,13 +112,13 @@ export async function syncCampaignStatus(
       const status = (message.status || '').toLowerCase();
 
       if (status === 'sent' || status === 'delivered' || status === 'read') {
-        contatos[i].status = 'sent';
+        contatos[i].status = 'Enviado';
         contatos[i].sent_at = new Date(message.messageTimestamp || Date.now());
       } else if (status === 'failed' || status === 'error') {
-        contatos[i].status = 'failed';
-        contatos[i].error = message.error || 'Failed to send';
+        contatos[i].status = 'Erro';
+        contatos[i].error = message.error || 'Falha no envio';
       }
-      // Se ainda está 'scheduled', mantém como 'pending'
+      // Se ainda está 'scheduled', mantém como 'Pendente'
     }
 
     // Determinar status da campanha
@@ -133,21 +133,30 @@ export async function syncCampaignStatus(
       campaignStatus = 'sending';
     }
 
-    // Atualizar no Firestore
+    // Atualizar no Firestore (ambos formatos para compatibilidade)
+    const now = new Date();
     await campanhaRef.update({
+      // Snake_case (compatibilidade)
       sent_count: sentCount,
       failed_count: failedCount,
+      updated_at: now,
+      // CamelCase (novo padrão)
+      contatosEnviados: sentCount,
+      contatosFalhados: failedCount,
+      updatedAt: now,
       status: campaignStatus,
       contatos: contatos,
-      updated_at: new Date(),
-      ...(campaignStatus === 'done' ? { completed_at: new Date() } : {}),
+      ...(campaignStatus === 'done' ? { 
+        completed_at: now,
+        dataConclusao: now 
+      } : {}),
     });
 
     console.log(`✅ [SYNC] Campanha atualizada: ${sentCount}/${totalCount} enviadas`);
 
     // 🔄 Se ainda tem mensagens agendadas, agendar nova sincronização
     if (scheduledCount > 0 && campaignStatus === 'sending') {
-      console.log(`⏰ [SYNC] ${scheduledCount} mensagens ainda agendadas. Reagendando sync em 10s...`);
+      console.log(`⏰ [SYNC] ${scheduledCount} mensagens ainda agendadas. Reagendando sync em 2min...`);
       
       // Salvar flag de polling ativo no Firestore
       await campanhaRef.update({
@@ -155,8 +164,8 @@ export async function syncCampaignStatus(
         last_poll: new Date(),
       });
       
-      // Agendar próxima sincronização (após 10 segundos)
-      schedulePollSync(businessId, campaignId, folderId, 10000);
+      // Agendar próxima sincronização (após 2 minutos = 120000ms)
+      schedulePollSync(businessId, campaignId, folderId, 120000);
     } else {
       // Remover flag de polling
       await campanhaRef.update({
@@ -215,12 +224,13 @@ function schedulePollSync(
         return;
       }
       
-      // Limite de tempo: após 30 minutos, parar polling
+      // Verificar se não passou do timeout (7 horas = 420min)
+      // Calculado para 200 mensagens com intervalo médio de 100s = ~5.5h
       const createdAt = campanhaData?.created_at?.toDate() || new Date();
       const minutesElapsed = (Date.now() - createdAt.getTime()) / 1000 / 60;
       
-      if (minutesElapsed > 30) {
-        console.log(`⏱️ [POLL-SYNC] Timeout: Campanha ${campaignId} excedeu 30min`);
+      if (minutesElapsed > 420) {
+        console.log(`⏱️ [POLL-SYNC] Timeout: Campanha ${campaignId} excedeu 7h`);
         await campanhaRef.update({
           polling_active: false,
           status: 'done', // Marcar como concluída por timeout

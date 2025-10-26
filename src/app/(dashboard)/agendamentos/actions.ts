@@ -84,10 +84,10 @@ async function sendProfessionalNotification(
     status: 'Novo Agendamento' | 'Agendamento Cancelado' | 'Agendamento Excluído',
     criadoPor?: string
 ): Promise<void> {
-    logger.debug('🔔 Iniciando notificação profissional', { 
+    logger.debug('🔔 Notificação profissional', { 
         status, 
-        professionalName: appointment.profissional?.name,
-        professionalPhone: appointment.profissional?.phone 
+        professional: appointment.profissional?.name,
+        phone: appointment.profissional?.phone 
     });
 
     // ⚠️ CRÍTICO: Verifica se usuário está conectado (usa token do usuário)
@@ -119,16 +119,13 @@ async function sendProfessionalNotification(
         return;
     }
 
-    const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
-    const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
-
-    // 👔 NOTIFICAÇÃO DO PROFISSIONAL (Token do Usuário - verifica se conectado)
-    // Avisa o profissional sobre novo agendamento ou cancelamento
-    
     if (!businessSettings.tokenInstancia) {
         logger.debug('❌ Token da instância não encontrado - não é possível notificar profissional');
         return;
     }
+
+    const appointmentDateTime = getAppointmentDateTime(appointment.date, appointment.startTime);
+    const dataHoraAtendimento = format(appointmentDateTime, 'dd/MM/yyyy HH:mm');
 
     const notificationData = {
         tokenInstancia: businessSettings.tokenInstancia,

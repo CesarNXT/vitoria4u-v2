@@ -351,31 +351,32 @@ export function ImportClientsDialog({
         <div className="flex-1 overflow-y-auto">
           {step === 'upload' && (
             <div className="space-y-4 py-4">
-              <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 space-y-4">
+              <Label 
+                htmlFor="file-upload" 
+                className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 space-y-4 cursor-pointer hover:border-primary hover:bg-accent/50 transition-colors"
+              >
                 <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
                 <div className="text-center">
-                  <Label htmlFor="file-upload" className="cursor-pointer">
-                    <div className="text-sm font-medium">
-                      Clique para selecionar ou arraste o arquivo
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Arquivos suportados: Excel (.xlsx, .xls) ou CSV (.csv)
-                    </div>
-                  </Label>
-                  <Input
-                    id="file-upload"
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
+                  <div className="text-sm font-medium">
+                    Clique para selecionar ou arraste o arquivo
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Arquivos suportados: Excel (.xlsx, .xls) ou CSV (.csv)
+                  </div>
                 </div>
                 {file && (
                   <div className="text-sm text-muted-foreground">
                     Arquivo: <span className="font-medium">{file.name}</span>
                   </div>
                 )}
-              </div>
+              </Label>
+              <Input
+                id="file-upload"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
 
               <Alert>
                 <AlertCircle className="h-4 w-4" />

@@ -481,20 +481,37 @@ export async function getCampanhasAction() {
         nome: data.nome,
         tipo: data.tipo,
         status: data.status,
-        totalContatos: data.total_contacts || 0,
-        contatosEnviados: data.sent_count || 0,
-        contatosFalhados: data.failed_count || 0,
+        totalContatos: data.totalContatos || data.total_contacts || 0,
+        contatosEnviados: data.contatosEnviados || data.sent_count || 0,
+        contatosFalhados: data.contatosFalhados || data.failed_count || 0,
+        enviados: data.contatosEnviados || data.sent_count || 0,
+        falhas: data.contatosFalhados || data.failed_count || 0,
         mensagem: data.mensagem,
         mediaUrl: data.mediaUrl,
-        dataAgendamento: data.scheduled_for?.toDate(),
-        criadaEm: data.created_at?.toDate(),
+        dataAgendamento: (data.dataAgendamento || data.scheduled_for)?.toDate(),
+        createdAt: (data.createdAt || data.created_at)?.toDate(),
+        dataConclusao: (data.dataConclusao || data.completed_at)?.toDate(),
+        criadaEm: (data.createdAt || data.created_at)?.toDate(),
         contatos: data.contatos || [],
-        envios: (data.contatos || []).map((c: any) => ({
-          contatoId: c.clienteId,
-          telefone: c.telefone,
-          status: c.status === 'sent' ? 'Enviado' : c.status === 'failed' ? 'Erro' : 'Pendente',
-          enviadoEm: c.sent_at?.toDate(),
-        })),
+        envios: (data.contatos || []).map((c: any) => {
+          // Mapear status (aceita inglês e português)
+          let statusEnvio = 'Pendente';
+          const statusLower = (c.status || '').toLowerCase();
+          
+          if (statusLower === 'sent' || statusLower === 'enviado') {
+            statusEnvio = 'Enviado';
+          } else if (statusLower === 'failed' || statusLower === 'error' || statusLower === 'erro') {
+            statusEnvio = 'Erro';
+          }
+          
+          return {
+            contatoId: c.clienteId,
+            telefone: c.telefone,
+            status: statusEnvio,
+            enviadoEm: c.sent_at?.toDate(),
+            erro: c.error,
+          };
+        }),
       };
     });
 

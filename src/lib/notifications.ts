@@ -154,20 +154,18 @@ export async function notifyProfessionalAppointment(data: {
     const cleanPhone = data.telefoneProfissional.toString().replace(/\D/g, '')
     const firstName = data.nomeProfissional.split(' ')[0]
     
-    const message = `✨ *Olá, ${firstName}!* ✨
+    const agendadoPor = data.criadoPor || 'Sistema'
+    
+    const message = `📋 *Novo Agendamento*
 
-🎉 Você tem um novo agendamento!
+📅 *Data e hora:* ${data.dataHoraAtendimento}
 
-📅 *Data e Hora*
-${data.dataHoraAtendimento}
+👤 *Cliente:* ${data.nomeCliente}${data.telefoneCliente ? `\n📱 *Telefone:* ${formatPhoneForDisplay(data.telefoneCliente)}` : ''}
+💼 *Procedimento:* ${data.nomeServico}
 
-👤 *Cliente*
-${data.nomeCliente}${data.telefoneCliente ? `\n📱 ${formatPhoneForDisplay(data.telefoneCliente)}` : ''}
+📝 *Agendado por:* ${agendadoPor}
 
-💼 *Procedimento*
-${data.nomeServico}${data.criadoPor ? `\n\n📝 *Agendado por:* ${data.criadoPor}` : ''}
-
-Nos vemos em breve! 😊`
+_Olá, ${firstName}! Este é seu próximo atendimento._`
 
     const response = await fetch(`${API_BASE}/send/text`, {
       method: 'POST',
@@ -193,20 +191,14 @@ export async function notifyProfessionalCancellation(data: {
     const cleanPhone = data.telefoneProfissional.toString().replace(/\D/g, '')
     const firstName = data.nomeProfissional.split(' ')[0]
     
-    const message = `⚠️ *Oi, ${firstName}!* ⚠️
+    const message = `❌ *Agendamento Cancelado*
 
-❌ Um agendamento foi cancelado.
+📅 *Data e hora:* ${data.dataHoraAtendimento}
 
-📅 *Data e Hora*
-${data.dataHoraAtendimento}
+👤 *Cliente:* ${data.nomeCliente}
+💼 *Procedimento:* ${data.nomeServico}
 
-👤 *Cliente*
-${data.nomeCliente}
-
-💼 *Procedimento*
-${data.nomeServico}
-
-Você tem um horário livre! 🕐`
+_${firstName}, este horário foi liberado na sua agenda._`
 
     const response = await fetch(`${API_BASE}/send/text`, {
       method: 'POST',

@@ -32,7 +32,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (eventType === 'call') {
-      await processCallEvent(body.data || body);
+      // Processar chamada em background (não bloquear resposta)
+      processCallEvent(body.event || body.data || body, body.instanceName).catch(err => {
+        console.error('[WEBHOOK-CALL] Erro ao processar chamada:', err);
+      });
     }
 
     if (eventType === 'message' || eventType === 'messages') {
@@ -694,73 +697,158 @@ async function notifyManagerAboutDisconnection(business: any, reason?: string) {
  * Processa eventos CALL do webhook global
  * Rejeita chamadas automaticamente se configurado
  */
-async function processCallEvent(data: any) {
+async function processCallEvent(data: any, instanceNameFromBody?: string) {
   try {
-    const { from, id, status, isGroup, isVideo } = data;
+    // UazAPI envia campos com nomes diferentes
+    const from = data.From || data.from;
+    const callId = data.CallID || data.CallId || data.id;
+    const callTag = data.Data?.Tag || data.tag || data.status;
+    const isGroup = data.isGroup || false;
+    const isVideo = data.isVideo || false;
+    
+    // IMPORTANTE: CallCreatorAlt tem o número REAL (ex: 558179123125@s.whatsapp.net)
+    // From tem apenas o ID interno (ex: 160237327782026@lid)
+    const realNumber = data.CallCreatorAlt || data.callCreatorAlt || from;
 
-    if (!from || !id) {
+    if (!from || !callId) {
+      console.warn('[WEBHOOK-CALL] Evento sem From ou CallID:', data);
       return;
     }
+
+    console.warn(`[WEBHOOK-CALL] Chamada de ${from}, Tag: ${callTag}, ID: ${callId}`);
+    console.warn(`[WEBHOOK-CALL] InstanceName: ${instanceNameFromBody}`);
+    console.warn(`[WEBHOOK-CALL] Número real: ${realNumber}`);
 
     // Só processar chamadas recebidas (offer)
-    if (status !== 'offer') {
+    // Tag "offer" = chamada entrando, "terminate" = chamada encerrada
+    if (callTag !== 'offer') {
+      console.warn(`[WEBHOOK-CALL] ⏭️ Ignorando chamada com tag "${callTag}" (não é "offer")`);
       return;
     }
 
-    // console.warn(`[WEBHOOK-CALL] Chamada recebida de ${from}`);
+    console.warn(`[WEBHOOK-CALL] 📞 Chamada recebida de ${from}`);
 
-    // Extrair número limpo
-    const phoneNumber = from.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+    // Extrair número limpo do CallCreatorAlt (número verdadeiro)
+    // Ex: 558179123125@s.whatsapp.net -> 558179123125
+    const phoneNumber = realNumber.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/\D/g, '');
 
-    // Buscar negócios que podem ter esta configuração
-    const negociosRef = adminDb.collection('negocios');
-    const snapshot = await negociosRef
-      .where('rejeitarChamadasAutomaticamente', '==', true)
-      .limit(10)
-      .get();
+    // Buscar negócio que recebeu esta chamada (via instanceName no webhook global)
+    // O webhook global envia instanceName identificando qual instância recebeu a chamada
+    const instanceName = instanceNameFromBody || (data as any).instanceName;
+    
+    if (instanceName) {
+      // Buscar negócio específico
+      const businessDoc = await adminDb.collection('negocios').doc(instanceName).get();
+      
+      if (!businessDoc.exists) {
+        console.warn(`[WEBHOOK-CALL] Negócio ${instanceName} não encontrado`);
+        return;
+      }
 
-    if (snapshot.empty) {
-      // Nenhum negócio configurado
-      return;
-    }
-
-    // Processar cada negócio
-    for (const businessDoc of snapshot.docs) {
       const business = businessDoc.data();
 
-      if (!business.tokenInstancia || !business.whatsappConectado) {
-        continue;
+      console.warn(`[WEBHOOK-CALL] Config do negócio:`, {
+        rejeitarChamadasAutomaticamente: business?.rejeitarChamadasAutomaticamente,
+        whatsappConectado: business?.whatsappConectado,
+        hasToken: !!business?.tokenInstancia
+      });
+
+      // Verificar se rejeição está ativa
+      if (!business?.rejeitarChamadasAutomaticamente) {
+        console.warn(`[WEBHOOK-CALL] ⚠️ Rejeição automática DESATIVADA para ${instanceName}`);
+        return;
       }
+
+      if (!business.tokenInstancia || !business.whatsappConectado) {
+        console.warn(`[WEBHOOK-CALL] ⚠️ Negócio ${instanceName} sem token ou desconectado`);
+        return;
+      }
+
+      console.warn(`[WEBHOOK-CALL] 🚫 Rejeitando chamada de ${phoneNumber} (ID: ${callId})`);
 
       // Rejeitar chamada
       const callRejected = await rejectCall(
         business.tokenInstancia,
         phoneNumber,
-        id
+        callId
       );
 
       if (callRejected) {
-        // Chamada rejeitada
+        console.warn(`[WEBHOOK-CALL] ✅ Chamada rejeitada com sucesso!`);
 
-        // Enviar mensagem automática
+        // Enviar mensagem automática (em background, não esperar)
         const mensagem = business.mensagemRejeicaoChamada || 
           `📱 *Olá!*\n\nNo momento não estou disponível para chamadas.\n\nPor favor, envie uma *mensagem de texto* e retornarei assim que possível!\n\nObrigado pela compreensão. 😊`;
 
-        await sendAutoReplyMessage(
+        sendAutoReplyMessage(
           business.tokenInstancia,
           phoneNumber,
           mensagem
-        );
+        ).catch(err => console.error('[WEBHOOK-CALL] Erro ao enviar mensagem:', err));
 
-        // Registrar no log (opcional)
-        await businessDoc.ref.collection('chamadas_rejeitadas').add({
+        // Registrar no log (em background)
+        businessDoc.ref.collection('chamadas_rejeitadas').add({
           numero: phoneNumber,
-          callId: id,
+          callId: callId,
           isVideo: isVideo || false,
           isGroup: isGroup || false,
           rejeitadaEm: new Date(),
           mensagemEnviada: true
-        });
+        }).catch(err => console.error('[WEBHOOK-CALL] Erro ao registrar log:', err));
+      } else {
+        console.error(`[WEBHOOK-CALL] ❌ Falha ao rejeitar chamada`);
+      }
+    } else {
+      // Fallback: Buscar todos os negócios com rejeição ativa (método antigo)
+      console.warn('[WEBHOOK-CALL] Webhook sem instanceName, usando busca por todos os negócios');
+      
+      const negociosRef = adminDb.collection('negocios');
+      const snapshot = await negociosRef
+        .where('rejeitarChamadasAutomaticamente', '==', true)
+        .limit(10)
+        .get();
+
+      if (snapshot.empty) {
+        console.warn('[WEBHOOK-CALL] Nenhum negócio com rejeição automática encontrado');
+        return;
+      }
+
+      // Processar cada negócio
+      for (const businessDoc of snapshot.docs) {
+        const business = businessDoc.data();
+
+        if (!business.tokenInstancia || !business.whatsappConectado) {
+          continue;
+        }
+
+        // Rejeitar chamada
+        const callRejected = await rejectCall(
+          business.tokenInstancia,
+          phoneNumber,
+          callId
+        );
+
+        if (callRejected) {
+          // Enviar mensagem automática (em background)
+          const mensagem = business.mensagemRejeicaoChamada || 
+            `📱 *Olá!*\n\nNo momento não estou disponível para chamadas.\n\nPor favor, envie uma *mensagem de texto* e retornarei assim que possível!\n\nObrigado pela compreensão. 😊`;
+
+          sendAutoReplyMessage(
+            business.tokenInstancia,
+            phoneNumber,
+            mensagem
+          ).catch(err => console.error('[WEBHOOK-CALL] Erro ao enviar mensagem:', err));
+
+          // Registrar no log (em background)
+          businessDoc.ref.collection('chamadas_rejeitadas').add({
+            numero: phoneNumber,
+            callId: callId,
+            isVideo: isVideo || false,
+            isGroup: isGroup || false,
+            rejeitadaEm: new Date(),
+            mensagemEnviada: true
+          }).catch(err => console.error('[WEBHOOK-CALL] Erro ao registrar log:', err));
+        }
       }
     }
 
@@ -779,6 +867,9 @@ async function rejectCall(
 ): Promise<boolean> {
   try {
     const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
+    
+    console.warn(`[WEBHOOK-CALL] 🔄 Chamando API para rejeitar: POST ${API_BASE}/call/reject`);
+    console.warn(`[WEBHOOK-CALL] Payload:`, { number: phoneNumber, id: callId });
 
     const response = await fetch(`${API_BASE}/call/reject`, {
       method: 'POST',
@@ -792,15 +883,20 @@ async function rejectCall(
       })
     });
 
+    console.warn(`[WEBHOOK-CALL] Resposta da API: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[WEBHOOK-CALL] Erro ao rejeitar chamada:', response.status, errorText);
+      console.error(`[WEBHOOK-CALL] ❌ Erro ao rejeitar chamada: ${response.status} - ${errorText}`);
       return false;
     }
 
+    const responseData = await response.text();
+    console.warn(`[WEBHOOK-CALL] Resposta: ${responseData}`);
+
     return true;
   } catch (error) {
-    console.error('[WEBHOOK-CALL] Erro ao rejeitar chamada:', error);
+    console.error('[WEBHOOK-CALL] ❌ Exceção ao rejeitar chamada:', error);
     return false;
   }
 }

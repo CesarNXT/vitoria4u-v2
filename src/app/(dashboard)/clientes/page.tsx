@@ -137,13 +137,22 @@ export default function ClientsPage() {
     setIsSubmitting(true);
 
     try {
-      const numericPhone = parseInt(normalizePhoneNumber(data.phone), 10);
+      const normalizedPhoneStr = normalizePhoneNumber(data.phone); // 11 dígitos
+      
+      // ⚠️ IMPORTANTE: Adicionar DDI 55 para salvar no Firestore (13 dígitos)
+      // Frontend: 81997628611 (11 dígitos)
+      // Firestore: 5581997628611 (13 dígitos com DDI)
+      const phoneWithDDI = normalizedPhoneStr.startsWith('55') 
+        ? normalizedPhoneStr 
+        : `55${normalizedPhoneStr}`;
+      
+      const numericPhone = parseInt(phoneWithDDI, 10);
 
-      if (isNaN(numericPhone)) {
+      if (isNaN(numericPhone) || phoneWithDDI.length !== 13) {
         toast({
           variant: "destructive",
           title: "Número de Telefone Inválido",
-          description: "O número de telefone fornecido não é válido.",
+          description: "O número de telefone fornecido não é válido. Deve ter 11 dígitos (DDD + 9 + número).",
         });
         setIsSubmitting(false);
         return;
@@ -165,6 +174,38 @@ export default function ClientsPage() {
 
       const id = selectedClient ? selectedClient.id : `client-${Date.now()}-${generateUUID().slice(0, 8)}`;
 
+      let avatarUrl = data.avatarUrl || null;
+
+      // 📸 AUTO-BUSCAR FOTO DO WHATSAPP se não tiver foto E WhatsApp estiver conectado
+      // Usa endpoint: POST /chat/details (retorna image e imagePreview)
+      if (!avatarUrl && !selectedClient && businessSettings.whatsappConectado && businessSettings.tokenInstancia) {
+        try {
+          console.log('📸 Buscando foto do WhatsApp para cliente...');
+          
+          const response = await fetch('/api/client/fetch-avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tokenInstancia: businessSettings.tokenInstancia,
+              phoneNumber: numericPhone,
+              businessId: finalUserId,
+              clientId: id
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.avatarUrl) {
+              avatarUrl = result.avatarUrl;
+              console.log('✅ Foto do WhatsApp obtida para cliente:', avatarUrl);
+            }
+          }
+        } catch (photoError) {
+          console.warn('⚠️ Não foi possível buscar foto do WhatsApp:', photoError);
+          // Continua o cadastro mesmo se falhar a foto
+        }
+      }
+
       // 🔥 OTIMIZAÇÃO: Extrair mês e dia para query eficiente de aniversários
       let birthMonth: number | null = null;
       let birthDay: number | null = null;
@@ -180,7 +221,7 @@ export default function ClientsPage() {
         birthMonth, // Para query otimizada de aniversários
         birthDay, // Para query otimizada de aniversários
         status: data.status,
-        avatarUrl: data.avatarUrl || null,
+        avatarUrl: avatarUrl,
         observacoes: data.observacoes || null,
         instanciaWhatsapp: businessSettings.id,
         id: id,
@@ -195,9 +236,10 @@ export default function ClientsPage() {
 
       await saveOrUpdateDocument('clientes', id, clientData, finalUserId)
 
+      const hasWhatsAppPhoto = avatarUrl && !data.avatarUrl;
       toast({
         title: selectedClient ? "Cliente Atualizado" : "Cliente Salvo",
-        description: `O cliente "${data.name}" foi salvo com sucesso.`,
+        description: `O cliente "${data.name}" foi salvo com sucesso${hasWhatsAppPhoto ? ' com foto do WhatsApp! 📸' : ''}.`,
       })
       setIsFormModalOpen(false)
     } catch (error) {

@@ -174,7 +174,7 @@ export function StandardDatePicker({
     >
       <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
       {value && value instanceof Date && !isNaN(value.getTime()) ? (
-        <span className="font-medium">{format(value, 'PPP', { locale: ptBR })}</span>
+        <span className="font-medium">{format(value, 'dd/MM/yyyy')}</span>
       ) : (
         <span>{placeholder}</span>
       )}

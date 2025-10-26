@@ -182,15 +182,30 @@ export async function splitContactsByDays(
  */
 export async function saveCampaign(campaign: Omit<Campaign, 'id'>): Promise<string> {
   try {
+    const createdAt = Timestamp.fromDate(campaign.created_at);
+    const updatedAt = Timestamp.fromDate(campaign.updated_at);
+    const scheduledFor = Timestamp.fromDate(campaign.scheduled_for);
+    
     const docRef = await adminDb
       .collection('negocios')
       .doc(campaign.businessId)
       .collection('campanhas')
       .add({
         ...campaign,
-        created_at: Timestamp.fromDate(campaign.created_at),
-        updated_at: Timestamp.fromDate(campaign.updated_at),
-        scheduled_for: Timestamp.fromDate(campaign.scheduled_for),
+        // Snake_case (compatibilidade)
+        created_at: createdAt,
+        updated_at: updatedAt,
+        scheduled_for: scheduledFor,
+        total_contacts: campaign.total_contacts,
+        sent_count: campaign.sent_count,
+        failed_count: campaign.failed_count,
+        // CamelCase (novo padrão para tabela)
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        dataAgendamento: scheduledFor,
+        totalContatos: campaign.total_contacts,
+        contatosEnviados: campaign.sent_count,
+        contatosFalhados: campaign.failed_count,
         contatos: campaign.contatos.map(c => ({
           ...c,
           sent_at: c.sent_at ? Timestamp.fromDate(c.sent_at) : null,

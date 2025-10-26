@@ -149,14 +149,22 @@ export default function ProfessionalsPage() {
     if (!finalUserId || !businessSettings) return
     setIsSubmitting(true)
     try {
-      const normalizedPhoneStr = normalizePhoneNumber(data.phone);
-      const phoneAsNumber = parseInt(normalizedPhoneStr, 10);
+      const normalizedPhoneStr = normalizePhoneNumber(data.phone); // 11 dígitos
+      
+      // ⚠️ IMPORTANTE: Adicionar DDI 55 para salvar no Firestore (13 dígitos)
+      // Frontend: 81997628611 (11 dígitos)
+      // Firestore: 5581997628611 (13 dígitos com DDI)
+      const phoneWithDDI = normalizedPhoneStr.startsWith('55') 
+        ? normalizedPhoneStr 
+        : `55${normalizedPhoneStr}`;
+      
+      const phoneAsNumber = parseInt(phoneWithDDI, 10);
 
-      if (isNaN(phoneAsNumber)) {
+      if (isNaN(phoneAsNumber) || phoneWithDDI.length !== 13) {
         toast({
           variant: "destructive",
           title: "Número de Telefone Inválido",
-          description: "O número de telefone fornecido não é válido.",
+          description: "O número de telefone fornecido não é válido. Deve ter 11 dígitos (DDD + 9 + número).",
         });
         setIsSubmitting(false);
         return;
@@ -178,11 +186,43 @@ export default function ProfessionalsPage() {
 
       const id = selectedProfessional ? selectedProfessional.id : `prof-${Date.now()}-${generateUUID().slice(0, 8)}`;
 
+      let avatarUrl = data.avatarUrl || null;
+
+      // 📸 AUTO-BUSCAR FOTO DO WHATSAPP se não tiver foto E WhatsApp estiver conectado
+      // Usa endpoint: POST /chat/details (retorna image e imagePreview)
+      if (!avatarUrl && !selectedProfessional && businessSettings.whatsappConectado && businessSettings.tokenInstancia) {
+        try {
+          console.log('📸 Buscando foto do WhatsApp automaticamente...');
+          
+          const response = await fetch('/api/professional/fetch-avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tokenInstancia: businessSettings.tokenInstancia,
+              phoneNumber: phoneAsNumber,
+              businessId: finalUserId,
+              professionalId: id
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.avatarUrl) {
+              avatarUrl = result.avatarUrl;
+              console.log('✅ Foto do WhatsApp obtida:', avatarUrl);
+            }
+          }
+        } catch (photoError) {
+          console.warn('⚠️ Não foi possível buscar foto do WhatsApp:', photoError);
+          // Continua o cadastro mesmo se falhar a foto
+        }
+      }
+
       const professionalData = {
         name: data.name,
         phone: phoneAsNumber,
         status: data.status,
-        avatarUrl: data.avatarUrl || null,
+        avatarUrl: avatarUrl,
         workHours: data.workHours,
         notificarAgendamentos: data.notificarAgendamentos ?? true,
         instanciaWhatsapp: businessSettings.id,
@@ -191,9 +231,10 @@ export default function ProfessionalsPage() {
 
       await saveOrUpdateDocument('profissionais', id, professionalData, finalUserId)
       
+      const hasWhatsAppPhoto = avatarUrl && !data.avatarUrl;
       toast({
         title: selectedProfessional ? "Profissional Atualizado" : "Profissional Salvo",
-        description: `O profissional "${data.name}" foi salvo com sucesso.`,
+        description: `O profissional "${data.name}" foi salvo com sucesso${hasWhatsAppPhoto ? ' com foto do WhatsApp! 📸' : ''}.`,
       })
 
       setIsFormModalOpen(false)

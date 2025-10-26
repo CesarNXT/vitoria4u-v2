@@ -10,6 +10,8 @@ import {
   Pause
 } from "lucide-react";
 import { Campanha, UazapiCampanhaStatus } from "@/lib/types";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // Usar o tipo Campanha do types.ts
 type UazapiCampanha = Campanha;
@@ -77,6 +79,46 @@ export const uazapiColumns: ColumnDef<UazapiCampanha>[] = [
               style={{ width: `${percentual}%` }}
             />
           </div>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Início",
+    size: 140,
+    cell: ({ row }) => {
+      const createdAt = row.original.createdAt;
+      if (!createdAt) return <span className="text-muted-foreground text-sm">-</span>;
+      
+      const date = createdAt instanceof Date ? createdAt : 
+                   createdAt.toDate ? createdAt.toDate() : 
+                   new Date(createdAt);
+
+      return (
+        <div className="text-sm">
+          <div className="font-medium">{format(date, "dd/MM/yyyy", { locale: ptBR })}</div>
+          <div className="text-muted-foreground text-xs">{format(date, "HH:mm", { locale: ptBR })}</div>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "dataConclusao",
+    header: "Término",
+    size: 140,
+    cell: ({ row }) => {
+      const dataConclusao = row.original.dataConclusao;
+      if (!dataConclusao) return <span className="text-muted-foreground text-sm">-</span>;
+      
+      const date = dataConclusao instanceof Date ? dataConclusao : 
+                   dataConclusao.toDate ? dataConclusao.toDate() : 
+                   new Date(dataConclusao);
+
+      return (
+        <div className="text-sm">
+          <div className="font-medium">{format(date, "dd/MM/yyyy", { locale: ptBR })}</div>
+          <div className="text-muted-foreground text-xs">{format(date, "HH:mm", { locale: ptBR })}</div>
         </div>
       );
     },

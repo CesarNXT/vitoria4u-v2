@@ -123,6 +123,54 @@ export default function CampanhasPage() {
     }
   }, [planLoading, featureCheck.allowed]);
 
+  // 🔄 Auto-refresh: Atualizar campanhas em tempo real (a cada 30s)
+  useEffect(() => {
+    // Verificar se há campanhas "sending"
+    const hasSendingCampaigns = campanhas.some(c => c.status === 'sending');
+    
+    if (!hasSendingCampaigns || !featureCheck.allowed) {
+      return; // Não atualizar se não há campanhas enviando
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const result = await getCampanhasAction();
+        if (result.success && result.campanhas) {
+          setCampanhas(result.campanhas);
+          console.log('📊 Campanhas atualizadas automaticamente');
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar campanhas:', error);
+      }
+    }, 30000); // 30 segundos
+
+    return () => clearInterval(interval);
+  }, [campanhas, featureCheck.allowed]);
+
+  // 🔄 Auto-refresh: Atualizar modal de detalhes em tempo real (a cada 10s)
+  useEffect(() => {
+    if (!showDetailsDialog || !selectedCampanha || selectedCampanha.status !== 'sending') {
+      return; // Não atualizar se modal fechado ou campanha não está enviando
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const result = await getCampanhasAction();
+        if (result.success && result.campanhas) {
+          const campanhaAtualizada = result.campanhas.find((c: any) => c.id === selectedCampanha.id);
+          if (campanhaAtualizada) {
+            setSelectedCampanha(campanhaAtualizada);
+            console.log('🔄 Detalhes da campanha atualizados');
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar detalhes:', error);
+      }
+    }, 10000); // 10 segundos
+
+    return () => clearInterval(interval);
+  }, [showDetailsDialog, selectedCampanha]);
+
   const loadData = async () => {
     setIsLoadingData(true);
     try {
@@ -194,10 +242,26 @@ export default function CampanhasPage() {
     }
   };
 
-  // Ver detalhes da campanha
+  // Ver detalhes da campanha (busca dados atualizados)
   const handleViewDetails = async (campanha: Campanha) => {
-    setSelectedCampanha(campanha);
-    setShowDetailsDialog(true);
+    try {
+      // Buscar dados atualizados do Firestore
+      const result = await getCampanhasAction();
+      
+      if (result.success && result.campanhas) {
+        const campanhaAtualizada = result.campanhas.find((c: any) => c.id === campanha.id);
+        setSelectedCampanha(campanhaAtualizada || campanha);
+      } else {
+        setSelectedCampanha(campanha);
+      }
+      
+      setShowDetailsDialog(true);
+    } catch (error) {
+      console.error('Erro ao buscar detalhes atualizados:', error);
+      // Em caso de erro, usar dados originais
+      setSelectedCampanha(campanha);
+      setShowDetailsDialog(true);
+    }
   };
 
   // Pausar campanha
@@ -504,6 +568,18 @@ export default function CampanhasPage() {
                       <span className="text-sm text-muted-foreground">Tipo</span>
                       <span className="text-sm font-medium capitalize">{campanha.tipo}</span>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Início</span>
+                      <span className="text-sm font-medium">
+                        {campanha.createdAt ? format(toDate(campanha.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR }) : '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Término</span>
+                      <span className="text-sm font-medium">
+                        {campanha.dataConclusao ? format(toDate(campanha.dataConclusao), "dd/MM/yyyy HH:mm", { locale: ptBR }) : '-'}
+                      </span>
+                    </div>
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t">
                       <div className="text-center">
                         <p className="text-xs text-muted-foreground">Total</p>
@@ -661,7 +737,13 @@ export default function CampanhasPage() {
                           </Tooltip>
                         </TooltipProvider>
                         <p className="text-sm text-muted-foreground">
-                          {String(envio.telefone).replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+                          {(() => {
+                            const tel = String(envio.telefone);
+                            // Remove DDI 55 se tiver 13 dígitos
+                            const telSemDDI = tel.length === 13 && tel.startsWith('55') ? tel.substring(2) : tel;
+                            // Formata: (81) 99762-8611
+                            return telSemDDI.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+                          })()}
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
