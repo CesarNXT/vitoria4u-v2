@@ -45,7 +45,7 @@ import { format, isDate } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import type { Agendamento, Cliente, Servico, Profissional, ConfiguracoesNegocio } from '@/lib/types';
+import type { Agendamento, Cliente, Servico, Profissional, ConfiguracoesNegocio, DataBloqueada } from '@/lib/types';
 import { getAvailableTimes } from '@/lib/availability';
 import { useScrollToError } from '@/lib/form-utils';
 
@@ -68,6 +68,7 @@ interface AppointmentFormProps {
   allAppointments: Agendamento[];
   businessId: string;
   businessSettings: ConfiguracoesNegocio | null;
+  businessBlockedDates?: DataBloqueada[]; // Bloqueios de agenda do negócio
   onSubmit: (data: AppointmentFormValues) => void;
   isSubmitting: boolean;
 }
@@ -99,6 +100,7 @@ export function AppointmentForm({
   allAppointments,
   businessId,
   businessSettings,
+  businessBlockedDates = [],
   onSubmit,
   isSubmitting,
 }: AppointmentFormProps) {
@@ -114,6 +116,8 @@ export function AppointmentForm({
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [workDayWarning, setWorkDayWarning] = useState<string | null>(null);
   const [blockWarning, setBlockWarning] = useState<string | null>(null);
+  const [businessClosedWarning, setBusinessClosedWarning] = useState<string | null>(null);
+  const [businessBlockWarning, setBusinessBlockWarning] = useState<string | null>(null);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pendingData, setPendingData] = useState<AppointmentFormValues | null>(null);
   const isSubmittingRef = useRef(false);
@@ -208,23 +212,33 @@ export function AppointmentForm({
         setWorkDayWarning(null);
       }
 
-      // Verificar bloqueios na agenda
+      // Verificar bloqueios na agenda do profissional
+      
       if (professional.datasBloqueadas && professional.datasBloqueadas.length > 0) {
         const selectedDateOnly = new Date(selectedDate);
         selectedDateOnly.setHours(0, 0, 0, 0);
 
         const blocked = professional.datasBloqueadas.find(block => {
-          const startDate = new Date(block.startDate);
-          const endDate = new Date(block.endDate);
+          // Conversão segura de Timestamp do Firestore
+          const startDate = block.startDate instanceof Date 
+            ? new Date(block.startDate) 
+            : new Date((block.startDate as any).seconds * 1000);
+          const endDate = block.endDate instanceof Date 
+            ? new Date(block.endDate) 
+            : new Date((block.endDate as any).seconds * 1000);
+          
           startDate.setHours(0, 0, 0, 0);
           endDate.setHours(23, 59, 59, 999);
           
-          return selectedDateOnly >= startDate && selectedDateOnly <= endDate;
+          const isBlocked = selectedDateOnly >= startDate && selectedDateOnly <= endDate;
+          
+          return isBlocked;
         });
 
         if (blocked) {
           const reason = blocked.reason ? `: ${blocked.reason}` : '';
-          setBlockWarning(`🚫 Atenção: ${professional.name} tem bloqueio de agenda neste dia${reason}.`);
+          const warningMsg = `🚫 Atenção: ${professional.name} tem bloqueio de agenda neste dia${reason}.`;
+          setBlockWarning(warningMsg);
         } else {
           setBlockWarning(null);
         }
@@ -236,6 +250,64 @@ export function AppointmentForm({
       setBlockWarning(null);
     }
   }, [selectedDate, selectedProfessionalId, professionals]);
+  
+  // Verifica se o negócio está fechado no dia e se há bloqueios de agenda do negócio
+  useEffect(() => {
+    if (selectedDate && businessSettings) {
+      // Verificar se a loja está fechada neste dia da semana
+      const dayOfWeek = selectedDate.getDay();
+      const dayNames = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
+      const dayName = dayNames[dayOfWeek];
+      
+      if (businessSettings.horariosFuncionamento && dayName) {
+        const businessDay = businessSettings.horariosFuncionamento[dayName];
+        if (!businessDay?.enabled || businessDay.slots.length === 0) {
+          setBusinessClosedWarning(`🏪 Atenção: A loja está fechada às ${format(selectedDate, 'EEEE', { locale: ptBR })}s.`);
+        } else {
+          setBusinessClosedWarning(null);
+        }
+      } else {
+        setBusinessClosedWarning(null);
+      }
+      
+      // Verificar bloqueios de agenda do negócio
+      
+      if (businessBlockedDates && businessBlockedDates.length > 0) {
+        const selectedDateOnly = new Date(selectedDate);
+        selectedDateOnly.setHours(0, 0, 0, 0);
+        
+        const blocked = businessBlockedDates.find(block => {
+          // Conversão segura de Timestamp do Firestore
+          const startDate = block.startDate instanceof Date 
+            ? new Date(block.startDate) 
+            : new Date((block.startDate as any).seconds * 1000);
+          const endDate = block.endDate instanceof Date 
+            ? new Date(block.endDate) 
+            : new Date((block.endDate as any).seconds * 1000);
+          
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(23, 59, 59, 999);
+          
+          const isBlocked = selectedDateOnly >= startDate && selectedDateOnly <= endDate;
+          
+          return isBlocked;
+        });
+        
+        if (blocked) {
+          const reason = blocked.reason ? `: ${blocked.reason}` : '';
+          const warningMsg = `🔒 Atenção: A loja tem bloqueio de agenda neste dia${reason}.`;
+          setBusinessBlockWarning(warningMsg);
+        } else {
+          setBusinessBlockWarning(null);
+        }
+      } else {
+        setBusinessBlockWarning(null);
+      }
+    } else {
+      setBusinessClosedWarning(null);
+      setBusinessBlockWarning(null);
+    }
+  }, [selectedDate, businessSettings, businessBlockedDates]);
   
   const filteredClients = useMemo(() => {
     if (!clientSearchTerm) return clients;
@@ -289,14 +361,6 @@ export function AppointmentForm({
 
   useEffect(() => {
     const fetchAvailableTimes = () => {
-      console.log('🔍 fetchAvailableTimes:', {
-        selectedDate,
-        selectedService: selectedService?.name,
-        selectedProfessionalId,
-        hasDate: !!selectedDate,
-        dateString: selectedDate?.toDateString()
-      });
-      
       if (selectedDate && selectedService && selectedProfessionalId) {
         setIsLoadingTimes(true);
         
@@ -367,32 +431,20 @@ export function AppointmentForm({
   }, [selectedDate, selectedService, selectedProfessionalId, appointment, businessSettings, setValue, form]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
-    console.log('🔵 handleFormSubmit chamado', {
-      isSubmittingRef: isSubmittingRef.current,
-      isSubmitting,
-      hasWarnings: !!(conflictWarning || workDayWarning || blockWarning),
-      conflictWarning,
-      workDayWarning,
-      blockWarning
-    });
-    
     // Proteção contra duplo clique
     if (isSubmittingRef.current || isSubmitting) {
-      console.log('🔴 Bloqueado por isSubmitting');
       return;
     }
     
     isSubmittingRef.current = true;
     
-    // Se há qualquer aviso (conflito, dia não trabalhado ou bloqueio), mostra o dialog
-    if (conflictWarning || workDayWarning || blockWarning) {
-      console.log('⚠️ Abrindo modal de conflito');
+    // Se há qualquer aviso (conflito, dia não trabalhado, bloqueio, loja fechada ou bloqueio do negócio), mostra o dialog
+    if (conflictWarning || workDayWarning || blockWarning || businessClosedWarning || businessBlockWarning) {
       setPendingData(data);
       setShowConflictDialog(true);
       isSubmittingRef.current = false; // Libera se for apenas abrir dialog
     } else {
       // Sem avisos, envia direto
-      console.log('✅ Enviando direto (sem avisos)');
       onSubmit(data);
       // isSubmittingRef será resetado quando o form fechar/reabrir
     }
@@ -665,7 +717,6 @@ export function AppointmentForm({
                   <StandardDatePicker
                     value={field.value}
                     onChange={(date) => {
-                      console.log('📆 Data onChange recebido:', date);
                       // Só atualizar se date não for undefined, ou se for uma limpeza intencional
                       if (date) {
                         field.onChange(date);
@@ -781,6 +832,19 @@ export function AppointmentForm({
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
+                {/* Avisos sobre o NEGÓCIO */}
+                {businessClosedWarning && (
+                  <div className="text-sm sm:text-base break-words bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {businessClosedWarning}
+                  </div>
+                )}
+                {businessBlockWarning && (
+                  <div className="text-sm sm:text-base break-words bg-purple-50 dark:bg-purple-950/20 p-3 rounded-lg border border-purple-200 dark:border-purple-800" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {businessBlockWarning}
+                  </div>
+                )}
+                
+                {/* Avisos sobre o PROFISSIONAL */}
                 {workDayWarning && (
                   <div className="text-sm sm:text-base break-words bg-yellow-50 dark:bg-yellow-950/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     {workDayWarning}
@@ -791,11 +855,14 @@ export function AppointmentForm({
                     {blockWarning}
                   </div>
                 )}
+                
+                {/* Avisos de CONFLITO */}
                 {conflictWarning && (
                   <div className="text-sm sm:text-base break-words bg-orange-50 dark:bg-orange-950/20 p-3 rounded-lg border border-orange-200 dark:border-orange-800" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     {conflictWarning}
                   </div>
                 )}
+                
                 <strong className="block pt-2 text-sm sm:text-base">Deseja agendar mesmo assim?</strong>
               </div>
             </AlertDialogDescription>

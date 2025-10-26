@@ -165,7 +165,6 @@ export default function AgendamentosPage() {
   useEffect(() => {
     if (!finalUserId || !firestore) return;
     
-    console.time('⏱️ [Agendamentos] Tempo total de carregamento');
     setIsLoading(true);
 
     // Wrapper para capturar erros nos listeners
@@ -192,7 +191,6 @@ export default function AgendamentosPage() {
     
     const unsubClients = safeListener(
       getClientsOnSnapshot(finalUserId, (data) => {
-        console.log(`📊 [Agendamentos] Clientes carregados: ${data.length}`);
         setClients(serializeTimestamps(data));
       }, 2000), // ✅ Aumentar limite para 2000 clientes (precisa de todos para seleção)
       'Clientes'
@@ -223,8 +221,6 @@ export default function AgendamentosPage() {
       .then(settings => {
         setBusinessSettings(serializeTimestamps(settings));
         setIsLoading(false);
-        console.timeEnd('⏱️ [Agendamentos] Tempo total de carregamento');
-        console.log('✅ [Agendamentos] Página carregada com sucesso');
       })
       .catch(error => {
         console.error('❌ Erro ao carregar configurações:', error);
@@ -234,7 +230,6 @@ export default function AgendamentosPage() {
           description: 'Recarregue a página. Se persistir, faça logout e login novamente.',
         });
         setIsLoading(false);
-        console.timeEnd('⏱️ [Agendamentos] Tempo total de carregamento');
       });
 
     return () => {
@@ -854,6 +849,7 @@ return (
                         allAppointments={appointments}
                         businessId={finalUserId!}
                         businessSettings={businessSettings}
+                        businessBlockedDates={blockedDates}
                         onSubmit={handleFormSubmit}
                         isSubmitting={isSubmitting}
                     />

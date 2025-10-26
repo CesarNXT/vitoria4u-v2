@@ -76,6 +76,12 @@ const nextConfig = {
         hostname: '**.storage.googleapis.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pps.whatsapp.net',
+        port: '',
+        pathname: '/**',
       }
     ],
     // Aumentar timeout para imagens externas grandes
