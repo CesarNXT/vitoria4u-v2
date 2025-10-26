@@ -521,25 +521,19 @@ async function createMultipleCampaigns(
       const batchNumber = i + 1;
       
       console.log(`📤 Campanha ${batchNumber}/${batches.length}: ${batch.contacts.length} contatos para ${batch.date.toLocaleDateString('pt-BR')}`);
-      console.log(`📅 Data do batch: ${batch.date.toISOString()} (dia: ${batch.date.getDate()}/${batch.date.getMonth() + 1})`);
-
-      // Ajustar data de agendamento para cada lote
-      // ✅ Manter a HORA original, mudar apenas o DIA
-      const batchDate = new Date(data.dataAgendamento);
-      batchDate.setFullYear(batch.date.getFullYear(), batch.date.getMonth(), batch.date.getDate());
+      console.log(`📅 Data do batch: ${batch.date.toISOString()} (${batch.date.toLocaleString('pt-BR')})`);
+      console.log(`📅 Hora do batch: ${batch.date.getHours()}:${batch.date.getMinutes()}`);
       
       const batchData = {
         ...data,
         nome: `${data.nome} (${batchNumber}/${batches.length})`,
-        dataAgendamento: batchDate, // ✅ Dia do batch + hora original
+        dataAgendamento: batch.date, // ✅ Usar data do batch diretamente (já tem a hora correta)
         contatos: batch.contacts.map(c => ({
           clienteId: c.clienteId,
           nome: c.nome,
           telefone: c.telefone as number,
         })),
       };
-      
-      console.log(`📅 DataAgendamento que será usada: ${batchData.dataAgendamento.toISOString()}`);
 
       const result = await createSingleCampaign(businessId, batchData);
       
