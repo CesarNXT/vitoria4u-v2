@@ -62,14 +62,11 @@ function createReminderMessage(
 
 🔔 Lembrete: Você tem um agendamento amanhã!
 
-📅 *Data e Hora*
-${dataHoraAtendimento}
+📅 *Data e Hora:* ${dataHoraAtendimento}
 
-🏢 *Local*
-${nomeEmpresa}
+🏢 *Local:* ${nomeEmpresa}
 
-💼 *Serviço*
-${nomeServico}
+💼 *Serviço:* ${nomeServico}
 
 Por favor, confirme sua presença:`;
   } else {
@@ -77,14 +74,11 @@ Por favor, confirme sua presença:`;
 
 🔔 Seu agendamento é daqui a 2 horas!
 
-📅 *Horário*
-${dataHoraAtendimento}
+📅 *Horário:* ${dataHoraAtendimento}
 
-🏢 *Local*
-${nomeEmpresa}
+🏢 *Local:* ${nomeEmpresa}
 
-💼 *Serviço*
-${nomeServico}
+💼 *Serviço:* ${nomeServico}
 
 Se não puder comparecer, avise-nos.`;
   }

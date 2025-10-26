@@ -412,6 +412,14 @@ export default function CampanhasPage() {
           title: "Campanha deletada",
           description: result.message,
         });
+        
+        // Remover da lista de selecionados se estava selecionada
+        setSelectedCampaignIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(campanha.id);
+          return newSet;
+        });
+        
         await loadData();
       } else {
         toast({
@@ -535,33 +543,8 @@ export default function CampanhasPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Campanhas</h1>
           <p className="text-muted-foreground">Gerencie suas campanhas de envio em massa via WhatsApp.</p>
-          {selectedCampaignIds.size > 0 && (
-            <p className="text-sm text-primary font-medium mt-1">
-              {selectedCampaignIds.size} campanha(s) selecionada(s)
-            </p>
-          )}
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          {selectedCampaignIds.size > 0 && (
-            <Button 
-              onClick={handleDeleteMultiple} 
-              variant="destructive"
-              disabled={isDeletingMultiple}
-              className="flex-1 sm:flex-initial"
-            >
-              {isDeletingMultiple ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deletando...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Deletar ({selectedCampaignIds.size})
-                </>
-              )}
-            </Button>
-          )}
           <Button 
             onClick={loadData} 
             variant="outline"
@@ -651,10 +634,39 @@ export default function CampanhasPage() {
       {/* Tabela de campanhas */}
       <Card>
         <CardHeader>
-          <CardTitle>Todas as Campanhas</CardTitle>
-          <CardDescription>
-            Gerencie suas campanhas de envio em massa
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle>Todas as Campanhas</CardTitle>
+              <CardDescription>
+                Gerencie suas campanhas de envio em massa
+              </CardDescription>
+              {selectedCampaignIds.size > 0 && (
+                <p className="text-sm text-primary font-medium mt-2">
+                  {selectedCampaignIds.size} campanha(s) selecionada(s)
+                </p>
+              )}
+            </div>
+            {selectedCampaignIds.size > 0 && (
+              <Button 
+                onClick={handleDeleteMultiple} 
+                variant="destructive"
+                disabled={isDeletingMultiple}
+                size="sm"
+              >
+                {isDeletingMultiple ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deletando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar ({selectedCampaignIds.size})
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {campanhas.length === 0 ? (

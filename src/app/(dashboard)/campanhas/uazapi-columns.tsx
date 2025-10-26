@@ -117,16 +117,16 @@ export const uazapiColumns: ColumnDef<UazapiCampanha>[] = [
     },
   },
   {
-    accessorKey: "createdAt",
+    accessorKey: "dataAgendamento",
     header: "Início",
     size: 140,
     cell: ({ row }) => {
-      const createdAt = row.original.createdAt;
-      if (!createdAt) return <span className="text-muted-foreground text-sm">-</span>;
+      const dataAgendamento = row.original.dataAgendamento;
+      if (!dataAgendamento) return <span className="text-muted-foreground text-sm">-</span>;
       
-      const date = createdAt instanceof Date ? createdAt : 
-                   createdAt.toDate ? createdAt.toDate() : 
-                   new Date(createdAt);
+      const date = dataAgendamento instanceof Date ? dataAgendamento : 
+                   dataAgendamento.toDate ? dataAgendamento.toDate() : 
+                   new Date(dataAgendamento);
 
       return (
         <div className="text-sm">
@@ -141,17 +141,40 @@ export const uazapiColumns: ColumnDef<UazapiCampanha>[] = [
     header: "Término",
     size: 140,
     cell: ({ row }) => {
-      const dataConclusao = row.original.dataConclusao;
-      if (!dataConclusao) return <span className="text-muted-foreground text-sm">-</span>;
+      const campanha = row.original;
+      const dataConclusao = campanha.dataConclusao;
       
-      const date = dataConclusao instanceof Date ? dataConclusao : 
-                   dataConclusao.toDate ? dataConclusao.toDate() : 
-                   new Date(dataConclusao);
+      // Se já concluiu, mostrar data real de conclusão
+      if (dataConclusao) {
+        const date = dataConclusao instanceof Date ? dataConclusao : 
+                     dataConclusao.toDate ? dataConclusao.toDate() : 
+                     new Date(dataConclusao);
 
+        return (
+          <div className="text-sm">
+            <div className="font-medium">{format(date, "dd/MM/yyyy", { locale: ptBR })}</div>
+            <div className="text-muted-foreground text-xs">{format(date, "HH:mm", { locale: ptBR })}</div>
+          </div>
+        );
+      }
+      
+      // Se ainda não concluiu, calcular estimativa baseada no início + delay entre mensagens
+      const dataAgendamento = campanha.dataAgendamento;
+      if (!dataAgendamento) return <span className="text-muted-foreground text-sm">-</span>;
+      
+      const dataInicio = dataAgendamento instanceof Date ? dataAgendamento : 
+                         dataAgendamento.toDate ? dataAgendamento.toDate() : 
+                         new Date(dataAgendamento);
+      
+      // Calcular estimativa: cada mensagem leva ~100 segundos (média entre 80-120s)
+      const totalContatos = campanha.totalContatos || 0;
+      const segundosEstimados = totalContatos * 100; // 100s por mensagem
+      const estimativa = new Date(dataInicio.getTime() + segundosEstimados * 1000);
+      
       return (
         <div className="text-sm">
-          <div className="font-medium">{format(date, "dd/MM/yyyy", { locale: ptBR })}</div>
-          <div className="text-muted-foreground text-xs">{format(date, "HH:mm", { locale: ptBR })}</div>
+          <div className="font-medium text-muted-foreground">{format(estimativa, "dd/MM/yyyy", { locale: ptBR })}</div>
+          <div className="text-muted-foreground text-xs italic">~{format(estimativa, "HH:mm", { locale: ptBR })}</div>
         </div>
       );
     },

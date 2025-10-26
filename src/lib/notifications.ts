@@ -76,14 +76,11 @@ export async function notifyClientAppointmentConfirmation(data: {
 
 🎉 Seu agendamento foi confirmado!
 
-📅 *Data e Hora*
-${data.dataHoraAtendimento}
+📅 *Data e Hora:* ${data.dataHoraAtendimento}
 
-🏢 *${categoria}*
-${data.nomeEmpresa}
+🏢 *Estabelecimento:* ${data.nomeEmpresa}
 
-💼 *Procedimento*
-${data.nomeServico}${data.criadoPor ? `\n\n📝 *Agendado por:* ${data.criadoPor}` : ''}
+💼 *Procedimento:* ${data.nomeServico}${data.criadoPor ? `\n\n📝 *Agendado por:* ${data.criadoPor}` : ''}
 
 Nos vemos em breve! 😊`
 
@@ -119,14 +116,11 @@ export async function notifyClientCancellation(data: {
 
 Seu agendamento foi cancelado.
 
-📅 *Data e Hora*
-${dataHoraAtendimento}
+📅 *Data e Hora:* ${dataHoraAtendimento}
 
-🏢 *${categoria}*
-${nomeEmpresa}
+🏢 *Estabelecimento:* ${nomeEmpresa}
 
-💼 *Procedimento*
-${nomeServico}
+💼 *Procedimento:* ${nomeServico}
 
 Se desejar reagendar, entre em contato conosco.`
 
@@ -338,14 +332,11 @@ export async function notifyReminder24h(data: {
 
 🔔 Lembrete: Você tem um agendamento amanhã!
 
-📅 *Data e Hora*
-${data.dataHoraAtendimento}
+📅 *Data e Hora:* ${data.dataHoraAtendimento}
 
-🏢 *Local*
-${data.nomeEmpresa}
+🏢 *Local:* ${data.nomeEmpresa}
 
-💼 *Serviço*
-${data.nomeServico}
+💼 *Serviço:* ${data.nomeServico}
 
 Nos vemos em breve! 😊`
 
@@ -376,14 +367,11 @@ export async function notifyReminder2h(data: {
 
 🔔 Seu agendamento é daqui a 2 horas!
 
-📅 *Horário*
-${data.dataHoraAtendimento}
+📅 *Horário:* ${data.dataHoraAtendimento}
 
-🏢 *Local*
-${data.nomeEmpresa}
+🏢 *Local:* ${data.nomeEmpresa}
 
-💼 *Serviço*
-${data.nomeServico}
+💼 *Serviço:* ${data.nomeServico}
 
 Te esperamos! 😊`
 
