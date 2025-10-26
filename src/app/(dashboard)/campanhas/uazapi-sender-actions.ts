@@ -285,8 +285,15 @@ async function createSingleCampaign(
     console.log(`🔹 Hora recebida (data.horaInicio): ${data.horaInicio}`);
     console.log(`🔹 Hora a aplicar: ${horaAgendamento}:${minutoAgendamento}`);
     
-    // ✅ IMPORTANTE: Criar nova data para evitar mutar a original
-    const dataCompleta = new Date(data.dataAgendamento.getFullYear(), data.dataAgendamento.getMonth(), data.dataAgendamento.getDate(), horaAgendamento || 0, minutoAgendamento || 0, 0, 0);
+    // ✅ CORREÇÃO TIMEZONE: Pegar dia/mês/ano da data UTC mas aplicar hora local
+    // Usar UTC methods para evitar conversão automática de timezone
+    const dataUTC = new Date(data.dataAgendamento);
+    const ano = dataUTC.getUTCFullYear();
+    const mes = dataUTC.getUTCMonth();
+    const dia = dataUTC.getUTCDate();
+    
+    // Criar data no timezone LOCAL com a hora escolhida
+    const dataCompleta = new Date(ano, mes, dia, horaAgendamento || 0, minutoAgendamento || 0, 0, 0);
     
     console.log(`🔹 Data completa FINAL: ${dataCompleta.toISOString()}`);
     console.log(`🔹 Data completa local FINAL: ${dataCompleta.toLocaleString('pt-BR')}`);
