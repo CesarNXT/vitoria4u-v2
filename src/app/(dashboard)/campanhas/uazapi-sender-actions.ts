@@ -11,6 +11,7 @@ import {
   saveCampaign,
   updateCampaignStatus,
   incrementDailyStats,
+  decrementDailyStats,
   addCampaignToClientHistory,
   getClientsWithCampaignHistory,
   type CampaignContact 
@@ -282,12 +283,14 @@ async function createSingleCampaign(
     
     console.log(`🔹 Data recebida (data.dataAgendamento): ${data.dataAgendamento.toISOString()}`);
     console.log(`🔹 Hora recebida (data.horaInicio): ${data.horaInicio}`);
+    console.log(`🔹 Hora a aplicar: ${horaAgendamento}:${minutoAgendamento}`);
     
-    const dataCompleta = new Date(data.dataAgendamento);
-    dataCompleta.setHours(horaAgendamento || 0, minutoAgendamento || 0, 0, 0);
+    // ✅ IMPORTANTE: Criar nova data para evitar mutar a original
+    const dataCompleta = new Date(data.dataAgendamento.getFullYear(), data.dataAgendamento.getMonth(), data.dataAgendamento.getDate(), horaAgendamento || 0, minutoAgendamento || 0, 0, 0);
     
-    console.log(`🔹 Data completa após setHours: ${dataCompleta.toISOString()}`);
-    console.log(`🔹 Data completa local: ${dataCompleta.toLocaleString('pt-BR')}`);
+    console.log(`🔹 Data completa FINAL: ${dataCompleta.toISOString()}`);
+    console.log(`🔹 Data completa local FINAL: ${dataCompleta.toLocaleString('pt-BR')}`);
+    console.log(`🔹 Hora da data completa: ${dataCompleta.getHours()}:${dataCompleta.getMinutes()}`);
     
     // ✅ Calcular MINUTOS a partir de agora (não timestamp)
     const now = new Date();
@@ -393,7 +396,8 @@ async function createSingleCampaign(
     });
 
     // ✅ INCREMENTAR CONTADOR DIÁRIO (reserva a quota)
-    await incrementDailyStats(businessId, campaignId, data.contatos.length, data.dataAgendamento);
+    // Usar dataCompleta (com hora) para garantir consistência
+    await incrementDailyStats(businessId, campaignId, data.contatos.length, dataCompleta);
 
     // ✅ REGISTRAR NO HISTÓRICO DOS CLIENTES
     for (const contato of data.contatos) {
@@ -477,6 +481,20 @@ async function createMultipleCampaigns(
   try {
     console.log(`🔄 Dividindo ${data.contatos.length} contatos em múltiplas campanhas...`);
 
+    // ✅ APLICAR HORA À DATA ANTES DE DIVIDIR EM BATCHES
+    const [horaAgendamento, minutoAgendamento] = data.horaInicio.split(':').map(Number);
+    const dataComHora = new Date(
+      data.dataAgendamento.getFullYear(),
+      data.dataAgendamento.getMonth(),
+      data.dataAgendamento.getDate(),
+      horaAgendamento || 0,
+      minutoAgendamento || 0,
+      0,
+      0
+    );
+    
+    console.log(`🔹 Data com hora aplicada: ${dataComHora.toISOString()} (${dataComHora.toLocaleString('pt-BR')})`);
+
     // Dividir contatos por dias usando quota disponível
     const { batches, total_days } = await splitContactsByDays(
       businessId,
@@ -486,7 +504,7 @@ async function createMultipleCampaigns(
         telefone: c.telefone,
         status: 'pending' as const,
       })),
-      data.dataAgendamento
+      dataComHora // ✅ Passar data COM HORA
     );
 
     console.log(`📋 Criando ${batches.length} campanhas distribuídas em ${total_days} dias`);
@@ -506,14 +524,14 @@ async function createMultipleCampaigns(
       console.log(`📅 Data do batch: ${batch.date.toISOString()} (dia: ${batch.date.getDate()}/${batch.date.getMonth() + 1})`);
 
       // Ajustar data de agendamento para cada lote
-      // ✅ Garantir que batch.date seja uma nova instância de Date
-      const batchDate = new Date(batch.date);
-      batchDate.setHours(0, 0, 0, 0);
+      // ✅ Manter a HORA original, mudar apenas o DIA
+      const batchDate = new Date(data.dataAgendamento);
+      batchDate.setFullYear(batch.date.getFullYear(), batch.date.getMonth(), batch.date.getDate());
       
       const batchData = {
         ...data,
         nome: `${data.nome} (${batchNumber}/${batches.length})`,
-        dataAgendamento: batchDate, // ✅ Cada batch tem sua própria data
+        dataAgendamento: batchDate, // ✅ Dia do batch + hora original
         contatos: batch.contacts.map(c => ({
           clienteId: c.clienteId,
           nome: c.nome,
@@ -971,6 +989,8 @@ export async function deleteCampanhaAction(campaignId: string) {
 
     const campanha = campanhaDoc.data();
     const folderId = campanha?.folder_id;
+    const totalContatos = campanha?.totalContatos || campanha?.total_contacts || 0;
+    const dataAgendamento = campanha?.dataAgendamento || campanha?.scheduled_for;
 
     // 2️⃣ Deletar na UazAPI (se tiver folder_id)
     if (folderId) {
@@ -995,7 +1015,13 @@ export async function deleteCampanhaAction(campaignId: string) {
       }
     }
 
-    // 3️⃣ Deletar do Firestore
+    // 3️⃣ Decrementar quota do dia (liberar quota)
+    if (totalContatos > 0 && dataAgendamento) {
+      const scheduledDate = dataAgendamento.toDate ? dataAgendamento.toDate() : new Date(dataAgendamento);
+      await decrementDailyStats(businessId, campaignId, totalContatos, scheduledDate);
+    }
+
+    // 4️⃣ Deletar do Firestore
     await campanhaRef.delete();
 
     return {
@@ -1056,6 +1082,8 @@ export async function deleteMultipleCampanhasAction(campaignIds: string[]) {
 
         const campanha = campanhaDoc.data();
         const folderId = campanha?.folder_id;
+        const totalContatos = campanha?.totalContatos || campanha?.total_contacts || 0;
+        const dataAgendamento = campanha?.dataAgendamento || campanha?.scheduled_for;
 
         // Deletar na UazAPI (se tiver folder_id)
         if (folderId) {
@@ -1072,6 +1100,12 @@ export async function deleteMultipleCampanhasAction(campaignIds: string[]) {
           }).catch(() => {
             console.warn(`⚠️ Erro ao deletar ${folderId} na UazAPI`);
           });
+        }
+
+        // Decrementar quota do dia (liberar quota)
+        if (totalContatos > 0 && dataAgendamento) {
+          const scheduledDate = dataAgendamento.toDate ? dataAgendamento.toDate() : new Date(dataAgendamento);
+          await decrementDailyStats(businessId, campaignId, totalContatos, scheduledDate);
         }
 
         // Deletar do Firestore

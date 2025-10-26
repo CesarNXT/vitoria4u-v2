@@ -6,37 +6,35 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
 const N8N_WEBHOOK_URL = process.env.N8N_WHATSAPP_WEBHOOK_URL || '';
 
+// Validar sessão
+async function validateSession() {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get('session');
+  
+  if (!sessionCookie?.value) {
+    throw new Error('Não autenticado');
+  }
+
+  const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie.value);
+  return decodedClaims.uid;
+}
+
+// Buscar businessId (userId = businessId)
+async function getBusinessId(userId: string): Promise<string> {
+  const businessDoc = await adminDb.collection('negocios').doc(userId).get();
+  if (!businessDoc.exists) {
+    throw new Error('Negócio não encontrado');
+  }
+  return userId;
+}
+
 /**
  * Ativar/Desativar webhook da IA no UAZAPI
  */
 export async function toggleIAWebhookAction(iaAtiva: boolean) {
   try {
-    // Verificar autenticação
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
-    
-    if (!sessionCookie?.value) {
-      return {
-        success: false,
-        error: 'Não autenticado'
-      };
-    }
-
-    const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie.value);
-    const userId = decodedClaims.uid;
-
-    // Buscar businessId
-    const userDoc = await adminDb.collection('users').doc(userId).get();
-    const userData = userDoc.data();
-    
-    if (!userData?.businessId) {
-      return {
-        success: false,
-        error: 'Usuário não vinculado a um negócio'
-      };
-    }
-
-    const businessId = userData.businessId;
+    const userId = await validateSession();
+    const businessId = await getBusinessId(userId);
 
     // Buscar token da instância
     const businessDoc = await adminDb.collection('negocios').doc(businessId).get();
@@ -52,7 +50,7 @@ export async function toggleIAWebhookAction(iaAtiva: boolean) {
     if (!N8N_WEBHOOK_URL) {
       return {
         success: false,
-        error: 'URL do webhook N8N não configurada. Configure a variável N8N_WEBHOOK_URL no .env'
+        error: 'IA não configurada no servidor. Entre em contato com o suporte.'
       };
     }
 
@@ -81,28 +79,28 @@ export async function toggleIAWebhookAction(iaAtiva: boolean) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Erro ao configurar webhook:', errorData);
+      console.error('Erro ao configurar IA:', errorData);
       return {
         success: false,
-        error: errorData.message || `Erro ao ${iaAtiva ? 'ativar' : 'desativar'} webhook`
+        error: errorData.message || `Erro ao ${iaAtiva ? 'ativar' : 'desativar'} IA`
       };
     }
 
     const result = await response.json();
-    console.log('Webhook configurado com sucesso:', result);
+    console.log('IA configurada com sucesso:', result);
 
     return {
       success: true,
       message: iaAtiva 
-        ? 'IA ativada! O webhook está recebendo mensagens.' 
-        : 'IA desativada! O webhook foi desligado.'
+        ? 'IA ativada com sucesso!' 
+        : 'IA desativada.'
     };
 
   } catch (error: any) {
-    console.error('Erro ao configurar webhook da IA:', error);
+    console.error('Erro ao configurar IA:', error);
     return {
       success: false,
-      error: error.message || 'Erro ao configurar webhook'
+      error: error.message || 'Erro ao configurar IA'
     };
   }
 }

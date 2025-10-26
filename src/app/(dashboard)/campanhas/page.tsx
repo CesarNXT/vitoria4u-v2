@@ -583,60 +583,12 @@ export default function CampanhasPage() {
         {quotaInfo && (
           <Alert variant={quotaInfo.available < 50 ? "destructive" : "default"}>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between gap-3">
-              <div>
-                <strong>Quota de hoje:</strong> {quotaInfo.available} de {quotaInfo.total} envios disponíveis
-                {quotaInfo.used > 0 && ` (${quotaInfo.used} já usados)`}
-              </div>
-              {quotaInfo.available === 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    if (!confirm('Resetar a quota de hoje? Isso permitirá criar novas campanhas.')) return;
-                    try {
-                      const response = await fetch('/api/admin/reset-quota', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date: new Date().toISOString() })
-                      });
-                      const result = await response.json();
-                      if (result.success) {
-                        toast({
-                          title: "Quota resetada!",
-                          description: result.message,
-                        });
-                        await loadQuota();
-                      } else {
-                        toast({
-                          variant: "destructive",
-                          title: "Erro",
-                          description: result.error,
-                        });
-                      }
-                    } catch (error) {
-                      toast({
-                        variant: "destructive",
-                        title: "Erro",
-                        description: "Erro ao resetar quota",
-                      });
-                    }
-                  }}
-                >
-                  Resetar Quota
-                </Button>
-              )}
+            <AlertDescription>
+              <strong>Quota de hoje:</strong> {quotaInfo.available} de {quotaInfo.total} envios disponíveis
+              {quotaInfo.used > 0 && ` (${quotaInfo.used} já usados)`}
             </AlertDescription>
           </Alert>
         )}
-
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Importante:</strong> As campanhas são gerenciadas automaticamente pelo servidor interno. Os intervalos de 80-120 segundos 
-            entre mensagens são aplicados automaticamente para evitar bloqueios do WhatsApp.
-          </AlertDescription>
-        </Alert>
       </div>
 
       {/* Estatísticas */}

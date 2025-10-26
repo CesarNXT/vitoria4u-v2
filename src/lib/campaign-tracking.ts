@@ -299,6 +299,47 @@ export async function incrementDailyStats(
 }
 
 /**
+ * 📉 Decrementar contador diário (quando campanha é deletada)
+ */
+export async function decrementDailyStats(
+  businessId: string,
+  campaignId: string,
+  count: number,
+  date: Date = new Date()
+): Promise<void> {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  
+  try {
+    const docRef = adminDb
+      .collection('negocios')
+      .doc(businessId)
+      .collection('daily_stats')
+      .doc(dateStr);
+    
+    const doc = await docRef.get();
+    
+    if (!doc.exists) {
+      console.warn(`Daily stats não existe para ${dateStr}, nada para decrementar`);
+      return;
+    }
+    
+    const data = doc.data()!;
+    const currentIds = data.campaign_ids || [];
+    const newCount = Math.max(0, (data.sent_count || 0) - count); // Não deixar negativo
+    
+    await docRef.update({
+      sent_count: newCount,
+      campaign_ids: currentIds.filter((id: string) => id !== campaignId),
+      last_updated: Timestamp.now(),
+    });
+    
+    console.log(`✅ Quota decrementada: -${count} para ${dateStr} (nova quota: ${newCount})`);
+  } catch (error) {
+    console.error('Erro ao decrementar daily stats:', error);
+  }
+}
+
+/**
  * 📋 Registrar campanha no histórico do cliente
  */
 export async function addCampaignToClientHistory(

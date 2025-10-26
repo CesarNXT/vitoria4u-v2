@@ -49,14 +49,14 @@ export default function IAModal({ open, onClose, settings, onSave }: IAModalProp
       // 1. Salvar configurações no Firestore
       await onSave(data);
       
-      // 2. Configurar webhook na UAZAPI (ativar/desativar IA)
+      // 2. Ativar/desativar IA
       const webhookResult = await toggleIAWebhookAction(data.iaAtiva ?? false);
       
       if (!webhookResult.success) {
         toast({
           variant: "destructive",
           title: "Aviso",
-          description: `Configurações salvas, mas houve um erro ao configurar o webhook: ${webhookResult.error}`,
+          description: `Configurações salvas, mas houve um erro: ${webhookResult.error}`,
         });
       } else {
         toast({
