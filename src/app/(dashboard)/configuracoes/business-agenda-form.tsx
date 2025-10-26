@@ -257,9 +257,15 @@ function WorkingHoursDay({ diaKey, label, isProfessionalForm, workHoursField, bu
                                 <FormItem>
                                     <FormControl>
                                         <Switch
-                                            checked={field.value && !isDayDisabledByBusiness}
+                                            checked={isDayDisabledByBusiness ? false : field.value}
                                             onCheckedChange={(checked) => {
+                                                // Não permitir ativar se o negócio está fechado neste dia
+                                                if (checked && isDayDisabledByBusiness) {
+                                                    return;
+                                                }
+                                                
                                                 field.onChange(checked);
+                                                
                                                 if (checked && fields.length === 0) {
                                                     // Ao ativar, copiar horários do negócio (profissional) ou usar padrão
                                                     if (isProfessionalForm && businessDaySchedule && businessDaySchedule.slots.length > 0) {

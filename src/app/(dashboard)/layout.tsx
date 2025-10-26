@@ -424,7 +424,7 @@ function LayoutWithFirebase({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
          {impersonatedId && (
-            <div className="fixed top-0 left-0 right-0 lg:left-64 z-[60] flex items-center justify-between bg-yellow-400 px-4 py-3 text-yellow-900 shadow-md border-b-2 border-yellow-500">
+            <div className="fixed top-0 left-0 right-0 lg:left-[13.6rem] z-[60] flex items-center justify-between bg-yellow-400 px-4 py-3 text-yellow-900 shadow-md border-b-2 border-yellow-500">
                 <div className='flex items-center gap-2'>
                     <Shield className="h-5 w-5" />
                     <p className="text-sm font-semibold">
