@@ -166,13 +166,15 @@ async function createReminderCampaign(
       return null;
     }
 
-    // ✅ CORRIGIDO: scheduled_for aceita MINUTOS a partir de agora (mais simples que timestamp)
-    const delayMinutes = Math.ceil(delayMs / 60000); // Converter ms para minutos
+    // ✅ CORRIGIDO: scheduled_for usa TIMESTAMP ABSOLUTO em milissegundos
+    // Isso garante que o envio seja no horário EXATO escolhido,
+    // independente do timezone do servidor onde o código está rodando
+    const scheduledTimestamp = scheduledFor.getTime(); // Timestamp em milissegundos
     
     // ✅ PAYLOAD CORRETO - Conforme documentação /sender/advanced + /send/menu
     // 
     // /sender/advanced: Agendamento em massa
-    //   - scheduled_for: MINUTOS a partir de agora (não timestamp!)
+    //   - scheduled_for: TIMESTAMP em milissegundos (horário absoluto!)
     //   - delayMin/delayMax: delay ENTRE mensagens (0 = sem intervalo)
     //   - messages: array de mensagens a enviar
     //
@@ -186,7 +188,7 @@ async function createReminderCampaign(
     const payload = {
       delayMin: 0,
       delayMax: 0,
-      scheduled_for: delayMinutes, // ✅ MINUTOS a partir de agora
+      scheduled_for: scheduledTimestamp, // ✅ TIMESTAMP absoluto em milissegundos
       info: `Lembrete ${type} - Agendamento ${agendamentoId}`,
       messages: [
         {
@@ -209,8 +211,9 @@ async function createReminderCampaign(
 
     console.log(`📤 [${type}] Criando lembrete para agendamento ${agendamentoId}:`, {
       scheduledFor: scheduledFor.toISOString(),
+      scheduledForBRT: scheduledFor.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+      scheduledTimestamp: scheduledTimestamp,
       phone: clienteTelefone.replace(/\d{4}$/, '****'), // Mascara últimos 4 dígitos
-      delayMinutes: delayMinutes,
       delayMs: delayMs,
       buttonsCount: buttons.length,
       attempt: retryCount + 1

@@ -304,7 +304,7 @@ async function createSingleCampaign(
     console.log(`🔹 Data completa local FINAL: ${dataCompleta.toLocaleString('pt-BR')}`);
     console.log(`🔹 Hora da data completa: ${dataCompleta.getHours()}:${dataCompleta.getMinutes()}`);
     
-    // ✅ Calcular MINUTOS a partir de agora (usar horário do servidor)
+    // ✅ Calcular timestamp absoluto e validar
     const now = new Date();
     const delayMs = dataCompleta.getTime() - now.getTime();
     
@@ -324,17 +324,20 @@ async function createSingleCampaign(
       };
     }
     
-    const delayMinutes = Math.ceil(delayMs / 60000);
+    // ✅ CORRIGIDO: usar timestamp absoluto em milissegundos (não minutos relativos)
+    // Isso garante que o envio seja no horário EXATO escolhido,
+    // independente do timezone do servidor onde o código está rodando
+    const scheduledTimestamp = dataCompleta.getTime();
     
     console.log(`⏰ Agendando campanha para: ${dataCompleta.toLocaleString('pt-BR')}`);
-    console.log(`⏰ Delay: ${delayMinutes} minutos a partir de agora`);
+    console.log(`⏰ Timestamp absoluto: ${scheduledTimestamp} (${new Date(scheduledTimestamp).toISOString()})`);
 
     // Preparar payload baseado no tipo
     const payload: any = {
       numbers,
       delayMin: 80,  // Anti-ban: 80-120 segundos ENTRE mensagens
       delayMax: 120,
-      scheduled_for: delayMinutes, // ✅ MINUTOS a partir de agora (não timestamp)
+      scheduled_for: scheduledTimestamp, // ✅ TIMESTAMP absoluto em milissegundos
       info: data.nome,
     };
 
