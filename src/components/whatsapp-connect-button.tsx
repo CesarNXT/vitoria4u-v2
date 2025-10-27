@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Smartphone, QrCode, AlertCircle, Check, Copy } from 'lucide-react'
 import { WhatsAppAPIClient } from '@/lib/whatsapp-api'
-import { WhatsAppTutorial } from '@/app/(dashboard)/configuracoes/whatsapp-tutorial'
 
 interface WhatsAppConnectButtonProps {
   instanceId: string
@@ -26,7 +25,6 @@ export function WhatsAppConnectButton({
   onStatusChange 
 }: WhatsAppConnectButtonProps) {
   const [showDialog, setShowDialog] = useState(false)
-  const [showTutorial, setShowTutorial] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
@@ -122,14 +120,8 @@ export function WhatsAppConnectButton({
     }
   }
 
-  const handleTutorialComplete = () => {
-    setShowTutorial(false)
-    setShowMethodChoice(true) // Mostrar escolha de método
-  }
-
-  const handleTutorialSkip = () => {
-    setShowTutorial(false)
-    setShowMethodChoice(true) // Mostrar escolha de método
+  const handleStartConnection = () => {
+    setShowMethodChoice(true) // Mostrar escolha de método diretamente
   }
 
   const handleMethodChoice = (method: 'paircode' | 'qrcode') => {
@@ -437,19 +429,12 @@ export function WhatsAppConnectButton({
   return (
     <>
       <Button 
-        onClick={() => setShowTutorial(true)} 
+        onClick={handleStartConnection} 
         className="w-full bg-green-600 hover:bg-green-700 text-xs sm:text-sm md:text-base px-3 py-2 h-auto whitespace-normal"
       >
         <Smartphone className="mr-2 h-4 w-4 flex-shrink-0" />
         <span className="break-words">Conectar WhatsApp</span>
       </Button>
-      
-      <WhatsAppTutorial
-        open={showTutorial}
-        onComplete={handleTutorialComplete}
-        onSkip={handleTutorialSkip}
-        onCancel={() => setShowTutorial(false)}
-      />
 
       {/* Dialog de escolha de método */}
       <Dialog open={showMethodChoice} onOpenChange={setShowMethodChoice}>

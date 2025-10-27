@@ -9,7 +9,6 @@ import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
 import { isFuture } from "date-fns";
 import Link from "next/link";
-import { WhatsAppTutorial } from "@/app/(dashboard)/configuracoes/whatsapp-tutorial";
 import { WhatsAppConnectButton } from "@/components/whatsapp-connect-button";
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";

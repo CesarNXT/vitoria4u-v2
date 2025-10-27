@@ -670,7 +670,7 @@ async function processConnectionEvent(body: any) {
       
       // Notificar gestor
       if (business && business.telefone) {
-        await notifyManagerAboutDisconnection(business, lastDisconnectReason);
+        await notifyManagerAboutDisconnection(instanceName, business, lastDisconnectReason);
       }
     }
 
@@ -683,14 +683,31 @@ async function processConnectionEvent(body: any) {
  * Notifica gestor sobre desconexão do WhatsApp
  * 
  * ✅ NÃO envia notificação se desconexão for por expiração de plano
+ * ✅ COOLDOWN: Evita envio duplicado em curto período (5 minutos)
  */
-async function notifyManagerAboutDisconnection(business: any, reason?: string) {
+async function notifyManagerAboutDisconnection(businessId: string, business: any, reason?: string) {
   try {
     // ✅ VERIFICAR: Se desconexão é por expiração, NÃO notificar
     // (O cron já envia mensagem específica de expiração)
     if (business.deletingByExpiration === true) {
       console.log('[WEBHOOK-CONNECTION] ⏭️ Desconexão por expiração - notificação ignorada');
       return;
+    }
+
+    // ✅ COOLDOWN: Verificar se já enviamos notificação recentemente (últimos 5 minutos)
+    const now = new Date();
+    const lastNotification = business.whatsappUltimaNotificacaoDesconexao?.toDate?.() || 
+                             (business.whatsappUltimaNotificacaoDesconexao ? new Date(business.whatsappUltimaNotificacaoDesconexao) : null);
+    
+    if (lastNotification) {
+      const timeSinceLastNotification = now.getTime() - lastNotification.getTime();
+      const cooldownMs = 5 * 60 * 1000; // 5 minutos
+      
+      if (timeSinceLastNotification < cooldownMs) {
+        console.log('[WEBHOOK-CONNECTION] ⏭️ Notificação ignorada - cooldown ativo (5min)');
+        console.log(`[WEBHOOK-CONNECTION] Última notificação: ${Math.round(timeSinceLastNotification / 1000)}s atrás`);
+        return;
+      }
     }
 
     const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://vitoria4u.uazapi.com';
@@ -719,6 +736,11 @@ async function notifyManagerAboutDisconnection(business: any, reason?: string) {
         number: business.telefone.toString().replace(/\D/g, ''),
         text: message
       })
+    });
+    
+    // ✅ Registrar timestamp da notificação no Firestore (para cooldown)
+    await adminDb.collection('negocios').doc(businessId).update({
+      whatsappUltimaNotificacaoDesconexao: new Date()
     });
     
     console.log('[WEBHOOK-CONNECTION] ✅ Notificação de desconexão enviada');
