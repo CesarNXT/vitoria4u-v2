@@ -36,13 +36,22 @@ interface ReminderMessage {
 }
 
 /**
- * Combina data e hora do agendamento
+ * Combina data e hora do agendamento (timezone-aware)
  */
 function combinaDataHora(date: any, startTime: string): Date {
   const dateObj = date instanceof Date ? date : new Date(date);
   const [hours, minutes] = startTime.split(':').map(Number);
-  dateObj.setHours(hours ?? 0, minutes ?? 0, 0, 0);
-  return dateObj;
+  
+  // ✅ CORREÇÃO TIMEZONE: Criar data explicitamente em BRT
+  const ano = dateObj.getFullYear();
+  const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dia = String(dateObj.getDate()).padStart(2, '0');
+  const hora = String(hours ?? 0).padStart(2, '0');
+  const min = String(minutes ?? 0).padStart(2, '0');
+  
+  // Criar data no timezone BRT (Brasil) usando string ISO
+  const dataCompletaStr = `${ano}-${mes}-${dia}T${hora}:${min}:00.000-03:00`;
+  return new Date(dataCompletaStr);
 }
 
 /**
@@ -147,6 +156,9 @@ async function createReminderCampaign(
     const buttons = createConfirmationButtons(type);
     const now = new Date();
     const delayMs = scheduledFor.getTime() - now.getTime();
+    
+    console.log(`🕐 [${type}] Horário agendado: ${scheduledFor.toISOString()} (${scheduledFor.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`);
+    console.log(`🕐 [${type}] Horário atual: ${now.toISOString()} (${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`);
     
     // Se o horário já passou, não enviar
     if (delayMs < 0) {

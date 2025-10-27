@@ -285,23 +285,30 @@ async function createSingleCampaign(
     console.log(`🔹 Hora recebida (data.horaInicio): ${data.horaInicio}`);
     console.log(`🔹 Hora a aplicar: ${horaAgendamento}:${minutoAgendamento}`);
     
-    // ✅ CORREÇÃO TIMEZONE: Pegar dia/mês/ano da data UTC mas aplicar hora local
-    // Usar UTC methods para evitar conversão automática de timezone
-    const dataUTC = new Date(data.dataAgendamento);
-    const ano = dataUTC.getUTCFullYear();
-    const mes = dataUTC.getUTCMonth();
-    const dia = dataUTC.getUTCDate();
+    // ✅ CORREÇÃO TIMEZONE: Pegar dia/mês/ano da data recebida
+    const dataRecebida = new Date(data.dataAgendamento);
     
-    // Criar data no timezone LOCAL com a hora escolhida
-    const dataCompleta = new Date(ano, mes, dia, horaAgendamento || 0, minutoAgendamento || 0, 0, 0);
+    // Criar string de data no formato ISO local para evitar conversão de timezone
+    const anoStr = dataRecebida.getFullYear();
+    const mesStr = String(dataRecebida.getMonth() + 1).padStart(2, '0');
+    const diaStr = String(dataRecebida.getDate()).padStart(2, '0');
+    const horaStr = String(horaAgendamento || 0).padStart(2, '0');
+    const minStr = String(minutoAgendamento || 0).padStart(2, '0');
     
+    // Criar data no timezone BRT (Brasil) usando string ISO
+    const dataCompletaStr = `${anoStr}-${mesStr}-${diaStr}T${horaStr}:${minStr}:00.000-03:00`;
+    const dataCompleta = new Date(dataCompletaStr);
+    
+    console.log(`🔹 Data completa STRING: ${dataCompletaStr}`);
     console.log(`🔹 Data completa FINAL: ${dataCompleta.toISOString()}`);
     console.log(`🔹 Data completa local FINAL: ${dataCompleta.toLocaleString('pt-BR')}`);
     console.log(`🔹 Hora da data completa: ${dataCompleta.getHours()}:${dataCompleta.getMinutes()}`);
     
-    // ✅ Calcular MINUTOS a partir de agora (não timestamp)
+    // ✅ Calcular MINUTOS a partir de agora (usar horário do servidor)
     const now = new Date();
     const delayMs = dataCompleta.getTime() - now.getTime();
+    
+    console.log(`⏰ Horário atual do servidor: ${now.toISOString()} (${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`);
     
     // ✅ VALIDAÇÃO: Buffer mínimo de 10 minutos (apenas para agendamentos de hoje)
     const hoje = new Date();
